@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DeprecatedFieldsTab.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.entryeditor</a> &gt; <span class="el_source">DeprecatedFieldsTab.java</span></div><h1>DeprecatedFieldsTab.java</h1><pre class="source lang-java linenums">package org.jabref.gui.entryeditor;
+
+import java.util.Collections;
+import java.util.Optional;
+import java.util.Set;
+
+import javax.swing.undo.UndoManager;
+
+import javafx.scene.control.Tooltip;
+
+import org.jabref.gui.DialogService;
+import org.jabref.gui.StateManager;
+import org.jabref.gui.autocompleter.SuggestionProviders;
+import org.jabref.gui.externalfiletype.ExternalFileTypes;
+import org.jabref.gui.icon.IconTheme;
+import org.jabref.gui.theme.ThemeManager;
+import org.jabref.gui.util.TaskExecutor;
+import org.jabref.logic.journals.JournalAbbreviationRepository;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.logic.pdf.search.indexing.IndexingTaskManager;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.BibEntryType;
+import org.jabref.model.entry.BibEntryTypesManager;
+import org.jabref.model.entry.field.Field;
+import org.jabref.preferences.PreferencesService;
+
+public class DeprecatedFieldsTab extends FieldsEditorTab {
+
+    private final BibEntryTypesManager entryTypesManager;
+
+    public DeprecatedFieldsTab(BibDatabaseContext databaseContext,
+                               SuggestionProviders suggestionProviders,
+                               UndoManager undoManager,
+                               DialogService dialogService,
+                               PreferencesService preferences,
+                               StateManager stateManager,
+                               ThemeManager themeManager,
+                               IndexingTaskManager indexingTaskManager,
+                               BibEntryTypesManager entryTypesManager,
+                               ExternalFileTypes externalFileTypes,
+                               TaskExecutor taskExecutor,
+                               JournalAbbreviationRepository journalAbbreviationRepository) {
+<span class="nc" id="L44">        super(false, databaseContext, suggestionProviders, undoManager, dialogService, preferences, stateManager, themeManager, externalFileTypes, taskExecutor, journalAbbreviationRepository, indexingTaskManager);</span>
+<span class="nc" id="L45">        this.entryTypesManager = entryTypesManager;</span>
+
+<span class="nc" id="L47">        setText(Localization.lang(&quot;Deprecated fields&quot;));</span>
+<span class="nc" id="L48">        setTooltip(new Tooltip(Localization.lang(&quot;Show deprecated BibTeX fields&quot;)));</span>
+<span class="nc" id="L49">        setGraphic(IconTheme.JabRefIcons.OPTIONAL.getGraphicNode());</span>
+<span class="nc" id="L50">    }</span>
+
+    @Override
+    protected Set&lt;Field&gt; determineFieldsToShow(BibEntry entry) {
+<span class="nc" id="L54">        Optional&lt;BibEntryType&gt; entryType = entryTypesManager.enrich(entry.getType(), databaseContext.getMode());</span>
+<span class="nc bnc" id="L55" title="All 2 branches missed.">        if (entryType.isPresent()) {</span>
+<span class="nc" id="L56">            return entryType.get().getDeprecatedFields();</span>
+
+        } else {
+            // Entry type unknown -&gt; treat all fields as required
+<span class="nc" id="L60">            return Collections.emptySet();</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

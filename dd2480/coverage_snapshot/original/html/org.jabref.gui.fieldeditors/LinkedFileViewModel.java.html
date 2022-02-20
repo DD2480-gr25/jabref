@@ -1,0 +1,598 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LinkedFileViewModel.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.fieldeditors</a> &gt; <span class="el_source">LinkedFileViewModel.java</span></div><h1>LinkedFileViewModel.java</h1><pre class="source lang-java linenums">package org.jabref.gui.fieldeditors;
+
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.BiPredicate;
+import java.util.function.Supplier;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLSocketFactory;
+import javax.xml.transform.TransformerException;
+
+import javafx.beans.Observable;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.StringProperty;
+import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.ButtonBar.ButtonData;
+import javafx.scene.control.ButtonType;
+
+import org.jabref.gui.AbstractViewModel;
+import org.jabref.gui.DialogService;
+import org.jabref.gui.Globals;
+import org.jabref.gui.desktop.JabRefDesktop;
+import org.jabref.gui.externalfiles.FileDownloadTask;
+import org.jabref.gui.externalfiletype.ExternalFileType;
+import org.jabref.gui.externalfiletype.ExternalFileTypes;
+import org.jabref.gui.externalfiletype.StandardExternalFileType;
+import org.jabref.gui.icon.IconTheme;
+import org.jabref.gui.icon.JabRefIcon;
+import org.jabref.gui.linkedfile.LinkedFileEditDialogView;
+import org.jabref.gui.mergeentries.MultiMergeEntriesView;
+import org.jabref.gui.util.BackgroundTask;
+import org.jabref.gui.util.ControlHelper;
+import org.jabref.gui.util.TaskExecutor;
+import org.jabref.logic.exporter.EmbeddedBibFilePdfExporter;
+import org.jabref.logic.externalfiles.LinkedFileHandler;
+import org.jabref.logic.importer.Importer;
+import org.jabref.logic.importer.ParserResult;
+import org.jabref.logic.importer.fileformat.PdfContentImporter;
+import org.jabref.logic.importer.fileformat.PdfEmbeddedBibFileImporter;
+import org.jabref.logic.importer.fileformat.PdfGrobidImporter;
+import org.jabref.logic.importer.fileformat.PdfVerbatimBibTextImporter;
+import org.jabref.logic.importer.fileformat.PdfXmpImporter;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.logic.net.URLDownload;
+import org.jabref.logic.util.io.FileNameUniqueness;
+import org.jabref.logic.util.io.FileUtil;
+import org.jabref.logic.xmp.XmpUtilWriter;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.LinkedFile;
+import org.jabref.model.strings.StringUtil;
+import org.jabref.model.util.FileHelper;
+import org.jabref.model.util.OptionalUtil;
+import org.jabref.preferences.FilePreferences;
+import org.jabref.preferences.PreferencesService;
+
+import de.saxsys.mvvmfx.utils.validation.FunctionBasedValidator;
+import de.saxsys.mvvmfx.utils.validation.ValidationMessage;
+import de.saxsys.mvvmfx.utils.validation.ValidationStatus;
+import de.saxsys.mvvmfx.utils.validation.Validator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class LinkedFileViewModel extends AbstractViewModel {
+
+<span class="fc" id="L76">    private static final Logger LOGGER = LoggerFactory.getLogger(LinkedFileViewModel.class);</span>
+
+    private final LinkedFile linkedFile;
+    private final BibDatabaseContext databaseContext;
+<span class="fc" id="L80">    private final DoubleProperty downloadProgress = new SimpleDoubleProperty(-1);</span>
+<span class="fc" id="L81">    private final BooleanProperty downloadOngoing = new SimpleBooleanProperty(false);</span>
+<span class="fc" id="L82">    private final BooleanProperty isAutomaticallyFound = new SimpleBooleanProperty(false);</span>
+<span class="fc" id="L83">    private final BooleanProperty isOfflinePdf = new SimpleBooleanProperty(false);</span>
+    private final DialogService dialogService;
+    private final BibEntry entry;
+    private final TaskExecutor taskExecutor;
+    private final PreferencesService preferences;
+    private final LinkedFileHandler linkedFileHandler;
+    private final ExternalFileTypes externalFileTypes;
+
+    private final Validator fileExistsValidator;
+
+    public LinkedFileViewModel(LinkedFile linkedFile,
+                               BibEntry entry,
+                               BibDatabaseContext databaseContext,
+                               TaskExecutor taskExecutor,
+                               DialogService dialogService,
+                               PreferencesService preferences,
+<span class="fc" id="L99">                               ExternalFileTypes externalFileTypes) {</span>
+
+<span class="fc" id="L101">        this.linkedFile = linkedFile;</span>
+<span class="fc" id="L102">        this.preferences = preferences;</span>
+<span class="fc" id="L103">        this.linkedFileHandler = new LinkedFileHandler(linkedFile, entry, databaseContext, preferences.getFilePreferences());</span>
+<span class="fc" id="L104">        this.databaseContext = databaseContext;</span>
+<span class="fc" id="L105">        this.entry = entry;</span>
+<span class="fc" id="L106">        this.dialogService = dialogService;</span>
+<span class="fc" id="L107">        this.taskExecutor = taskExecutor;</span>
+<span class="fc" id="L108">        this.externalFileTypes = externalFileTypes;</span>
+
+<span class="fc" id="L110">        fileExistsValidator = new FunctionBasedValidator&lt;&gt;(</span>
+<span class="fc" id="L111">                linkedFile.linkProperty(),</span>
+                link -&gt; {
+<span class="fc bfc" id="L113" title="All 2 branches covered.">                    if (linkedFile.isOnlineLink()) {</span>
+<span class="fc" id="L114">                        return true;</span>
+                    } else {
+<span class="fc" id="L116">                        Optional&lt;Path&gt; path = FileHelper.find(databaseContext, link, preferences.getFilePreferences());</span>
+<span class="pc bpc" id="L117" title="3 of 4 branches missed.">                        return path.isPresent() &amp;&amp; Files.exists(path.get());</span>
+                    }
+                },
+<span class="fc" id="L120">                ValidationMessage.warning(Localization.lang(&quot;Could not find file '%0'.&quot;, linkedFile.getLink())));</span>
+
+<span class="fc" id="L122">        downloadOngoing.bind(downloadProgress.greaterThanOrEqualTo(0).and(downloadProgress.lessThan(1)));</span>
+<span class="fc bfc" id="L123" title="All 4 branches covered.">        isOfflinePdf.setValue(!linkedFile.isOnlineLink() &amp;&amp; linkedFile.getFileType().equalsIgnoreCase(&quot;pdf&quot;));</span>
+<span class="fc" id="L124">    }</span>
+
+    public BooleanProperty isOfflinePdfProperty() {
+<span class="nc" id="L127">        return isOfflinePdf;</span>
+    }
+
+    public boolean isAutomaticallyFound() {
+<span class="nc" id="L131">        return isAutomaticallyFound.get();</span>
+    }
+
+    public BooleanProperty isAutomaticallyFoundProperty() {
+<span class="nc" id="L135">        return isAutomaticallyFound;</span>
+    }
+
+    public BooleanProperty downloadOngoingProperty() {
+<span class="nc" id="L139">        return downloadOngoing;</span>
+    }
+
+    public DoubleProperty downloadProgressProperty() {
+<span class="nc" id="L143">        return downloadProgress;</span>
+    }
+
+    public StringProperty linkProperty() {
+<span class="nc" id="L147">        return linkedFile.linkProperty();</span>
+    }
+
+    public StringProperty descriptionProperty() {
+<span class="nc" id="L151">        return linkedFile.descriptionProperty();</span>
+    }
+
+    public String getDescription() {
+<span class="nc" id="L155">        return linkedFile.getDescription();</span>
+    }
+
+    public String getDescriptionAndLink() {
+<span class="nc bnc" id="L159" title="All 2 branches missed.">        if (StringUtil.isBlank(linkedFile.getDescription())) {</span>
+<span class="nc" id="L160">            return linkedFile.getLink();</span>
+        } else {
+<span class="nc" id="L162">            return linkedFile.getDescription() + &quot; (&quot; + linkedFile.getLink() + &quot;)&quot;;</span>
+        }
+    }
+
+    public String getTruncatedDescriptionAndLink() {
+<span class="nc bnc" id="L167" title="All 2 branches missed.">        if (StringUtil.isBlank(linkedFile.getDescription())) {</span>
+<span class="nc" id="L168">            return ControlHelper.truncateString(linkedFile.getLink(), -1, &quot;...&quot;,</span>
+                    ControlHelper.EllipsisPosition.CENTER);
+        } else {
+<span class="nc" id="L171">            return ControlHelper.truncateString(linkedFile.getDescription(), -1, &quot;...&quot;,</span>
+                    ControlHelper.EllipsisPosition.CENTER) + &quot; (&quot; +
+<span class="nc" id="L173">                    ControlHelper.truncateString(linkedFile.getLink(), -1, &quot;...&quot;,</span>
+                    ControlHelper.EllipsisPosition.CENTER) + &quot;)&quot;;
+        }
+    }
+
+    public Optional&lt;Path&gt; findIn(List&lt;Path&gt; directories) {
+<span class="nc" id="L179">        return linkedFile.findIn(directories);</span>
+    }
+
+    public JabRefIcon getTypeIcon() {
+<span class="nc" id="L183">        return externalFileTypes.fromLinkedFile(linkedFile, false)</span>
+<span class="nc" id="L184">                                .map(ExternalFileType::getIcon)</span>
+<span class="nc" id="L185">                                .orElse(IconTheme.JabRefIcons.FILE);</span>
+    }
+
+    public void markAsAutomaticallyFound() {
+<span class="nc" id="L189">        isAutomaticallyFound.setValue(true);</span>
+<span class="nc" id="L190">    }</span>
+
+    public void acceptAsLinked() {
+<span class="nc" id="L193">        isAutomaticallyFound.setValue(false);</span>
+<span class="nc" id="L194">    }</span>
+
+    public Observable[] getObservables() {
+<span class="nc" id="L197">        List&lt;Observable&gt; observables = new ArrayList&lt;&gt;(Arrays.asList(linkedFile.getObservables()));</span>
+<span class="nc" id="L198">        observables.add(downloadOngoing);</span>
+<span class="nc" id="L199">        observables.add(downloadProgress);</span>
+<span class="nc" id="L200">        observables.add(isAutomaticallyFound);</span>
+<span class="nc" id="L201">        return observables.toArray(new Observable[0]);</span>
+    }
+
+    public void open() {
+        try {
+<span class="nc" id="L206">            Optional&lt;ExternalFileType&gt; type = ExternalFileTypes.getInstance().fromLinkedFile(linkedFile, true);</span>
+<span class="nc" id="L207">            boolean successful = JabRefDesktop.openExternalFileAnyFormat(databaseContext, preferences, linkedFile.getLink(), type);</span>
+<span class="nc bnc" id="L208" title="All 2 branches missed.">            if (!successful) {</span>
+<span class="nc" id="L209">                dialogService.showErrorDialogAndWait(Localization.lang(&quot;File not found&quot;), Localization.lang(&quot;Could not find file '%0'.&quot;, linkedFile.getLink()));</span>
+            }
+<span class="nc" id="L211">        } catch (IOException e) {</span>
+<span class="nc" id="L212">            dialogService.showErrorDialogAndWait(Localization.lang(&quot;Error opening file '%0'.&quot;, linkedFile.getLink()), e);</span>
+<span class="nc" id="L213">        }</span>
+<span class="nc" id="L214">    }</span>
+
+    public void openFolder() {
+        try {
+<span class="nc bnc" id="L218" title="All 2 branches missed.">            if (!linkedFile.isOnlineLink()) {</span>
+<span class="nc" id="L219">                Optional&lt;Path&gt; resolvedPath = FileHelper.find(</span>
+                        databaseContext,
+<span class="nc" id="L221">                        linkedFile.getLink(),</span>
+<span class="nc" id="L222">                        preferences.getFilePreferences());</span>
+
+<span class="nc bnc" id="L224" title="All 2 branches missed.">                if (resolvedPath.isPresent()) {</span>
+<span class="nc" id="L225">                    JabRefDesktop.openFolderAndSelectFile(resolvedPath.get(), preferences);</span>
+                } else {
+<span class="nc" id="L227">                    dialogService.showErrorDialogAndWait(Localization.lang(&quot;File not found&quot;));</span>
+                }
+<span class="nc" id="L229">            } else {</span>
+<span class="nc" id="L230">                dialogService.showErrorDialogAndWait(Localization.lang(&quot;Cannot open folder as the file is an online link.&quot;));</span>
+            }
+<span class="nc" id="L232">        } catch (IOException ex) {</span>
+<span class="nc" id="L233">            LOGGER.debug(&quot;Cannot open folder&quot;, ex);</span>
+<span class="nc" id="L234">        }</span>
+<span class="nc" id="L235">    }</span>
+
+    public void renameToSuggestion() {
+<span class="nc" id="L238">        renameFileToName(linkedFileHandler.getSuggestedFileName());</span>
+<span class="nc" id="L239">    }</span>
+
+    public void askForNameAndRename() {
+<span class="nc" id="L242">        String oldFile = this.linkedFile.getLink();</span>
+<span class="nc" id="L243">        Path oldFilePath = Path.of(oldFile);</span>
+<span class="nc" id="L244">        Optional&lt;String&gt; askedFileName = dialogService.showInputDialogWithDefaultAndWait(</span>
+<span class="nc" id="L245">                Localization.lang(&quot;Rename file&quot;),</span>
+<span class="nc" id="L246">                Localization.lang(&quot;New Filename&quot;),</span>
+<span class="nc" id="L247">                oldFilePath.getFileName().toString());</span>
+<span class="nc" id="L248">        askedFileName.ifPresent(this::renameFileToName);</span>
+<span class="nc" id="L249">    }</span>
+
+    public void renameFileToName(String targetFileName) {
+<span class="nc bnc" id="L252" title="All 2 branches missed.">        if (linkedFile.isOnlineLink()) {</span>
+            // Cannot rename remote links
+<span class="nc" id="L254">            return;</span>
+        }
+
+<span class="nc" id="L257">        Optional&lt;Path&gt; file = linkedFile.findIn(databaseContext, preferences.getFilePreferences());</span>
+<span class="nc bnc" id="L258" title="All 2 branches missed.">        if (file.isPresent()) {</span>
+<span class="nc" id="L259">            performRenameWithConflictCheck(targetFileName);</span>
+        } else {
+<span class="nc" id="L261">            dialogService.showErrorDialogAndWait(Localization.lang(&quot;File not found&quot;), Localization.lang(&quot;Could not find file '%0'.&quot;, linkedFile.getLink()));</span>
+        }
+<span class="nc" id="L263">    }</span>
+
+    private void performRenameWithConflictCheck(String targetFileName) {
+<span class="nc" id="L266">        Optional&lt;Path&gt; existingFile = linkedFileHandler.findExistingFile(linkedFile, entry, targetFileName);</span>
+<span class="nc" id="L267">        boolean overwriteFile = false;</span>
+
+<span class="nc bnc" id="L269" title="All 2 branches missed.">        if (existingFile.isPresent()) {</span>
+<span class="nc" id="L270">            overwriteFile = dialogService.showConfirmationDialogAndWait(</span>
+<span class="nc" id="L271">                    Localization.lang(&quot;File exists&quot;),</span>
+<span class="nc" id="L272">                    Localization.lang(&quot;'%0' exists. Overwrite file?&quot;, targetFileName),</span>
+<span class="nc" id="L273">                    Localization.lang(&quot;Overwrite&quot;));</span>
+
+<span class="nc bnc" id="L275" title="All 2 branches missed.">            if (!overwriteFile) {</span>
+<span class="nc" id="L276">                return;</span>
+            }
+        }
+
+        try {
+<span class="nc" id="L281">            linkedFileHandler.renameToName(targetFileName, overwriteFile);</span>
+<span class="nc" id="L282">        } catch (IOException e) {</span>
+<span class="nc" id="L283">            dialogService.showErrorDialogAndWait(Localization.lang(&quot;Rename failed&quot;), Localization.lang(&quot;JabRef cannot access the file because it is being used by another process.&quot;));</span>
+<span class="nc" id="L284">        }</span>
+<span class="nc" id="L285">    }</span>
+
+    public void moveToDefaultDirectory() {
+<span class="nc bnc" id="L288" title="All 2 branches missed.">        if (linkedFile.isOnlineLink()) {</span>
+            // Cannot move remote links
+<span class="nc" id="L290">            return;</span>
+        }
+
+        // Get target folder
+<span class="nc" id="L294">        Optional&lt;Path&gt; fileDir = databaseContext.getFirstExistingFileDir(preferences.getFilePreferences());</span>
+<span class="nc bnc" id="L295" title="All 2 branches missed.">        if (fileDir.isEmpty()) {</span>
+<span class="nc" id="L296">            dialogService.showErrorDialogAndWait(Localization.lang(&quot;Move file&quot;), Localization.lang(&quot;File directory is not set or does not exist!&quot;));</span>
+<span class="nc" id="L297">            return;</span>
+        }
+
+<span class="nc" id="L300">        Optional&lt;Path&gt; file = linkedFile.findIn(databaseContext, preferences.getFilePreferences());</span>
+<span class="nc bnc" id="L301" title="All 2 branches missed.">        if ((file.isPresent())) {</span>
+            // Found the linked file, so move it
+            try {
+<span class="nc" id="L304">                linkedFileHandler.moveToDefaultDirectory();</span>
+<span class="nc" id="L305">            } catch (IOException exception) {</span>
+<span class="nc" id="L306">                dialogService.showErrorDialogAndWait(</span>
+<span class="nc" id="L307">                        Localization.lang(&quot;Move file&quot;),</span>
+<span class="nc" id="L308">                        Localization.lang(&quot;Could not move file '%0'.&quot;, file.get().toString()),</span>
+                        exception);
+<span class="nc" id="L310">            }</span>
+        } else {
+            // File doesn't exist, so we can't move it.
+<span class="nc" id="L313">            dialogService.showErrorDialogAndWait(Localization.lang(&quot;File not found&quot;), Localization.lang(&quot;Could not find file '%0'.&quot;, linkedFile.getLink()));</span>
+        }
+<span class="nc" id="L315">    }</span>
+
+    /**
+     * Gets the filename for the current linked file and compares it to the new suggested filename.
+     *
+     * @return true if the suggested filename is same as current filename.
+     */
+    public boolean isGeneratedNameSameAsOriginal() {
+<span class="nc" id="L323">        Path file = Path.of(this.linkedFile.getLink());</span>
+<span class="nc" id="L324">        String currentFileName = file.getFileName().toString();</span>
+<span class="nc" id="L325">        String suggestedFileName = this.linkedFileHandler.getSuggestedFileName();</span>
+
+<span class="nc" id="L327">        return currentFileName.equals(suggestedFileName);</span>
+    }
+
+    /**
+     * Compares suggested directory of current linkedFile with existing filepath directory.
+     *
+     * @return true if suggested filepath is same as existing filepath.
+     */
+    public boolean isGeneratedPathSameAsOriginal() {
+<span class="fc" id="L336">        FilePreferences filePreferences = preferences.getFilePreferences();</span>
+<span class="fc" id="L337">        Optional&lt;Path&gt; baseDir = databaseContext.getFirstExistingFileDir(filePreferences);</span>
+<span class="pc bpc" id="L338" title="1 of 2 branches missed.">        if (baseDir.isEmpty()) {</span>
+            // could not find default path
+<span class="nc" id="L340">            return false;</span>
+        }
+
+        // append File directory pattern if exits
+<span class="fc" id="L344">        String targetDirectoryName = FileUtil.createDirNameFromPattern(</span>
+<span class="fc" id="L345">                databaseContext.getDatabase(),</span>
+                entry,
+<span class="fc" id="L347">                filePreferences.getFileDirectoryPattern());</span>
+
+<span class="fc" id="L349">        Optional&lt;Path&gt; targetDir = baseDir.map(dir -&gt; dir.resolve(targetDirectoryName));</span>
+
+<span class="fc" id="L351">        Optional&lt;Path&gt; currentDir = linkedFile.findIn(databaseContext, preferences.getFilePreferences()).map(Path::getParent);</span>
+<span class="pc bpc" id="L352" title="1 of 2 branches missed.">        if (currentDir.isEmpty()) {</span>
+            // Could not find file
+<span class="nc" id="L354">            return false;</span>
+        }
+
+<span class="fc" id="L357">        BiPredicate&lt;Path, Path&gt; equality = (fileA, fileB) -&gt; {</span>
+            try {
+<span class="fc" id="L359">                return Files.isSameFile(fileA, fileB);</span>
+<span class="fc" id="L360">            } catch (IOException e) {</span>
+<span class="fc" id="L361">                return false;</span>
+            }
+        };
+<span class="fc" id="L364">        return OptionalUtil.equals(targetDir, currentDir, equality);</span>
+    }
+
+    public void moveToDefaultDirectoryAndRename() {
+<span class="nc" id="L368">        moveToDefaultDirectory();</span>
+<span class="nc" id="L369">        renameToSuggestion();</span>
+<span class="nc" id="L370">    }</span>
+
+    /**
+     * Asks the user for confirmation that he really wants to the delete the file from disk (or just remove the link).
+     *
+     * @return true if the linked file should be removed afterwards from the entry (i.e because it was deleted
+     * successfully, does not exist in the first place or the user choose to remove it)
+     */
+    public boolean delete() {
+<span class="fc" id="L379">        Optional&lt;Path&gt; file = linkedFile.findIn(databaseContext, preferences.getFilePreferences());</span>
+
+<span class="fc bfc" id="L381" title="All 2 branches covered.">        if (file.isEmpty()) {</span>
+<span class="fc" id="L382">            LOGGER.warn(&quot;Could not find file &quot; + linkedFile.getLink());</span>
+<span class="fc" id="L383">            return true;</span>
+        }
+
+<span class="fc" id="L386">        ButtonType removeFromEntry = new ButtonType(Localization.lang(&quot;Remove from entry&quot;), ButtonData.YES);</span>
+<span class="fc" id="L387">        ButtonType deleteFromEntry = new ButtonType(Localization.lang(&quot;Delete from disk&quot;));</span>
+<span class="fc" id="L388">        Optional&lt;ButtonType&gt; buttonType = dialogService.showCustomButtonDialogAndWait(AlertType.INFORMATION,</span>
+<span class="fc" id="L389">                Localization.lang(&quot;Delete '%0'&quot;, file.get().toString()),</span>
+<span class="fc" id="L390">                Localization.lang(&quot;Delete the selected file permanently from disk, or just remove the file from the entry? Pressing Delete will delete the file permanently from disk.&quot;),</span>
+                removeFromEntry, deleteFromEntry, ButtonType.CANCEL);
+
+<span class="pc bpc" id="L393" title="1 of 2 branches missed.">        if (buttonType.isPresent()) {</span>
+<span class="fc bfc" id="L394" title="All 2 branches covered.">            if (buttonType.get().equals(removeFromEntry)) {</span>
+<span class="fc" id="L395">                return true;</span>
+            }
+
+<span class="fc bfc" id="L398" title="All 2 branches covered.">            if (buttonType.get().equals(deleteFromEntry)) {</span>
+                try {
+<span class="fc" id="L400">                    Files.delete(file.get());</span>
+<span class="fc" id="L401">                    return true;</span>
+<span class="nc" id="L402">                } catch (IOException ex) {</span>
+<span class="nc" id="L403">                    dialogService.showErrorDialogAndWait(Localization.lang(&quot;Cannot delete file&quot;), Localization.lang(&quot;File permission error&quot;));</span>
+<span class="nc" id="L404">                    LOGGER.warn(&quot;File permission error while deleting: &quot; + linkedFile, ex);</span>
+                }
+            }
+        }
+<span class="fc" id="L408">        return false;</span>
+    }
+
+    public void edit() {
+<span class="nc" id="L412">        Optional&lt;LinkedFile&gt; editedFile = dialogService.showCustomDialogAndWait(new LinkedFileEditDialogView(this.linkedFile));</span>
+<span class="nc" id="L413">        editedFile.ifPresent(file -&gt; {</span>
+<span class="nc" id="L414">            this.linkedFile.setLink(file.getLink());</span>
+<span class="nc" id="L415">            this.linkedFile.setDescription(file.getDescription());</span>
+<span class="nc" id="L416">            this.linkedFile.setFileType(file.getFileType());</span>
+<span class="nc" id="L417">        });</span>
+<span class="nc" id="L418">    }</span>
+
+    public void writeMetadataToPdf() {
+<span class="nc" id="L421">        BackgroundTask&lt;Void&gt; writeTask = BackgroundTask.wrap(() -&gt; {</span>
+<span class="nc" id="L422">            Optional&lt;Path&gt; file = linkedFile.findIn(databaseContext, preferences.getFilePreferences());</span>
+<span class="nc bnc" id="L423" title="All 2 branches missed.">            if (file.isEmpty()) {</span>
+                // TODO: Print error message
+                // Localization.lang(&quot;PDF does not exist&quot;);
+            } else {
+                try {
+<span class="nc" id="L428">                    XmpUtilWriter.writeXmp(file.get(), entry, databaseContext.getDatabase(), preferences.getXmpPreferences());</span>
+
+<span class="nc" id="L430">                    EmbeddedBibFilePdfExporter embeddedBibExporter = new EmbeddedBibFilePdfExporter(preferences.getGeneralPreferences().getDefaultBibDatabaseMode(), Globals.entryTypesManager, preferences.getFieldWriterPreferences());</span>
+<span class="nc" id="L431">                    embeddedBibExporter.exportToFileByPath(databaseContext, databaseContext.getDatabase(), preferences.getGeneralPreferences().getDefaultEncoding(), preferences.getFilePreferences(), file.get());</span>
+<span class="nc" id="L432">                } catch (IOException | TransformerException ex) {</span>
+                    // TODO: Print error message
+                    // Localization.lang(&quot;Error while writing&quot;) + &quot; '&quot; + file.toString() + &quot;': &quot; + ex;
+<span class="nc" id="L435">                }</span>
+            }
+<span class="nc" id="L437">            return null;</span>
+        });
+
+        // TODO: Show progress
+<span class="nc" id="L441">        taskExecutor.execute(writeTask);</span>
+<span class="nc" id="L442">    }</span>
+
+    public void download() {
+<span class="pc bpc" id="L445" title="1 of 2 branches missed.">        if (!linkedFile.isOnlineLink()) {</span>
+<span class="nc" id="L446">            throw new UnsupportedOperationException(&quot;In order to download the file it has to be an online link&quot;);</span>
+        }
+        try {
+<span class="fc" id="L449">            Optional&lt;Path&gt; targetDirectory = databaseContext.getFirstExistingFileDir(preferences.getFilePreferences());</span>
+<span class="pc bpc" id="L450" title="1 of 2 branches missed.">            if (targetDirectory.isEmpty()) {</span>
+<span class="nc" id="L451">                dialogService.showErrorDialogAndWait(Localization.lang(&quot;Download file&quot;), Localization.lang(&quot;File directory is not set or does not exist!&quot;));</span>
+<span class="nc" id="L452">                return;</span>
+            }
+
+<span class="fc" id="L455">            URLDownload urlDownload = new URLDownload(linkedFile.getLink());</span>
+<span class="pc bpc" id="L456" title="1 of 2 branches missed.">            if (!checkSSLHandshake(urlDownload)) {</span>
+<span class="nc" id="L457">                return;</span>
+            }
+
+<span class="fc" id="L460">            BackgroundTask&lt;Path&gt; downloadTask = prepareDownloadTask(targetDirectory.get(), urlDownload);</span>
+<span class="fc" id="L461">            downloadTask.onSuccess(destination -&gt; {</span>
+<span class="fc" id="L462">                boolean isDuplicate = false;</span>
+                try {
+<span class="fc" id="L464">                    isDuplicate = FileNameUniqueness.isDuplicatedFile(targetDirectory.get(), destination.getFileName(), dialogService);</span>
+<span class="nc" id="L465">                } catch (IOException e) {</span>
+<span class="nc" id="L466">                    LOGGER.error(&quot;FileNameUniqueness.isDuplicatedFile failed&quot;, e);</span>
+<span class="nc" id="L467">                    return;</span>
+<span class="fc" id="L468">                }</span>
+
+<span class="pc bpc" id="L470" title="1 of 2 branches missed.">                if (!isDuplicate) {</span>
+<span class="fc" id="L471">                    LinkedFile newLinkedFile = LinkedFilesEditorViewModel.fromFile(destination, databaseContext.getFileDirectories(preferences.getFilePreferences()), externalFileTypes);</span>
+<span class="fc" id="L472">                    List&lt;LinkedFile&gt; linkedFiles = entry.getFiles();</span>
+
+<span class="fc" id="L474">                    entry.addLinkedFile(entry, linkedFile, newLinkedFile, linkedFiles);</span>
+
+                    // Notify in bar when the file type is HTML.
+<span class="fc bfc" id="L477" title="All 2 branches covered.">                    if (newLinkedFile.getFileType().equals(StandardExternalFileType.URL.getName())) {</span>
+<span class="fc" id="L478">                        dialogService.notify(Localization.lang(&quot;Downloaded website as an HTML file.&quot;));</span>
+<span class="fc" id="L479">                        LOGGER.debug(&quot;Downloaded website {} as an HTML file at {}&quot;, linkedFile.getLink(), destination);</span>
+                    }
+                }
+<span class="fc" id="L482">            });</span>
+<span class="fc" id="L483">            downloadProgress.bind(downloadTask.workDonePercentageProperty());</span>
+<span class="fc" id="L484">            downloadTask.titleProperty().set(Localization.lang(&quot;Downloading&quot;));</span>
+<span class="fc" id="L485">            downloadTask.messageProperty().set(</span>
+<span class="fc" id="L486">                    Localization.lang(&quot;Fulltext for&quot;) + &quot;: &quot; + entry.getCitationKey().orElse(Localization.lang(&quot;New entry&quot;)));</span>
+<span class="fc" id="L487">            downloadTask.showToUser(true);</span>
+<span class="fc" id="L488">            taskExecutor.execute(downloadTask);</span>
+<span class="nc" id="L489">        } catch (MalformedURLException exception) {</span>
+<span class="nc" id="L490">            dialogService.showErrorDialogAndWait(Localization.lang(&quot;Invalid URL&quot;), exception);</span>
+<span class="fc" id="L491">        }</span>
+<span class="fc" id="L492">    }</span>
+
+    public boolean checkSSLHandshake(URLDownload urlDownload) {
+        try {
+<span class="fc" id="L496">            urlDownload.canBeReached();</span>
+<span class="nc" id="L497">        } catch (kong.unirest.UnirestException ex) {</span>
+<span class="nc bnc" id="L498" title="All 2 branches missed.">            if (ex.getCause() instanceof javax.net.ssl.SSLHandshakeException) {</span>
+<span class="nc bnc" id="L499" title="All 2 branches missed.">                if (dialogService.showConfirmationDialogAndWait(Localization.lang(&quot;Download file&quot;),</span>
+<span class="nc" id="L500">                        Localization.lang(&quot;Unable to find valid certification path to requested target(%0), download anyway?&quot;,</span>
+<span class="nc" id="L501">                                urlDownload.getSource().toString()))) {</span>
+<span class="nc" id="L502">                    return true;</span>
+                } else {
+<span class="nc" id="L504">                    dialogService.notify(Localization.lang(&quot;Download operation canceled.&quot;));</span>
+                }
+            }
+<span class="nc" id="L507">            return false;</span>
+<span class="fc" id="L508">        }</span>
+<span class="fc" id="L509">        return true;</span>
+    }
+
+    public BackgroundTask&lt;Path&gt; prepareDownloadTask(Path targetDirectory, URLDownload urlDownload) {
+<span class="fc" id="L513">        SSLSocketFactory defaultSSLSocketFactory = HttpsURLConnection.getDefaultSSLSocketFactory();</span>
+<span class="fc" id="L514">        HostnameVerifier defaultHostnameVerifier = HttpsURLConnection.getDefaultHostnameVerifier();</span>
+<span class="fc" id="L515">        BackgroundTask&lt;Path&gt; downloadTask = BackgroundTask</span>
+<span class="fc" id="L516">                .wrap(() -&gt; {</span>
+<span class="fc" id="L517">                    Optional&lt;ExternalFileType&gt; suggestedType = inferFileType(urlDownload);</span>
+<span class="fc" id="L518">                    ExternalFileType externalFileType = suggestedType.orElse(StandardExternalFileType.PDF);</span>
+<span class="fc" id="L519">                    String suggestedTypeName = externalFileType.getName();</span>
+<span class="fc" id="L520">                    linkedFile.setFileType(suggestedTypeName);</span>
+<span class="fc" id="L521">                    String suggestedName = linkedFileHandler.getSuggestedFileName(externalFileType.getExtension());</span>
+<span class="fc" id="L522">                    String fulltextDir = FileUtil.createDirNameFromPattern(databaseContext.getDatabase(), entry, preferences.getFilePreferences().getFileDirectoryPattern());</span>
+<span class="fc" id="L523">                    suggestedName = FileNameUniqueness.getNonOverWritingFileName(targetDirectory.resolve(fulltextDir), suggestedName);</span>
+<span class="fc" id="L524">                    return targetDirectory.resolve(fulltextDir).resolve(suggestedName);</span>
+                })
+<span class="fc" id="L526">                .then(destination -&gt; new FileDownloadTask(urlDownload.getSource(), destination))</span>
+<span class="fc" id="L527">                .onFinished(() -&gt; URLDownload.setSSLVerification(defaultSSLSocketFactory, defaultHostnameVerifier))</span>
+<span class="pc" id="L528">                .onFailure(exception -&gt; dialogService.showErrorDialogAndWait(&quot;Download failed&quot;, exception));</span>
+<span class="fc" id="L529">        return downloadTask;</span>
+    }
+
+    private Optional&lt;ExternalFileType&gt; inferFileType(URLDownload urlDownload) {
+<span class="fc" id="L533">        Optional&lt;ExternalFileType&gt; suggestedType = inferFileTypeFromMimeType(urlDownload);</span>
+
+        // If we did not find a file type from the MIME type, try based on extension:
+<span class="pc bpc" id="L536" title="1 of 2 branches missed.">        if (suggestedType.isEmpty()) {</span>
+<span class="nc" id="L537">            suggestedType = inferFileTypeFromURL(urlDownload.getSource().toExternalForm());</span>
+        }
+<span class="fc" id="L539">        return suggestedType;</span>
+    }
+
+    private Optional&lt;ExternalFileType&gt; inferFileTypeFromMimeType(URLDownload urlDownload) {
+<span class="fc" id="L543">        String mimeType = urlDownload.getMimeType();</span>
+
+<span class="pc bpc" id="L545" title="1 of 2 branches missed.">        if (mimeType != null) {</span>
+<span class="fc" id="L546">            LOGGER.debug(&quot;MIME Type suggested: &quot; + mimeType);</span>
+<span class="fc" id="L547">            return externalFileTypes.getExternalFileTypeByMimeType(mimeType);</span>
+        } else {
+<span class="nc" id="L549">            return Optional.empty();</span>
+        }
+    }
+
+    private Optional&lt;ExternalFileType&gt; inferFileTypeFromURL(String url) {
+<span class="nc" id="L554">        return URLUtil.getSuffix(url)</span>
+<span class="nc" id="L555">                      .flatMap(externalFileTypes::getExternalFileTypeByExt);</span>
+    }
+
+    public LinkedFile getFile() {
+<span class="nc" id="L559">        return linkedFile;</span>
+    }
+
+    public ValidationStatus fileExistsValidationStatus() {
+<span class="nc" id="L563">        return fileExistsValidator.getValidationStatus();</span>
+    }
+
+    public void parsePdfMetadataAndShowMergeDialog() {
+<span class="nc" id="L567">        linkedFile.findIn(databaseContext, preferences.getFilePreferences()).ifPresent(filePath -&gt; {</span>
+<span class="nc" id="L568">            MultiMergeEntriesView dialog = new MultiMergeEntriesView(preferences, taskExecutor);</span>
+<span class="nc" id="L569">            dialog.addSource(Localization.lang(&quot;Entry&quot;), entry);</span>
+<span class="nc" id="L570">            dialog.addSource(Localization.lang(&quot;Verbatim&quot;), wrapImporterToSupplier(new PdfVerbatimBibTextImporter(preferences.getImportFormatPreferences()), filePath));</span>
+<span class="nc" id="L571">            dialog.addSource(Localization.lang(&quot;Embedded&quot;), wrapImporterToSupplier(new PdfEmbeddedBibFileImporter(preferences.getImportFormatPreferences()), filePath));</span>
+<span class="nc bnc" id="L572" title="All 2 branches missed.">            if (preferences.getImporterPreferences().isGrobidEnabled()) {</span>
+<span class="nc" id="L573">                dialog.addSource(&quot;Grobid&quot;, wrapImporterToSupplier(new PdfGrobidImporter(preferences.getImporterPreferences(), preferences.getImportFormatPreferences()), filePath));</span>
+            }
+<span class="nc" id="L575">            dialog.addSource(Localization.lang(&quot;XMP metadata&quot;), wrapImporterToSupplier(new PdfXmpImporter(preferences.getXmpPreferences()), filePath));</span>
+<span class="nc" id="L576">            dialog.addSource(Localization.lang(&quot;Content&quot;), wrapImporterToSupplier(new PdfContentImporter(preferences.getImportFormatPreferences()), filePath));</span>
+<span class="nc" id="L577">            dialog.showAndWait().ifPresent(newEntry -&gt; {</span>
+<span class="nc" id="L578">                databaseContext.getDatabase().removeEntry(entry);</span>
+<span class="nc" id="L579">                databaseContext.getDatabase().insertEntry(newEntry);</span>
+<span class="nc" id="L580">            });</span>
+<span class="nc" id="L581">        });</span>
+<span class="nc" id="L582">    }</span>
+
+    private Supplier&lt;BibEntry&gt; wrapImporterToSupplier(Importer importer, Path filePath) {
+<span class="nc" id="L585">        return () -&gt; {</span>
+            try {
+<span class="nc" id="L587">                ParserResult parserResult = importer.importDatabase(filePath, preferences.getGeneralPreferences().getDefaultEncoding());</span>
+<span class="nc bnc" id="L588" title="All 6 branches missed.">                if (parserResult.isInvalid() || parserResult.isEmpty() || !parserResult.getDatabase().hasEntries()) {</span>
+<span class="nc" id="L589">                    return null;</span>
+                }
+<span class="nc" id="L591">                return parserResult.getDatabase().getEntries().get(0);</span>
+<span class="nc" id="L592">            } catch (IOException e) {</span>
+<span class="nc" id="L593">                return null;</span>
+            }
+        };
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

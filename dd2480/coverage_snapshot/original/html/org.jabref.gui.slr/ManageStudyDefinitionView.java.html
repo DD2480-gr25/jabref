@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ManageStudyDefinitionView.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.slr</a> &gt; <span class="el_source">ManageStudyDefinitionView.java</span></div><h1>ManageStudyDefinitionView.java</h1><pre class="source lang-java linenums">package org.jabref.gui.slr;
+
+import java.nio.file.Path;
+import java.util.Objects;
+import java.util.StringJoiner;
+import java.util.function.Consumer;
+
+import javax.inject.Inject;
+
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.fxml.FXML;
+import javafx.scene.Node;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
+import javafx.scene.control.cell.CheckBoxTableCell;
+import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.scene.input.KeyCode;
+
+import org.jabref.gui.DialogService;
+import org.jabref.gui.icon.IconTheme;
+import org.jabref.gui.theme.ThemeManager;
+import org.jabref.gui.util.BaseDialog;
+import org.jabref.gui.util.DirectoryDialogConfiguration;
+import org.jabref.gui.util.ValueTableCellFactory;
+import org.jabref.gui.util.ViewModelListCellFactory;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.model.study.Study;
+import org.jabref.preferences.PreferencesService;
+
+import com.airhacks.afterburner.views.ViewLoader;
+
+/**
+ * This class controls the user interface of the study definition management dialog. The UI elements and their layout
+ * are defined in the FXML file.
+ */
+public class ManageStudyDefinitionView extends BaseDialog&lt;SlrStudyAndDirectory&gt; {
+    @FXML private TextField studyTitle;
+    @FXML private TextField addAuthor;
+    @FXML private TextField addResearchQuestion;
+    @FXML private TextField addQuery;
+    @FXML private ComboBox&lt;StudyDatabaseItem&gt; databaseSelector;
+    @FXML private TextField studyDirectory;
+
+    @FXML private ButtonType saveButtonType;
+    @FXML private Label helpIcon;
+
+    @FXML private TableView&lt;String&gt; authorTableView;
+    @FXML private TableColumn&lt;String, String&gt; authorsColumn;
+    @FXML private TableColumn&lt;String, String&gt; authorsActionColumn;
+
+    @FXML private TableView&lt;String&gt; questionTableView;
+    @FXML private TableColumn&lt;String, String&gt; questionsColumn;
+    @FXML private TableColumn&lt;String, String&gt; questionsActionColumn;
+
+    @FXML private TableView&lt;String&gt; queryTableView;
+    @FXML private TableColumn&lt;String, String&gt; queriesColumn;
+    @FXML private TableColumn&lt;String, String&gt; queriesActionColumn;
+
+    @FXML private TableView&lt;StudyDatabaseItem&gt; databaseTable;
+    @FXML private TableColumn&lt;StudyDatabaseItem, Boolean&gt; databaseEnabledColumn;
+    @FXML private TableColumn&lt;StudyDatabaseItem, String&gt; databaseColumn;
+    @FXML private TableColumn&lt;StudyDatabaseItem, String&gt; databaseActionColumn;
+
+    @Inject private DialogService dialogService;
+    @Inject private PreferencesService prefs;
+    @Inject private ThemeManager themeManager;
+
+    private ManageStudyDefinitionViewModel viewModel;
+    private final Study study;
+
+    private final Path workingDirectory;
+
+    /**
+     * This can be used to either create new study objects or edit existing ones.
+     *
+     * @param study          null if a new study is created. Otherwise the study object to edit.
+     * @param studyDirectory the directory where the study to edit is located (null if a new study is created)
+     */
+<span class="nc" id="L86">    public ManageStudyDefinitionView(Study study, Path studyDirectory, Path workingDirectory) {</span>
+        // If an existing study is edited, open the directory dialog at the directory the study is stored
+<span class="nc bnc" id="L88" title="All 2 branches missed.">        this.workingDirectory = Objects.isNull(studyDirectory) ? workingDirectory : studyDirectory;</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        this.setTitle(Objects.isNull(studyDirectory) ? Localization.lang(&quot;Define study parameters&quot;) : Localization.lang(&quot;Manage study definition&quot;));</span>
+<span class="nc" id="L90">        this.study = study;</span>
+
+<span class="nc" id="L92">        ViewLoader.view(this)</span>
+<span class="nc" id="L93">                  .load()</span>
+<span class="nc" id="L94">                  .setAsDialogPane(this);</span>
+
+<span class="nc" id="L96">        setupSaveButton();</span>
+
+<span class="nc" id="L98">        themeManager.updateFontStyle(getDialogPane().getScene());</span>
+<span class="nc" id="L99">    }</span>
+
+    private void setupSaveButton() {
+<span class="nc" id="L102">        Button saveButton = ((Button) this.getDialogPane().lookupButton(saveButtonType));</span>
+
+<span class="nc" id="L104">        saveButton.disableProperty().bind(Bindings.or(Bindings.or(</span>
+<span class="nc" id="L105">                Bindings.or(</span>
+<span class="nc" id="L106">                        Bindings.or(Bindings.isEmpty(viewModel.getQueries()), Bindings.isEmpty(viewModel.getDatabases())),</span>
+<span class="nc" id="L107">                        Bindings.isEmpty(viewModel.getAuthors())),</span>
+<span class="nc" id="L108">                viewModel.getTitle().isEmpty()), viewModel.getDirectory().isEmpty()));</span>
+
+<span class="nc" id="L110">        setResultConverter(button -&gt; {</span>
+<span class="nc bnc" id="L111" title="All 2 branches missed.">            if (button == saveButtonType) {</span>
+<span class="nc" id="L112">                return viewModel.saveStudy();</span>
+            }
+            // Cancel button will return null
+<span class="nc" id="L115">            return null;</span>
+        });
+<span class="nc" id="L117">    }</span>
+
+    @FXML
+    private void initialize() {
+<span class="nc" id="L121">        viewModel = new ManageStudyDefinitionViewModel(study, workingDirectory, prefs.getImportFormatPreferences());</span>
+
+        // Listen whether any databases are removed from selection -&gt; Add back to the database selector
+<span class="nc" id="L124">        studyTitle.textProperty().bindBidirectional(viewModel.titleProperty());</span>
+<span class="nc" id="L125">        studyDirectory.textProperty().bindBidirectional(viewModel.getDirectory());</span>
+
+<span class="nc" id="L127">        initAuthorTab();</span>
+<span class="nc" id="L128">        initQuestionsTab();</span>
+<span class="nc" id="L129">        initQueriesTab();</span>
+<span class="nc" id="L130">        initDatabasesTab();</span>
+<span class="nc" id="L131">    }</span>
+
+    private void initAuthorTab() {
+<span class="nc" id="L134">        setupCommonPropertiesForTables(addAuthor, this::addAuthor, authorsColumn, authorsActionColumn);</span>
+<span class="nc" id="L135">        setupCellFactories(authorsColumn, authorsActionColumn, viewModel::deleteAuthor);</span>
+<span class="nc" id="L136">        authorTableView.setItems(viewModel.getAuthors());</span>
+<span class="nc" id="L137">    }</span>
+
+    private void initQuestionsTab() {
+<span class="nc" id="L140">        setupCommonPropertiesForTables(addResearchQuestion, this::addResearchQuestion, questionsColumn, questionsActionColumn);</span>
+<span class="nc" id="L141">        setupCellFactories(questionsColumn, questionsActionColumn, viewModel::deleteQuestion);</span>
+<span class="nc" id="L142">        questionTableView.setItems(viewModel.getResearchQuestions());</span>
+<span class="nc" id="L143">    }</span>
+
+    private void initQueriesTab() {
+<span class="nc" id="L146">        setupCommonPropertiesForTables(addQuery, this::addQuery, queriesColumn, queriesActionColumn);</span>
+<span class="nc" id="L147">        setupCellFactories(queriesColumn, queriesActionColumn, viewModel::deleteQuery);</span>
+<span class="nc" id="L148">        queryTableView.setItems(viewModel.getQueries());</span>
+
+        // TODO: Keep until PR #7279 is merged
+<span class="nc" id="L151">        helpIcon.setTooltip(new Tooltip(new StringJoiner(&quot;\n&quot;)</span>
+<span class="nc" id="L152">                .add(Localization.lang(&quot;Query terms are separated by spaces.&quot;))</span>
+<span class="nc" id="L153">                .add(Localization.lang(&quot;All query terms are joined using the logical AND, and OR operators&quot;) + &quot;.&quot;)</span>
+<span class="nc" id="L154">                .add(Localization.lang(&quot;If the sequence of terms is relevant wrap them in double quotes&quot;) + &quot;(\&quot;).&quot;)</span>
+<span class="nc" id="L155">                .add(Localization.lang(&quot;An example:&quot;) + &quot; rain AND (clouds OR drops) AND \&quot;precipitation distribution\&quot;&quot;)</span>
+<span class="nc" id="L156">                .toString()));</span>
+<span class="nc" id="L157">    }</span>
+
+    private void initDatabasesTab() {
+<span class="nc" id="L160">        new ViewModelListCellFactory&lt;StudyDatabaseItem&gt;().withText(StudyDatabaseItem::getName)</span>
+<span class="nc" id="L161">                                                         .install(databaseSelector);</span>
+<span class="nc" id="L162">        databaseSelector.setItems(viewModel.getNonSelectedDatabases());</span>
+
+<span class="nc" id="L164">        setupCommonPropertiesForTables(databaseSelector, this::addDatabase, databaseColumn, databaseActionColumn);</span>
+
+<span class="nc" id="L166">        databaseEnabledColumn.setResizable(false);</span>
+<span class="nc" id="L167">        databaseEnabledColumn.setReorderable(false);</span>
+<span class="nc" id="L168">        databaseEnabledColumn.setCellValueFactory(param -&gt; param.getValue().enabledProperty());</span>
+<span class="nc" id="L169">        databaseEnabledColumn.setCellFactory(CheckBoxTableCell.forTableColumn(databaseEnabledColumn));</span>
+
+<span class="nc" id="L171">        databaseColumn.setCellValueFactory(param -&gt; param.getValue().nameProperty());</span>
+<span class="nc" id="L172">        databaseActionColumn.setCellValueFactory(param -&gt; param.getValue().nameProperty());</span>
+<span class="nc" id="L173">        new ValueTableCellFactory&lt;org.jabref.gui.slr.StudyDatabaseItem, String&gt;()</span>
+<span class="nc" id="L174">                .withGraphic(item -&gt; IconTheme.JabRefIcons.DELETE_ENTRY.getGraphicNode())</span>
+<span class="nc" id="L175">                .withTooltip(name -&gt; Localization.lang(&quot;Remove&quot;))</span>
+<span class="nc" id="L176">                .withOnMouseClickedEvent(item -&gt; evt -&gt;</span>
+<span class="nc" id="L177">                        viewModel.removeDatabase(item))</span>
+<span class="nc" id="L178">                .install(databaseActionColumn);</span>
+
+<span class="nc" id="L180">        databaseTable.setItems(viewModel.getDatabases());</span>
+<span class="nc" id="L181">    }</span>
+
+    private void setupCommonPropertiesForTables(Node addControl,
+                                                Runnable addAction,
+                                                TableColumn&lt;?, String&gt; contentColumn,
+                                                TableColumn&lt;?, String&gt; actionColumn) {
+<span class="nc" id="L187">        addControl.setOnKeyPressed(event -&gt; {</span>
+<span class="nc bnc" id="L188" title="All 2 branches missed.">            if (event.getCode() == KeyCode.ENTER) {</span>
+<span class="nc" id="L189">                addAction.run();</span>
+            }
+<span class="nc" id="L191">        });</span>
+
+<span class="nc" id="L193">        contentColumn.setReorderable(false);</span>
+<span class="nc" id="L194">        contentColumn.setCellFactory(TextFieldTableCell.forTableColumn());</span>
+<span class="nc" id="L195">        actionColumn.setReorderable(false);</span>
+<span class="nc" id="L196">        actionColumn.setResizable(false);</span>
+<span class="nc" id="L197">    }</span>
+
+    private void setupCellFactories(TableColumn&lt;String, String&gt; contentColumn,
+                                    TableColumn&lt;String, String&gt; actionColumn,
+                                    Consumer&lt;String&gt; removeAction) {
+<span class="nc" id="L202">        contentColumn.setCellValueFactory(param -&gt; new SimpleStringProperty(param.getValue()));</span>
+<span class="nc" id="L203">        actionColumn.setCellValueFactory(param -&gt; new SimpleStringProperty(param.getValue()));</span>
+<span class="nc" id="L204">        new ValueTableCellFactory&lt;String, String&gt;()</span>
+<span class="nc" id="L205">                .withGraphic(item -&gt; IconTheme.JabRefIcons.DELETE_ENTRY.getGraphicNode())</span>
+<span class="nc" id="L206">                .withTooltip(name -&gt; Localization.lang(&quot;Remove&quot;))</span>
+<span class="nc" id="L207">                .withOnMouseClickedEvent(item -&gt; evt -&gt;</span>
+<span class="nc" id="L208">                        removeAction.accept(item))</span>
+<span class="nc" id="L209">                .install(actionColumn);</span>
+<span class="nc" id="L210">    }</span>
+
+    @FXML
+    private void addAuthor() {
+<span class="nc" id="L214">        viewModel.addAuthor(addAuthor.getText());</span>
+<span class="nc" id="L215">        addAuthor.setText(&quot;&quot;);</span>
+<span class="nc" id="L216">    }</span>
+
+    @FXML
+    private void addResearchQuestion() {
+<span class="nc" id="L220">        viewModel.addResearchQuestion(addResearchQuestion.getText());</span>
+<span class="nc" id="L221">        addResearchQuestion.setText(&quot;&quot;);</span>
+<span class="nc" id="L222">    }</span>
+
+    @FXML
+    private void addQuery() {
+<span class="nc" id="L226">        viewModel.addQuery(addQuery.getText());</span>
+<span class="nc" id="L227">        addQuery.setText(&quot;&quot;);</span>
+<span class="nc" id="L228">    }</span>
+
+    /**
+     * Add selected entry from combobox, push onto database pop from nonselecteddatabase (combobox)
+     */
+    @FXML
+    private void addDatabase() {
+<span class="nc" id="L235">        viewModel.addDatabase(databaseSelector.getSelectionModel().getSelectedItem());</span>
+<span class="nc" id="L236">    }</span>
+
+    @FXML
+    public void selectStudyDirectory() {
+<span class="nc" id="L240">        DirectoryDialogConfiguration directoryDialogConfiguration = new DirectoryDialogConfiguration.Builder()</span>
+<span class="nc" id="L241">                .withInitialDirectory(workingDirectory)</span>
+<span class="nc" id="L242">                .build();</span>
+
+<span class="nc" id="L244">        viewModel.setStudyDirectory(dialogService.showDirectorySelectionDialog(directoryDialogConfiguration));</span>
+<span class="nc" id="L245">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

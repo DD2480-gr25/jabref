@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SaveAction.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.exporter</a> &gt; <span class="el_source">SaveAction.java</span></div><h1>SaveAction.java</h1><pre class="source lang-java linenums">package org.jabref.gui.exporter;
+
+import org.jabref.gui.Globals;
+import org.jabref.gui.JabRefFrame;
+import org.jabref.gui.StateManager;
+import org.jabref.gui.actions.ActionHelper;
+import org.jabref.gui.actions.SimpleCommand;
+import org.jabref.preferences.PreferencesService;
+
+/**
+ * This class is just a simple wrapper for the soon to be refactored SaveDatabaseAction.
+ */
+public class SaveAction extends SimpleCommand {
+
+<span class="nc" id="L15">    public enum SaveMethod { SAVE, SAVE_AS, SAVE_SELECTED }</span>
+
+    private final SaveMethod saveMethod;
+    private final JabRefFrame frame;
+    private final PreferencesService preferencesService;
+
+<span class="nc" id="L21">    public SaveAction(SaveMethod saveMethod, JabRefFrame frame, PreferencesService preferencesService, StateManager stateManager) {</span>
+<span class="nc" id="L22">        this.saveMethod = saveMethod;</span>
+<span class="nc" id="L23">        this.frame = frame;</span>
+<span class="nc" id="L24">        this.preferencesService = preferencesService;</span>
+
+<span class="nc bnc" id="L26" title="All 2 branches missed.">        if (saveMethod == SaveMethod.SAVE_SELECTED) {</span>
+<span class="nc" id="L27">            this.executable.bind(ActionHelper.needsEntriesSelected(stateManager));</span>
+        } else {
+<span class="nc" id="L29">            this.executable.bind(ActionHelper.needsDatabase(stateManager));</span>
+        }
+<span class="nc" id="L31">    }</span>
+
+    @Override
+    public void execute() {
+<span class="nc" id="L35">        SaveDatabaseAction saveDatabaseAction = new SaveDatabaseAction(</span>
+<span class="nc" id="L36">                frame.getCurrentLibraryTab(),</span>
+                preferencesService,
+                Globals.entryTypesManager);
+
+<span class="nc bnc" id="L40" title="All 4 branches missed.">        switch (saveMethod) {</span>
+<span class="nc" id="L41">            case SAVE -&gt; saveDatabaseAction.save();</span>
+<span class="nc" id="L42">            case SAVE_AS -&gt; saveDatabaseAction.saveAs();</span>
+<span class="nc" id="L43">            case SAVE_SELECTED -&gt; saveDatabaseAction.saveSelectedAsPlain();</span>
+        }
+<span class="nc" id="L45">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

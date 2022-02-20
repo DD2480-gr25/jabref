@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GrobidService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.importer.util</a> &gt; <span class="el_source">GrobidService.java</span></div><h1>GrobidService.java</h1><pre class="source lang-java linenums">package org.jabref.logic.importer.util;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Optional;
+
+import org.jabref.logic.importer.ImportFormatPreferences;
+import org.jabref.logic.importer.ImporterPreferences;
+import org.jabref.logic.importer.ParseException;
+import org.jabref.logic.importer.fileformat.BibtexParser;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.util.DummyFileUpdateMonitor;
+
+import org.jsoup.Connection;
+import org.jsoup.Jsoup;
+
+/**
+ * Implements an API to a GROBID server, as described at
+ * https://grobid.readthedocs.io/en/latest/Grobid-service/#grobid-web-services
+ * &lt;p&gt;
+ * Note: Currently a custom GROBID server is used...
+ * https://github.com/NikodemKch/grobid
+ * &lt;p&gt;
+ * The methods are structured to match the GROBID server api.
+ * Each method corresponds to a GROBID service request. Only the ones already used are already implemented.
+ */
+public class GrobidService {
+
+<span class="fc" id="L31">    public enum ConsolidateCitations {</span>
+<span class="fc" id="L32">        NO(0), WITH_METADATA(1), WITH_DOI_ONLY(2);</span>
+        private int code;
+
+<span class="fc" id="L35">        ConsolidateCitations(int code) {</span>
+<span class="fc" id="L36">            this.code = code;</span>
+<span class="fc" id="L37">        }</span>
+
+        public int getCode() {
+<span class="fc" id="L40">            return this.code;</span>
+        }
+    }
+
+    private final ImporterPreferences importerPreferences;
+
+<span class="fc" id="L46">    public GrobidService(ImporterPreferences importerPreferences) {</span>
+<span class="fc" id="L47">        this.importerPreferences = importerPreferences;</span>
+<span class="fc bfc" id="L48" title="All 2 branches covered.">        if (!importerPreferences.isGrobidEnabled()) {</span>
+<span class="fc" id="L49">            throw new UnsupportedOperationException(&quot;Grobid was used but not enabled.&quot;);</span>
+        }
+<span class="fc" id="L51">    }</span>
+
+    /**
+     * Calls the Grobid server for converting the citation into a BibEntry
+     *
+     * @return A BibEntry for the String
+     * @throws IOException if an I/O exception during the call occurred or no BibTeX entry could be determined
+     */
+    public Optional&lt;BibEntry&gt; processCitation(String rawCitation, ImportFormatPreferences importFormatPreferences, ConsolidateCitations consolidateCitations) throws IOException, ParseException {
+<span class="fc" id="L60">        Connection.Response response = Jsoup.connect(importerPreferences.getGrobidURL() + &quot;/api/processCitation&quot;)</span>
+<span class="fc" id="L61">                .header(&quot;Accept&quot;, MediaTypes.APPLICATION_BIBTEX)</span>
+<span class="fc" id="L62">                .data(&quot;citations&quot;, rawCitation)</span>
+<span class="fc" id="L63">                .data(&quot;consolidateCitations&quot;, String.valueOf(consolidateCitations.getCode()))</span>
+<span class="fc" id="L64">                .method(Connection.Method.POST)</span>
+<span class="fc" id="L65">                .ignoreContentType(true)</span>
+<span class="fc" id="L66">                .timeout(20000)</span>
+<span class="fc" id="L67">                .execute();</span>
+<span class="fc" id="L68">        String httpResponse = response.body();</span>
+
+<span class="pc bpc" id="L70" title="1 of 6 branches missed.">        if (httpResponse == null || httpResponse.equals(&quot;@misc{-1,\n  author = {}\n}\n&quot;) || httpResponse.equals(&quot;@misc{-1,\n  author = {&quot; + rawCitation + &quot;}\n}\n&quot;)) { // This filters empty BibTeX entries</span>
+<span class="fc" id="L71">            throw new IOException(&quot;The GROBID server response does not contain anything.&quot;);</span>
+        }
+
+<span class="fc" id="L74">        return BibtexParser.singleFromString(httpResponse, importFormatPreferences, new DummyFileUpdateMonitor());</span>
+    }
+
+    public List&lt;BibEntry&gt; processPDF(Path filePath, ImportFormatPreferences importFormatPreferences) throws IOException, ParseException {
+<span class="fc" id="L78">        Connection.Response response = Jsoup.connect(importerPreferences.getGrobidURL() + &quot;/api/processHeaderDocument&quot;)</span>
+<span class="fc" id="L79">                .header(&quot;Accept&quot;, MediaTypes.APPLICATION_BIBTEX)</span>
+<span class="fc" id="L80">                .data(&quot;input&quot;, filePath.toString(), Files.newInputStream(filePath))</span>
+<span class="fc" id="L81">                .method(Connection.Method.POST)</span>
+<span class="fc" id="L82">                .ignoreContentType(true)</span>
+<span class="fc" id="L83">                .timeout(20000)</span>
+<span class="fc" id="L84">                .execute();</span>
+
+<span class="fc" id="L86">        String httpResponse = response.body();</span>
+
+<span class="pc bpc" id="L88" title="2 of 4 branches missed.">        if (httpResponse == null || httpResponse.equals(&quot;@misc{-1,\n  author = {}\n}\n&quot;)) { // This filters empty BibTeX entries</span>
+<span class="nc" id="L89">            throw new IOException(&quot;The GROBID server response does not contain anything.&quot;);</span>
+        }
+
+<span class="fc" id="L92">        BibtexParser parser = new BibtexParser(importFormatPreferences, new DummyFileUpdateMonitor());</span>
+<span class="fc" id="L93">        List&lt;BibEntry&gt; result = parser.parseEntries(httpResponse);</span>
+<span class="fc" id="L94">        result.forEach((entry) -&gt; entry.setCitationKey(&quot;&quot;));</span>
+<span class="fc" id="L95">        return result;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>
