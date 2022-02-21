@@ -249,7 +249,7 @@ public class AuthorListParser {
                     }
                     break;
                 default:
-                    System.out.println("0-16");
+                    System.out.println("0-23");
                     break;
             }
         }
