@@ -185,65 +185,51 @@ public class AuthorListParser {
                     } else if (commaSecond < 0) {
                         System.out.println("0-5");
                         commaSecond = tokens.size();
-                    } else {
-                        System.out.println("0-6");
                     }
                     break;
                 case WORD:
-                    System.out.println("0-7");
+                    System.out.println("0-6");
                     tokens.add(original.substring(tokenStart, tokenEnd));
                     tokens.add(original.substring(tokenStart, tokenAbbrEnd));
                     tokens.add(tokenTerm);
                     tokens.add(tokenCase);
                     if (commaFirst >= 0) {
-                        System.out.println("0-8");
+                        System.out.println("0-7");
                         break;
-                    } else{
-                        System.out.println("0-9");
                     }
                     if (lastStart >= 0) {
-                        System.out.println("0-10");
+                        System.out.println("0-8");
                         break;
-                    } else {
-                        System.out.println("0-11");
                     }
                     if (vonStart < 0) {
-                        System.out.println("0-12");
+                        System.out.println("0-9");
                         if (!tokenCase) {
-                            System.out.println("0-13");
+                            System.out.println("0-10");
                             int previousTermToken = (tokens.size() - TOKEN_GROUP_LENGTH - TOKEN_GROUP_LENGTH) + OFFSET_TOKEN_TERM;
                             if (previousTermToken >= 0) {
-                                System.out.println("0-14");
+                                System.out.println("0-11");
                                 if (tokens.get(previousTermToken).equals('-')) {
-                                    System.out.println("0-15");
+                                    System.out.println("0-12");
                                     // We are in a first name which contained a hyphen
                                     break;
-                                } else {
-                                    System.out.println("0-16");
                                 }
-                            } else {
-                                System.out.println("0-17");
                             }
 
                             int thisTermToken = previousTermToken + TOKEN_GROUP_LENGTH;
                             if (thisTermToken >= 0) {
-                                System.out.println("0-18");
+                                System.out.println("0-13");
                                 if (tokens.get(thisTermToken).equals('-')) {
-                                    System.out.println("0-19");
+                                    System.out.println("0-14");
                                     // We are in a name which contained a hyphen
                                     break;
-                                } else {
-                                    System.out.println("0-20");
                                 }
-                            } else {
-                                System.out.println("0-21");
                             }
 
                             vonStart = tokens.size() - TOKEN_GROUP_LENGTH;
                             break;
                         }
                     } else if (tokenCase) {
-                        System.out.println("0-22");
+                        System.out.println("0-15");
                         lastStart = tokens.size() - TOKEN_GROUP_LENGTH;
                         break;
                     }

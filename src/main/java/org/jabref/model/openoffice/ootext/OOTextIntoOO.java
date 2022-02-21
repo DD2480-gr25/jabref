@@ -169,14 +169,11 @@ public class OOTextIntoOO {
         int piv = 0;
         Matcher tagMatcher = HTML_TAG.matcher(lText);
         while (tagMatcher.find()) {
-            System.out.println("1-0");
 
             String currentSubstring = lText.substring(piv, tagMatcher.start());
             if (!currentSubstring.isEmpty()) {
-                System.out.println("1-1");
                 cursor.setString(currentSubstring);
             }
-            else {System.out.println("1-2");}
             formatStack.apply(cursor);
             cursor.collapseToEnd();
 
@@ -193,137 +190,105 @@ public class OOTextIntoOO {
             // Handle tags:
             switch (tagName) {
                 case "b":
-                    System.out.println("1-3");
                     formatStack.pushLayer(setCharWeight(FontWeight.BOLD));
                     expectEnd.push("/" + tagName);
                     break;
                 case "i":
-                    System.out.println("1-4");
                 case "em":
-                    System.out.println("1-5");
                     formatStack.pushLayer(setCharPosture(FontSlant.ITALIC));
                     expectEnd.push("/" + tagName);
                     break;
                 case "smallcaps":
-                    System.out.println("1-6");
                     formatStack.pushLayer(setCharCaseMap(CaseMap.SMALLCAPS));
                     expectEnd.push("/" + tagName);
                     break;
                 case "sup":
-                    System.out.println("1-7");
                     formatStack.pushLayer(setSuperScript(formatStack));
                     expectEnd.push("/" + tagName);
                     break;
                 case "sub":
-                    System.out.println("1-8");
                     formatStack.pushLayer(setSubScript(formatStack));
                     expectEnd.push("/" + tagName);
                     break;
                 case "u":
-                    System.out.println("1-9");
                     formatStack.pushLayer(setCharUnderline(FontUnderline.SINGLE));
                     expectEnd.push("/" + tagName);
                     break;
                 case "s":
-                    System.out.println("1-10");
                     formatStack.pushLayer(setCharStrikeout(FontStrikeout.SINGLE));
                     expectEnd.push("/" + tagName);
                     break;
                 case "/p":
-                    System.out.println("1-11");
                     // nop
                     break;
                 case "p":
-                    System.out.println("1-12");
                     insertParagraphBreak(text, cursor);
                     cursor.collapseToEnd();
                     for (OOPair<String, String> pair : attributes) {
-                        System.out.println("1-13");
                         String key = pair.a;
                         String value = pair.b;
                         switch (key) {
                             case "oo:ParaStyleName":
-                                System.out.println("1-14");
                                 // <p oo:ParaStyleName="Standard">
                                 if (StringUtil.isNullOrEmpty(value)) {
-                                    System.out.println("1-15");
                                     LOGGER.debug(String.format("oo:ParaStyleName inherited"));
                                 } else {
-                                    System.out.println("1-16");
                                     if (setParagraphStyle(cursor, value)) {
-                                        System.out.println("1-17");
                                         // Presumably tested already:
                                         LOGGER.debug(String.format("oo:ParaStyleName=\"%s\" failed", value));
-                                    } else {
-                                        System.out.println("1-18");
                                     }
                                 }
                                 break;
                             default:
-                                System.out.println("1-19");
                                 LOGGER.warn(String.format("Unexpected attribute '%s' for <%s>", key, tagName));
                                 break;
                         }
                     }
                     break;
                 case "oo:referenceToPageNumberOfReferenceMark":
-                    System.out.println("1-20");
                     for (OOPair<String, String> pair : attributes) {
-                        System.out.println("1-21");
                         String key = pair.a;
                         String value = pair.b;
                         switch (key) {
                             case "target":
-                                System.out.println("1-22");
                                 UnoCrossRef.insertReferenceToPageNumberOfReferenceMark(doc, value, cursor);
                                 break;
                             default:
-                                System.out.println("1-23");
                                 LOGGER.warn(String.format("Unexpected attribute '%s' for <%s>", key, tagName));
                                 break;
                         }
                     }
                     break;
                 case "tt":
-                    System.out.println("1-24");
                     // Note: "Example" names a character style in LibreOffice.
                     formatStack.pushLayer(setCharStyleName("Example"));
                     expectEnd.push("/" + tagName);
                     break;
                 case "span":
-                    System.out.println("1-25");
                     List<OOPair<String, Object>> settings = new ArrayList<>();
                     for (OOPair<String, String> pair : attributes) {
-                        System.out.println("1-26");
                         String key = pair.a;
                         String value = pair.b;
                         switch (key) {
                             case "oo:CharStyleName":
-                                System.out.println("1-27");
                                 // <span oo:CharStyleName="Standard">
                                 settings.addAll(setCharStyleName(value));
                                 break;
                             case "lang":
-                                System.out.println("1-28");
                                 // <span lang="zxx">
                                 // <span lang="en-US">
                                 settings.addAll(setCharLocale(value));
                                 break;
                             case "style":
-                                System.out.println("1-29");
                                 // HTML-style small-caps
                                 if ("font-variant: small-caps".equals(value)) {
-                                    System.out.println("1-30");
                                     settings.addAll(setCharCaseMap(CaseMap.SMALLCAPS));
                                     break;
-                                } else {
-                                    System.out.println("1-31");
                                 }
                                 LOGGER.warn(String.format("Unexpected value %s for attribute '%s' for <%s>",
                                                           value, key, tagName));
                                 break;
                             default:
-                                System.out.println("1-32");
                                 LOGGER.warn(String.format("Unexpected attribute '%s' for <%s>", key, tagName));
                                 break;
                         }
@@ -332,39 +297,25 @@ public class OOTextIntoOO {
                     expectEnd.push("/" + tagName);
                     break;
                 case "/b":
-                    System.out.println("1-33");
                 case "/i":
-                    System.out.println("1-34");
                 case "/em":
-                    System.out.println("1-35");
                 case "/tt":
-                    System.out.println("1-36");
                 case "/smallcaps":
-                    System.out.println("1-37");
                 case "/sup":
-                    System.out.println("1-38");
                 case "/sub":
-                    System.out.println("1-39");
                 case "/u":
-                    System.out.println("1-40");
                 case "/s":
-                    System.out.println("1-41");
                 case "/span":
-                    System.out.println("1-42");
                     formatStack.popLayer();
                     String expected = expectEnd.pop();
                     if (!tagName.equals(expected)) {
-                        System.out.println("1-43");
                         LOGGER.warn(String.format("expected '<%s>', found '<%s>' after '%s'",
                                                   expected,
                                                   tagName,
                                                   currentSubstring));
-                    } else {
-                        System.out.println("1-44");
                     }
                     break;
                 default:
-                    System.out.println("1-45");
                     LOGGER.warn(String.format("ignoring unknown tag '<%s>'", tagName));
                     break;
             }
@@ -373,26 +324,19 @@ public class OOTextIntoOO {
         }
 
         if (piv < lText.length()) {
-            System.out.println("1-46");
             cursor.setString(lText.substring(piv));
-        } else {
-            System.out.println("1-47");
         }
         formatStack.apply(cursor);
         cursor.collapseToEnd();
 
         if (!expectEnd.empty()) {
-            System.out.println("1-48");
             String rest = "";
             for (String s : expectEnd) {
-                System.out.println("1-49");
                 rest = String.format("<%s>", s) + rest;
             }
             LOGGER.warn(String.format("OOTextIntoOO.write:"
                                       + " expectEnd stack is not empty at the end: %s%n",
                                       rest));
-        } else {
-            System.out.println("1-50");
         }
     }
 
