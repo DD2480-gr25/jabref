@@ -168,48 +168,48 @@ public class AuthorListParser {
         // First step: collect tokens in 'tokens' Vector and calculate indices
         boolean continueLoop = true;
         while (continueLoop) {
-            System.out.println("1");
+            System.out.println("0-0");
             Token token = getToken();
             switch (token) {
                 case EOF:
-                    System.out.println("2");
+                    System.out.println("0-1");
                 case AND:
-                    System.out.println("3");
+                    System.out.println("0-2");
                     continueLoop = false;
                     break;
                 case COMMA:
-                    System.out.println("4");
+                    System.out.println("0-3");
                     if (commaFirst < 0) {
-                        System.out.println("5");
+                        System.out.println("0-4");
                         commaFirst = tokens.size();
                     } else if (commaSecond < 0) {
-                        System.out.println("6");
+                        System.out.println("0-5");
                         commaSecond = tokens.size();
                     }
                     break;
                 case WORD:
-                    System.out.println("7");
+                    System.out.println("0-6");
                     tokens.add(original.substring(tokenStart, tokenEnd));
                     tokens.add(original.substring(tokenStart, tokenAbbrEnd));
                     tokens.add(tokenTerm);
                     tokens.add(tokenCase);
                     if (commaFirst >= 0) {
-                        System.out.println("8");
+                        System.out.println("0-7");
                         break;
                     }
                     if (lastStart >= 0) {
-                        System.out.println("9");
+                        System.out.println("0-8");
                         break;
                     }
                     if (vonStart < 0) {
-                        System.out.println("10");
+                        System.out.println("0-9");
                         if (!tokenCase) {
-                            System.out.println("11");
+                            System.out.println("0-10");
                             int previousTermToken = (tokens.size() - TOKEN_GROUP_LENGTH - TOKEN_GROUP_LENGTH) + OFFSET_TOKEN_TERM;
                             if (previousTermToken >= 0) {
-                                System.out.println("12");
+                                System.out.println("0-11");
                                 if (tokens.get(previousTermToken).equals('-')) {
-                                    System.out.println("13");
+                                    System.out.println("0-12");
                                     // We are in a first name which contained a hyphen
                                     break;
                                 }
@@ -217,9 +217,9 @@ public class AuthorListParser {
 
                             int thisTermToken = previousTermToken + TOKEN_GROUP_LENGTH;
                             if (thisTermToken >= 0) {
-                                System.out.println("13");
+                                System.out.println("0-13");
                                 if (tokens.get(thisTermToken).equals('-')) {
-                                    System.out.println("14");
+                                    System.out.println("0-14");
                                     // We are in a name which contained a hyphen
                                     break;
                                 }
@@ -229,13 +229,13 @@ public class AuthorListParser {
                             break;
                         }
                     } else if (tokenCase) {
-                        System.out.println("15");
+                        System.out.println("0-15");
                         lastStart = tokens.size() - TOKEN_GROUP_LENGTH;
                         break;
                     }
                     break;
                 default:
-                    System.out.println("16");
+                    System.out.println("0-16");
                     break;
             }
         }
