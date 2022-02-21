@@ -168,53 +168,74 @@ public class AuthorListParser {
         // First step: collect tokens in 'tokens' Vector and calculate indices
         boolean continueLoop = true;
         while (continueLoop) {
+            System.out.println("1");
             Token token = getToken();
             switch (token) {
                 case EOF:
+                    System.out.println("2");
                 case AND:
+                    System.out.println("3");
                     continueLoop = false;
                     break;
                 case COMMA:
+                    System.out.println("4");
                     if (commaFirst < 0) {
+                        System.out.println("5");
                         commaFirst = tokens.size();
                     } else if (commaSecond < 0) {
+                        System.out.println("6");
                         commaSecond = tokens.size();
                     }
                     break;
                 case WORD:
+                    System.out.println("7");
                     tokens.add(original.substring(tokenStart, tokenEnd));
                     tokens.add(original.substring(tokenStart, tokenAbbrEnd));
                     tokens.add(tokenTerm);
                     tokens.add(tokenCase);
                     if (commaFirst >= 0) {
+                        System.out.println("8");
                         break;
                     }
                     if (lastStart >= 0) {
+                        System.out.println("9");
                         break;
                     }
                     if (vonStart < 0) {
+                        System.out.println("10");
                         if (!tokenCase) {
+                            System.out.println("11");
                             int previousTermToken = (tokens.size() - TOKEN_GROUP_LENGTH - TOKEN_GROUP_LENGTH) + OFFSET_TOKEN_TERM;
-                            if ((previousTermToken >= 0) && tokens.get(previousTermToken).equals('-')) {
-                                // We are in a first name which contained a hyphen
-                                break;
+                            if (previousTermToken >= 0) {
+                                System.out.println("12");
+                                if (tokens.get(previousTermToken).equals('-')) {
+                                    System.out.println("13");
+                                    // We are in a first name which contained a hyphen
+                                    break;
+                                }
                             }
 
                             int thisTermToken = previousTermToken + TOKEN_GROUP_LENGTH;
-                            if ((thisTermToken >= 0) && tokens.get(thisTermToken).equals('-')) {
-                                // We are in a name which contained a hyphen
-                                break;
+                            if (thisTermToken >= 0) {
+                                System.out.println("13");
+                                if (tokens.get(thisTermToken).equals('-')) {
+                                    System.out.println("14");
+                                    // We are in a name which contained a hyphen
+                                    break;
+                                }
                             }
 
                             vonStart = tokens.size() - TOKEN_GROUP_LENGTH;
                             break;
                         }
                     } else if (tokenCase) {
+                        System.out.println("15");
                         lastStart = tokens.size() - TOKEN_GROUP_LENGTH;
                         break;
                     }
                     break;
                 default:
+                    System.out.println("16");
                     break;
             }
         }
