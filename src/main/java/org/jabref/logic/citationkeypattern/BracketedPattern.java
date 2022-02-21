@@ -317,22 +317,26 @@ public class BracketedPattern {
             if (pattern.startsWith("auth") || pattern.startsWith("pureauth")) {
                 if (pattern.startsWith("auth") && !pattern.startsWith("pureauth")) {
                     System.out.println("2-0");
+                } else {
+                    System.out.println("2-1");
                 }
                 if (!pattern.startsWith("auth") && pattern.startsWith("pureauth")) {
-                    System.out.println("2-1");
+                    System.out.println("2-2");
+                } else {
+                    System.out.println("2-3");
                 }
                 // result the author
                 String unparsedAuthors = entry.getResolvedFieldOrAlias(StandardField.AUTHOR, database).orElse("");
 
                 if (pattern.startsWith("pure")) {
-                    System.out.println("2-2");
+                    System.out.println("2-4");
                     // "pure" is used in the context of authors to resolve to authors only and not fallback to editors
                     // The other functionality of the pattern "ForeIni", ... is the same
                     // Thus, remove the "pure" prefix so the remaining code in this section functions correctly
                     //
                     pattern = pattern.substring(4);
                 } else if (unparsedAuthors.isEmpty()) {
-                    System.out.println("2-3");
+                    System.out.println("2-5");
                     // special feature: A pattern starting with "auth" falls back to the editor
                     unparsedAuthors = entry.getResolvedFieldOrAlias(StandardField.EDITOR, database).orElse("");
                 }
@@ -343,68 +347,68 @@ public class BracketedPattern {
                 // have to check all the time.
                 switch (pattern) {
                     case "auth":
-                        System.out.println("2-4");
+                        System.out.println("2-6");
                         return firstAuthor(authorList);
                     case "authForeIni":
-                        System.out.println("2-5");
+                        System.out.println("2-7");
                         return firstAuthorForenameInitials(authorList);
                     case "authFirstFull":
-                        System.out.println("2-6");
+                        System.out.println("2-8");
                         return firstAuthorVonAndLast(authorList);
                     case "authors":
-                        System.out.println("2-7");
+                        System.out.println("2-9");
                         return allAuthors(authorList);
                     case "authorsAlpha":
-                        System.out.println("2-8");
+                        System.out.println("2-10");
                         return authorsAlpha(authorList);
                     case "authorLast":
-                        System.out.println("2-9");
+                        System.out.println("2-11");
                         return lastAuthor(authorList);
                     case "authorLastForeIni":
-                        System.out.println("2-10");
+                        System.out.println("2-12");
                         return lastAuthorForenameInitials(authorList);
                     case "authorIni":
-                        System.out.println("2-11");
+                        System.out.println("2-13");
                         return oneAuthorPlusInitials(authorList);
                     case "auth.auth.ea":
-                        System.out.println("2-12");
+                        System.out.println("2-14");
                         return authAuthEa(authorList);
                     case "auth.etal":
-                        System.out.println("2-13");
+                        System.out.println("2-15");
                         return authEtal(authorList, ".", ".etal");
                     case "authEtAl":
-                        System.out.println("2-14");
+                        System.out.println("2-16");
                         return authEtal(authorList, "", "EtAl");
                     case "authshort":
-                        System.out.println("2-15");
+                        System.out.println("2-17");
                         return authshort(authorList);
                 }
 
                 if (pattern.matches("authIni[\\d]+")) {
-                    System.out.println("2-16");
+                    System.out.println("2-18");
                     int num = Integer.parseInt(pattern.substring(7));
                     return authIniN(authorList, num);
                 } else if (pattern.matches("auth[\\d]+_[\\d]+")) {
-                    System.out.println("2-17");
+                    System.out.println("2-19");
                     String[] nums = pattern.substring(4).split("_");
                     return authNofMth(authorList, Integer.parseInt(nums[0]),
                             Integer.parseInt(nums[1]));
                 } else if (pattern.matches("auth\\d+")) {
-                    System.out.println("2-18");
+                    System.out.println("2-20");
                     // authN. First N chars of the first author's last name.
                     int num = Integer.parseInt(pattern.substring(4));
                     return authN(authorList, num);
                 } else if (pattern.matches("authors\\d+")) {
-                    System.out.println("2-19");
+                    System.out.println("2-21");
                     return nAuthors(authorList, Integer.parseInt(pattern.substring(7)));
                 } else {
-                    System.out.println("2-20");
+                    System.out.println("2-22");
                     // This "auth" business was a dead end, so just
                     // use it literally:
                     return entry.getResolvedFieldOrAlias(FieldFactory.parseField(pattern), database).orElse("");
                 }
             } else if (pattern.startsWith("ed")) {
-                System.out.println("2-21");
+                System.out.println("2-23");
                 // Gather all markers starting with "ed" here, so we
                 // don't have to check all the time.
                 String unparsedEditors = entry.getResolvedFieldOrAlias(StandardField.EDITOR, database).orElse("");
@@ -412,43 +416,43 @@ public class BracketedPattern {
 
                 switch (pattern) {
                     case "edtr":
-                        System.out.println("2-22");
+                        System.out.println("2-24");
                         return firstAuthor(editorList);
                     case "edtrForeIni":
-                        System.out.println("2-23");
+                        System.out.println("2-25");
                         return firstAuthorForenameInitials(editorList);
                     case "editors":
-                        System.out.println("2-24");
+                        System.out.println("2-26");
                         return allAuthors(editorList);
                     case "editorLast":
-                        System.out.println("2-25");
+                        System.out.println("2-27");
                         return lastAuthor(editorList); // Last author's last name
                     case "editorLastForeIni":
-                        System.out.println("2-26");
+                        System.out.println("2-28");
                         return lastAuthorForenameInitials(editorList);
                     case "editorIni":
-                        System.out.println("2-27");
+                        System.out.println("2-29");
                         return oneAuthorPlusInitials(editorList);
                     case "edtr.edtr.ea":
-                        System.out.println("2-28");
+                        System.out.println("2-30");
                         return authAuthEa(editorList);
                     case "edtrshort":
-                        System.out.println("2-29");
+                        System.out.println("2-31");
                         return authshort(editorList);
                 }
 
                 if (pattern.matches("edtrIni[\\d]+")) {
-                    System.out.println("2-30");
+                    System.out.println("2-32");
                     int num = Integer.parseInt(pattern.substring(7));
                     return authIniN(editorList, num);
                 } else if (pattern.matches("edtr[\\d]+_[\\d]+")) {
-                    System.out.println("2-31");
+                    System.out.println("2-33");
                     String[] nums = pattern.substring(4).split("_");
                     return authNofMth(editorList,
                             Integer.parseInt(nums[0]),
                             Integer.parseInt(nums[1]) - 1);
                 } else if (pattern.matches("edtr\\d+")) {
-                    System.out.println("2-32");
+                    System.out.println("2-34");
                     String fa = firstAuthor(editorList);
                     int num = Integer.parseInt(pattern.substring(4));
                     if (num > fa.length()) {
@@ -457,112 +461,114 @@ public class BracketedPattern {
                     }
                     return fa.substring(0, num);
                 } else {
-                    System.out.println("2-34");
+                    System.out.println("2-35");
                     // This "ed" business was a dead end, so just
                     // use it literally:
                     return entry.getResolvedFieldOrAlias(FieldFactory.parseField(pattern), database).orElse("");
                 }
             } else if ("firstpage".equals(pattern)) {
-                System.out.println("2-35");
+                System.out.println("2-36");
                 return firstPage(entry.getResolvedFieldOrAlias(StandardField.PAGES, database).orElse(""));
             } else if ("pageprefix".equals(pattern)) {
-                System.out.println("2-36");
+                System.out.println("2-37");
                 return pagePrefix(entry.getResolvedFieldOrAlias(StandardField.PAGES, database).orElse(""));
             } else if ("lastpage".equals(pattern)) {
-                System.out.println("2-37");
+                System.out.println("2-38");
                 return lastPage(entry.getResolvedFieldOrAlias(StandardField.PAGES, database).orElse(""));
             } else if ("title".equals(pattern)) {
-                System.out.println("2-38");
+                System.out.println("2-39");
                 return camelizeSignificantWordsInTitle(entry.getResolvedFieldOrAlias(StandardField.TITLE, database).orElse(""));
             } else if ("fulltitle".equals(pattern)) {
-                System.out.println("2-39");
+                System.out.println("2-40");
                 return entry.getResolvedFieldOrAlias(StandardField.TITLE, database).orElse("");
             } else if ("shorttitle".equals(pattern)) {
-                System.out.println("2-40");
+                System.out.println("2-41");
                 return getTitleWords(3,
                         removeSmallWords(entry.getResolvedFieldOrAlias(StandardField.TITLE, database).orElse("")));
             } else if ("shorttitleINI".equals(pattern)) {
-                System.out.println("2-41");
+                System.out.println("2-42");
                 return keepLettersAndDigitsOnly(
                         applyModifiers(getTitleWordsWithSpaces(3, entry.getResolvedFieldOrAlias(StandardField.TITLE, database).orElse("")),
                                 Collections.singletonList("abbr"), 0, Function.identity()));
             } else if ("veryshorttitle".equals(pattern)) {
-                System.out.println("2-42");
+                System.out.println("2-43");
                 return getTitleWords(1,
                         removeSmallWords(entry.getResolvedFieldOrAlias(StandardField.TITLE, database).orElse("")));
             } else if ("camel".equals(pattern)) {
-                System.out.println("2-43");
+                System.out.println("2-44");
                 return getCamelizedTitle(entry.getResolvedFieldOrAlias(StandardField.TITLE, database).orElse(""));
             } else if ("shortyear".equals(pattern)) {
-                System.out.println("2-44");
+                System.out.println("2-45");
                 String yearString = entry.getResolvedFieldOrAlias(StandardField.YEAR, database).orElse("");
                 if (yearString.isEmpty()) {
-                    System.out.println("2-45");
+                    System.out.println("2-46");
                     return yearString;
                     // In press/in preparation/submitted
                 } else if (yearString.startsWith("in")){
-                    System.out.println("2-46");
-                    return "IP";
-                }else if (yearString.startsWith("sub")) {
                     System.out.println("2-47");
                     return "IP";
-                } else if (yearString.length() > 2) {
+                }else if (yearString.startsWith("sub")) {
                     System.out.println("2-48");
+                    return "IP";
+                } else if (yearString.length() > 2) {
+                    System.out.println("2-49");
                     return yearString.substring(yearString.length() - 2);
                 } else {
-                    System.out.println("2-49");
+                    System.out.println("2-50");
                     return yearString;
                 }
             } else if ("entrytype".equals(pattern)) {
-                System.out.println("2-50");
+                System.out.println("2-51");
                 return entry.getResolvedFieldOrAlias(InternalField.TYPE_HEADER, database).orElse("");
             } else if (pattern.matches("keyword\\d+")) {
-                System.out.println("2-51");
+                System.out.println("2-52");
                 // according to LabelPattern.php, it returns keyword number n
                 int num = Integer.parseInt(pattern.substring(7));
                 KeywordList separatedKeywords = entry.getResolvedKeywords(keywordDelimiter, database);
                 if (separatedKeywords.size() < num) {
-                    System.out.println("2-52");
+                    System.out.println("2-53");
                     // not enough keywords
                     return "";
                 } else {
-                    System.out.println("2-53");
+                    System.out.println("2-54");
                     // num counts from 1 to n, but index in arrayList count from 0 to n-1
                     return separatedKeywords.get(num - 1).toString();
                 }
             } else if (pattern.matches("keywords\\d*")) {
-                System.out.println("2-54");
+                System.out.println("2-55");
                 // return all keywords, not separated
                 int num;
                 if (pattern.length() > 8) {
-                    System.out.println("2-55");
+                    System.out.println("2-56");
                     num = Integer.parseInt(pattern.substring(8));
                 } else {
-                    System.out.println("2-56");
+                    System.out.println("2-57");
                     num = Integer.MAX_VALUE;
                 }
                 KeywordList separatedKeywords = entry.getResolvedKeywords(keywordDelimiter, database);
                 StringBuilder sb = new StringBuilder();
                 int i = 0;
                 for (Keyword keyword : separatedKeywords) {
-                    System.out.println("2-57");
+                    System.out.println("2-58");
                     // remove all spaces
                     sb.append(keyword.toString().replaceAll("\\s+", ""));
 
                     i++;
                     if (i >= num) {
-                        System.out.println("2-58");
+                        System.out.println("2-59");
                         break;
+                    } else {
+                        System.out.println("2-60");
                     }
                 }
                 return sb.toString();
             } else {
-                System.out.println("2-59");
+                System.out.println("2-61");
                 // we haven't seen any special demands
                 return entry.getResolvedFieldOrAlias(FieldFactory.parseField(pattern), database).orElse("");
             }
         } catch (NullPointerException ex) {
-            System.out.println("2-60");
+            System.out.println("2-62");
             LOGGER.debug("Problem making expanding bracketed expression", ex);
             return "";
         }
