@@ -209,108 +209,143 @@ public class EntryTypeView extends BaseDialog<EntryType> {
      */
     public static String getDescription(EntryType selectedType) {
         if (selectedType instanceof StandardEntryType) {
+            System.out.println("3-0");
             switch ((StandardEntryType) selectedType) {
                 case Article -> {
+                    System.out.println("3-1");
                     return Localization.lang("An article in a journal, magazine, newspaper, or other periodical which forms a self-contained unit with its own title.");
                 }
                 case Book -> {
+                    System.out.println("3-2");
                     return Localization.lang("A single-volume book with one or more authors where the authors share credit for the work as a whole.");
                 }
                 case Booklet -> {
+                    System.out.println("3-3");
                     return Localization.lang("A book-like work without a formal publisher or sponsoring institution.");
                 }
                 case Collection -> {
+                    System.out.println("3-4");
                     return Localization.lang("A single-volume collection with multiple, self-contained contributions by distinct authors which have their own title. The work as a whole has no overall author but it will usually have an editor.");
                 }
                 case Conference -> {
+                    System.out.println("3-5");
                     return Localization.lang("A legacy alias for \"InProceedings\".");
                 }
                 case InBook -> {
+                    System.out.println("3-6");
                     return Localization.lang("A part of a book which forms a self-contained unit with its own title.");
                 }
                 case InCollection -> {
+                    System.out.println("3-7");
                     return Localization.lang("A contribution to a collection which forms a self-contained unit with a distinct author and title.");
                 }
                 case InProceedings -> {
+                    System.out.println("3-8");
                     return Localization.lang("An article in a conference proceedings.");
                 }
                 case Manual -> {
+                    System.out.println("3-9");
                     return Localization.lang("Technical or other documentation, not necessarily in printed form.");
                 }
                 case MastersThesis -> {
+                    System.out.println("3-10");
                     return Localization.lang("Similar to \"Thesis\" except that the type field is optional and defaults to the localised term  Master's thesis.");
                 }
                 case Misc -> {
+                    System.out.println("3-11");
                     return Localization.lang("A fallback type for entries which do not fit into any other category.");
                 }
                 case PhdThesis -> {
+                    System.out.println("3-12");
                     return Localization.lang("Similar to \"Thesis\" except that the type field is optional and defaults to the localised term PhD thesis.");
                 }
                 case Proceedings -> {
+                    System.out.println("3-13");
                     return Localization.lang("A single-volume conference proceedings. This type is very similar to \"Collection\".");
                 }
                 case TechReport -> {
+                    System.out.println("3-15");
                     return Localization.lang("Similar to \"Report\" except that the type field is optional and defaults to the localised term technical report.");
                 }
                 case Unpublished -> {
+                    System.out.println("3-16");
                     return Localization.lang("A work with an author and a title which has not been formally published, such as a manuscript or the script of a talk.");
                 }
                 case BookInBook -> {
+                    System.out.println("3-17");
                     return Localization.lang("This type is similar to \"InBook\" but intended for works originally published as a stand-alone book.");
                 }
                 case InReference -> {
+                    System.out.println("3-18");
                     return Localization.lang("An article in a work of reference. This is a more specific variant of the generic \"InCollection\" entry type.");
                 }
                 case MvBook -> {
+                    System.out.println("3-19");
                     return Localization.lang("A multi-volume \"Book\".");
                 }
                 case MvCollection -> {
+                    System.out.println("3-20");
                     return Localization.lang("A multi-volume \"Collection\".");
                 }
                 case MvProceedings -> {
+                    System.out.println("3-21");
                     return Localization.lang("A multi-volume \"Proceedings\" entry.");
                 }
                 case MvReference -> {
+                    System.out.println("3-22");
                     return Localization.lang("A multi-volume \"Reference\" entry. The standard styles will treat this entry type as an alias for \"MvCollection\".");
                 }
                 case Online -> {
+                    System.out.println("3-23");
                     return Localization.lang("This entry type is intended for sources such as web sites which are intrinsically online resources.");
                 }
                 case Reference -> {
+                    System.out.println("3-24");
                     return Localization.lang("A single-volume work of reference such as an encyclopedia or a dictionary.");
                 }
                 case Report -> {
+                    System.out.println("3-25");
                     return Localization.lang("A technical report, research report, or white paper published by a university or some other institution.");
                 }
                 case Set -> {
+                    System.out.println("3-26");
                     return Localization.lang("An entry set is a group of entries which are cited as a single reference and listed as a single item in the bibliography.");
                 }
                 case SuppBook -> {
+                    System.out.println("3-27");
                     return Localization.lang("Supplemental material in a \"Book\". This type is provided for elements such as prefaces, introductions, forewords, afterwords, etc. which often have a generic title only.");
                 }
                 case SuppCollection -> {
+                    System.out.println("3-28");
                     return Localization.lang("Supplemental material in a \"Collection\".");
                 }
                 case SuppPeriodical -> {
+                    System.out.println("3-29");
                     return Localization.lang("Supplemental material in a \"Periodical\". This type may be useful when referring to items such as regular columns, obituaries, letters to the editor, etc. which only have a generic title.");
                 }
                 case Thesis -> {
+                    System.out.println("3-30");
                     return Localization.lang("A thesis written for an educational institution to satisfy the requirements for a degree.");
                 }
                 case WWW -> {
+                    System.out.println("3-31");
                     return Localization.lang("An alias for \"Online\", provided for jurabib compatibility.");
                 }
                 case Software -> {
+                    System.out.println("3-32");
                     return Localization.lang("Computer software. The standard styles will treat this entry type as an alias for \"Misc\".");
                 }
                 case Dataset -> {
+                    System.out.println("3-33");
                     return Localization.lang("A data set or a similar collection of (mostly) raw data.");
                 }
                 default -> {
+                    System.out.println("3-34");
                     return "";
                 }
             }
         } else {
+            System.out.println("3-35");
             return "";
         }
     }
