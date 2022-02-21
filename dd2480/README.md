@@ -61,3 +61,12 @@ Tested:
 
 Untested:
 1. b
+
+#### `BibEntry::getSourceField`
+Tested:
+1. Handle special field mappings, checking author (All 28 branches tested)
+
+Untested:
+1. Sort out forbidden fields (1 out of 12 branches missed)
+2. Handle special field mappings, checking book title (5 out of 58 branches missed)
+3. Handle special field mappings, checking journal title (8 out of 18 branches missed)
