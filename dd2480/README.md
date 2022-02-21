@@ -20,9 +20,44 @@ We are using the gradle task `verification.jacocoTestReport`
 5. `FieldNameLabel::getDescription` => 0% branch coverage
 
 #### Is branch coverage higher or lower than in the rest of the code?
-The branch coverage appears significantly higher for 4 out of 5 methods than the average coverage for the codebase. 
-The only outlier is `FieldNameLabel::getDescription`. 
+The branch coverage appears significantly higher for 4 out of 5 methods than the % of total code covered in the codebase. 
+The outlier is `FieldNameLabel::getDescription`. 
 
 ### Identify the requirements that are tested or untested by the given test suite
+#### `RTFChars::transformSpecialCharacter`
+Tested:
+1. Code transforms unicode representation of special characters into their base equivalent:
+   1. All variations of 'A', 'a'
+   2. All variations of 'C', 'c'
+   3. All variations of 'D', 'd'
+   4. All variations of 'E', 'e'
+   5. All variations of 'G', 'g'
+   6. All variations of 'H', 'h'
+   7. All variations of 'I', 'i'
+   8. All variations of 'J', 'j'
+   9. All variations of 'K', 'k'
+   10. All variations of 'L', 'l'
+   11. All variations of 'N', 'n'
+   12. All variations of 'O'
+   13. All variations of 'R', 'r'
+   14. All variations of 'S', 's'
+   15. All variations of 'T', 't'
+   16. All variations of 'U', 'u'
+   17. All variations of 'W', 'w'
+   18. All variations of 'Y', 'y'
+   19. All variations of 'Z', 'z'
+   20. 'Æ', 'æ' to 'AE', 'ae'
+   21. 'Œ', 'œ' to 'OE', 'oe'
+   22. 'Þ' to 'TH'
+   23. 'ß' to 'ss'
+   24. '¡' to '!'
 
+Untested:
+1. All variations of 'o' (characters 242-248 exc. 247, 333, 335)
 
+#### `RisImporter::importDatabase`
+Tested:
+1. a
+
+Untested:
+1. b
