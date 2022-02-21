@@ -70,3 +70,117 @@ Untested:
 1. Sort out forbidden fields (1 out of 12 branches missed)
 2. Handle special field mappings, checking book title (5 out of 58 branches missed)
 3. Handle special field mappings, checking journal title (8 out of 18 branches missed)
+
+
+#### `FieldNameLabel::getDescription`
+Nothing tested.
+
+Untested:
+1. If the input field is a "standard field" the code returns descriptions for the following fields:
+   1. ABSTRACT
+   2. ADDENDUM
+   3. AFTERWORD
+   4. ANNOTE
+   5. ANNOTATOR
+   6. AUTHOR
+   7. BOOKSUBTITLE
+   8. BOOKTITLE
+   9. BOOKTITLEADDON
+   10. CHAPTER
+   11. COMMENT
+   12. COMMENTATOR
+   13. DATE
+   14. DOI
+   15. EDITION
+   16. EDITOR
+   17. EDITORA
+   18. EDITORB
+   19. EDITORC
+   20. EDITORTYPE
+   21. EDITORATYPE
+   22. EDITORBTYPE
+   23. EDITORCTYPE
+   24. EID
+   25. EPRINT
+   26. PRIMARYCLASS
+   27. ARCHIVEPREFIX
+   28. EVENTDATE
+   29. EVENTTITLE
+   30. EVENTTITLEADDON
+   31. PDF
+   32. FOREWORD
+   33. HOWPUBLISHED
+   34. SCHOOL
+   35. INTRODUCTION
+   36. ISBN
+   37. ISRN
+   38. ISSN
+   39. ISSUE
+   40. ISSUESUBTITLE
+   41. ISSUETITLE
+   42. JOURNALSUBTITLE
+   43. JOURNAL
+   44. LABEL
+   45. LANGUAGE
+   46. LIBRARY
+   47. ADDRESS
+   48. MAINSUBTITLE
+   49. MAINTITLE
+   50. MAINTITLEADDON
+   51. MONTH
+   52. NAMEADDON
+   53. NOTE
+   54. NUMBER
+   55. ORGANIZATION
+   56. ORIGDATE
+   57. ORIGLANGUAGE
+   58. PAGES
+   59. PAGETOTAL
+   60. PAGINATION
+   61. PART
+   62. PUBLISHER
+   63. PUBSTATE
+   64. SERIES
+   65. SHORTTITLE
+   66. SUBTITLE
+   67. TITLE
+   68. TITLEADDON
+   69. TRANSLATOR
+   70. TYPE
+   71. URL
+   72. URLDATE
+   73. VENUE
+   74. VERSION
+   75. VOLUME
+   76. VOLUMES
+   77. YEAR
+   78. CROSSREF
+   79. GENDER
+   80. KEYWORDS
+   81. RELATED
+   82. XREF
+   83. GROUPS
+   84. OWNER
+   85. TIMESTAMP
+
+   And it will return an empty string for the following fields:
+   1.  ANNOTATION
+   2.  EPRINTCLASS
+   3.  EPRINTTYPE
+   4.  FILE
+   5.  INSTITUTION
+   6.  JOURNALTITLE
+   7.  LOCATION
+   
+2.  If the field is an instance of "InternalField" and;
+    1.   If the field is a "KEY_FIELD" the code returns a description.
+    2.   Otherwise it returns an empty string.
+   
+3.  If the field is an instance of "SpecialField" it will return a description if the field is;
+    1.  PRINTED
+    2.  PRIORITY
+    3.  QUALITY
+    4.  RANKING
+    5.  READ_STATUS
+    6.  RELEVANCE
+    Otherwise it will return an empty string.
