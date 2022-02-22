@@ -399,227 +399,227 @@ class LayoutEntry {
     }
 
     private LayoutFormatter getLayoutFormatterByName(String name) {
-        return switch (name) {
+        switch (name) {
             // For backward compatibility
-            case "HTMLToLatexFormatter", "HtmlToLatex" ->
+            case "HTMLToLatexFormatter", "HtmlToLatex":
                     System.out.println("4-0");
-                    new HtmlToLatexFormatter();
+                    return new HtmlToLatexFormatter();
             // For backward compatibility
-            case "UnicodeToLatexFormatter", "UnicodeToLatex" ->
+            case "UnicodeToLatexFormatter", "UnicodeToLatex":
                     System.out.println("4-1");
-                    new UnicodeToLatexFormatter();
-            case "OOPreFormatter" ->
+                    return new UnicodeToLatexFormatter();
+            case "OOPreFormatter":
                     System.out.println("4-2");
-                    new OOPreFormatter();
-            case "AuthorAbbreviator" ->
+                    return new OOPreFormatter();
+            case "AuthorAbbreviator":
                     System.out.println("4-3");
-                    new AuthorAbbreviator();
-            case "AuthorAndToSemicolonReplacer" ->
+                    return new AuthorAbbreviator();
+            case "AuthorAndToSemicolonReplacer":
                     System.out.println("4-4");
-                    new AuthorAndToSemicolonReplacer();
-            case "AuthorAndsCommaReplacer" ->
+                    return new AuthorAndToSemicolonReplacer();
+            case "AuthorAndsCommaReplacer":
                     System.out.println("4-5");
-                    new AuthorAndsCommaReplacer();
-            case "AuthorAndsReplacer" ->
+                    return new AuthorAndsCommaReplacer();
+            case "AuthorAndsReplacer":
                     System.out.println("4-6");
-                    new AuthorAndsReplacer();
-            case "AuthorFirstAbbrLastCommas" ->
+                    return new AuthorAndsReplacer();
+            case "AuthorFirstAbbrLastCommas":
                     System.out.println("4-7");
-                    new AuthorFirstAbbrLastCommas();
-            case "AuthorFirstAbbrLastOxfordCommas" ->
+                    return new AuthorFirstAbbrLastCommas();
+            case "AuthorFirstAbbrLastOxfordCommas":
                     System.out.println("4-8");
-                    new AuthorFirstAbbrLastOxfordCommas();
-            case "AuthorFirstFirst" ->
+                    return new AuthorFirstAbbrLastOxfordCommas();
+            case "AuthorFirstFirst":
                     System.out.println("4-9");
-                    new AuthorFirstFirst();
-            case "AuthorFirstFirstCommas" ->
+                    return new AuthorFirstFirst();
+            case "AuthorFirstFirstCommas":
                     System.out.println("4-10");
-                    new AuthorFirstFirstCommas();
-            case "AuthorFirstLastCommas" ->
+                    return new AuthorFirstFirstCommas();
+            case "AuthorFirstLastCommas":
                     System.out.println("4-11");
-                    new AuthorFirstLastCommas();
-            case "AuthorFirstLastOxfordCommas" ->
+                    return new AuthorFirstLastCommas();
+            case "AuthorFirstLastOxfordCommas":
                     System.out.println("4-12");
-                    new AuthorFirstLastOxfordCommas();
-            case "AuthorLastFirst" ->
+                    return new AuthorFirstLastOxfordCommas();
+            case "AuthorLastFirst":
                     System.out.println("4-13");
-                    new AuthorLastFirst();
-            case "AuthorLastFirstAbbrCommas" ->
+                    return new AuthorLastFirst();
+            case "AuthorLastFirstAbbrCommas":
                     System.out.println("4-14");
-                    new AuthorLastFirstAbbrCommas();
-            case "AuthorLastFirstAbbreviator" ->
+                    return new AuthorLastFirstAbbrCommas();
+            case "AuthorLastFirstAbbreviator":
                     System.out.println("4-15");
-                    new AuthorLastFirstAbbreviator();
-            case "AuthorLastFirstAbbrOxfordCommas" ->
+                    return new AuthorLastFirstAbbreviator();
+            case "AuthorLastFirstAbbrOxfordCommas":
                     System.out.println("4-16");
-                    new AuthorLastFirstAbbrOxfordCommas();
-            case "AuthorLastFirstCommas" ->
+                    return new AuthorLastFirstAbbrOxfordCommas();
+            case "AuthorLastFirstCommas":
                     System.out.println("4-17");
-                    new AuthorLastFirstCommas();
-            case "AuthorLastFirstOxfordCommas" ->
+                    return new AuthorLastFirstCommas();
+            case "AuthorLastFirstOxfordCommas":
                     System.out.println("4-18");
-                    new AuthorLastFirstOxfordCommas();
-            case "AuthorLF_FF" ->
+                    return new AuthorLastFirstOxfordCommas();
+            case "AuthorLF_FF":
                     System.out.println("4-19");
-                    new AuthorLF_FF();
-            case "AuthorLF_FFAbbr" ->
+                    return new AuthorLF_FF();
+            case "AuthorLF_FFAbbr":
                     System.out.println("4-20");
-                    new AuthorLF_FFAbbr();
-            case "AuthorNatBib" ->
+                    return new AuthorLF_FFAbbr();
+            case "AuthorNatBib":
                     System.out.println("4-21");
-                    new AuthorNatBib();
-            case "AuthorOrgSci" ->
+                    return new AuthorNatBib();
+            case "AuthorOrgSci":
                     System.out.println("4-22");
-                    new AuthorOrgSci();
-            case "CompositeFormat" ->
+                    return new AuthorOrgSci();
+            case "CompositeFormat":
                     System.out.println("4-23");
-                    new CompositeFormat();
-            case "CreateBibORDFAuthors" ->
+                    return new CompositeFormat();
+            case "CreateBibORDFAuthors":
                     System.out.println("4-24");
-                    new CreateBibORDFAuthors();
-            case "CreateDocBook4Authors" ->
+                    return new CreateBibORDFAuthors();
+            case "CreateDocBook4Authors":
                     System.out.println("4-25");
-                    new CreateDocBook4Authors();
-            case "CreateDocBook4Editors" ->
+                    return new CreateDocBook4Authors();
+            case "CreateDocBook4Editors":
                     System.out.println("4-26");
-                    new CreateDocBook4Editors();
-            case "CreateDocBook5Authors" ->
+                    return new CreateDocBook4Editors();
+            case "CreateDocBook5Authors":
                     System.out.println("4-27");
-                    new CreateDocBook5Authors();
-            case "CreateDocBook5Editors" ->
+                    return new CreateDocBook5Authors();
+            case "CreateDocBook5Editors":
                     System.out.println("4-28");
-                    new CreateDocBook5Editors();
-            case "CurrentDate" ->
+                    return new CreateDocBook5Editors();
+            case "CurrentDate":
                     System.out.println("4-29");
-                    new CurrentDate();
-            case "DateFormatter" ->
+                    return new CurrentDate();
+            case "DateFormatter":
                     System.out.println("4-30");
-                    new DateFormatter();
-            case "DOICheck" ->
+                    return new DateFormatter();
+            case "DOICheck":
                     System.out.println("4-31");
-                    new DOICheck();
-            case "DOIStrip" ->
+                    return new DOICheck();
+            case "DOIStrip":
                     System.out.println("4-32");
-                    new DOIStrip();
-            case "EntryTypeFormatter" ->
+                    return new DOIStrip();
+            case "EntryTypeFormatter":
                     System.out.println("4-33");
-                    new EntryTypeFormatter();
-            case "FirstPage" ->
+                    return new EntryTypeFormatter();
+            case "FirstPage":
                     System.out.println("4-34");
-                    new FirstPage();
-            case "FormatPagesForHTML" ->
+                    return new FirstPage();
+            case "FormatPagesForHTML":
                     System.out.println("4-35");
-                    new FormatPagesForHTML();
-            case "FormatPagesForXML" ->
+                    return new FormatPagesForHTML();
+            case "FormatPagesForXML":
                     System.out.println("4-36");
-                    new FormatPagesForXML();
-            case "GetOpenOfficeType" ->
+                    return new FormatPagesForXML();
+            case "GetOpenOfficeType":
                     System.out.println("4-37");
-                    new GetOpenOfficeType();
-            case "HTMLChars" ->
+                    return new GetOpenOfficeType();
+            case "HTMLChars":
                     System.out.println("4-38");
-                    new HTMLChars();
-            case "HTMLParagraphs" ->
+                    return new HTMLChars();
+            case "HTMLParagraphs":
                     System.out.println("4-39");
-                    new HTMLParagraphs();
-            case "Iso690FormatDate" ->
+                    return new HTMLParagraphs();
+            case "Iso690FormatDate":
                     System.out.println("4-40");
-                    new Iso690FormatDate();
-            case "Iso690NamesAuthors" ->
+                    return new Iso690FormatDate();
+            case "Iso690NamesAuthors":
                     System.out.println("4-41");
-                    new Iso690NamesAuthors();
-            case "JournalAbbreviator" ->
+                    return new Iso690NamesAuthors();
+            case "JournalAbbreviator":
                     System.out.println("4-42");
-                    new JournalAbbreviator(prefs.getJournalAbbreviationRepository());
-            case "LastPage" ->
+                    return new JournalAbbreviator(prefs.getJournalAbbreviationRepository());
+            case "LastPage":
                     System.out.println("4-43");
-                    new LastPage();
+                    return new LastPage();
 // For backward compatibility
-            case "FormatChars", "LatexToUnicode" ->
+            case "FormatChars", "LatexToUnicode":
                     System.out.println("4-44");
-                    new LatexToUnicodeFormatter();
-            case "NameFormatter" ->
+                    return new LatexToUnicodeFormatter();
+            case "NameFormatter":
                     System.out.println("4-45");
-                    new NameFormatter();
-            case "NoSpaceBetweenAbbreviations" ->
+                    return new NameFormatter();
+            case "NoSpaceBetweenAbbreviations":
                     System.out.println("4-46");
-                    new NoSpaceBetweenAbbreviations();
-            case "Ordinal" ->
+                    return new NoSpaceBetweenAbbreviations();
+            case "Ordinal":
                     System.out.println("4-47");
-                    new Ordinal();
-            case "RemoveBrackets" ->
+                    return new Ordinal();
+            case "RemoveBrackets":
                     System.out.println("4-48");
-                    new RemoveBrackets();
-            case "RemoveBracketsAddComma" ->
+                    return new RemoveBrackets();
+            case "RemoveBracketsAddComma":
                     System.out.println("4-49");
-                    new RemoveBracketsAddComma();
-            case "RemoveLatexCommands" ->
+                    return new RemoveBracketsAddComma();
+            case "RemoveLatexCommands":
                     System.out.println("4-50");
-                    new RemoveLatexCommandsFormatter();
-            case "RemoveTilde" ->
+                    return new RemoveLatexCommandsFormatter();
+            case "RemoveTilde":
                     System.out.println("4-51");
-                    new RemoveTilde();
-            case "RemoveWhitespace" ->
+                    return new RemoveTilde();
+            case "RemoveWhitespace":
                     System.out.println("4-52");
-                    new RemoveWhitespace();
-            case "RisKeywords" ->
+                    return new RemoveWhitespace();
+            case "RisKeywords":
                     System.out.println("4-53");
-                    new RisKeywords();
-            case "RisMonth" ->
+                    return new RisKeywords();
+            case "RisMonth":
                     System.out.println("4-54");
-                    new RisMonth();
-            case "RTFChars" ->
+                    return new RisMonth();
+            case "RTFChars":
                     System.out.println("4-55");
-                    new RTFChars();
-            case "ToLowerCase" ->
+                    return new RTFChars();
+            case "ToLowerCase":
                     System.out.println("4-56");
-                    new ToLowerCase();
-            case "ToUpperCase" ->
+                    return new ToLowerCase();
+            case "ToUpperCase":
                     System.out.println("4-57");
-                    new ToUpperCase();
-            case "XMLChars" ->
+                    return new ToUpperCase();
+            case "XMLChars":
                     System.out.println("4-58");
-                    new XMLChars();
-            case "Default" ->
+                    return new XMLChars();
+            case "Default":
                     System.out.println("4-59");
-                    new Default();
-            case "FileLink" ->
+                    return new Default();
+            case "FileLink":
                     System.out.println("4-60");
-                    new FileLink(prefs.getFileLinkPreferences());
-            case "Number" ->
+                    return new FileLink(prefs.getFileLinkPreferences());
+            case "Number":
                     System.out.println("4-61");
-                    new Number();
-            case "RisAuthors" ->
+                    return new Number();
+            case "RisAuthors":
                     System.out.println("4-62");
-                    new RisAuthors();
-            case "Authors" ->
+                    return new RisAuthors();
+            case "Authors":
                     System.out.println("4-63");
-                    new Authors();
-            case "IfPlural" ->
+                    return new Authors();
+            case "IfPlural":
                     System.out.println("4-64");
-                    new IfPlural();
-            case "Replace" ->
+                    return new IfPlural();
+            case "Replace":
                     System.out.println("4-65");
-                    new Replace();
-            case "WrapContent" ->
+                    return new Replace();
+            case "WrapContent":
                     System.out.println("4-66");
-                    new WrapContent();
-            case "WrapFileLinks" ->
+                    return new WrapContent();
+            case "WrapFileLinks":
                     System.out.println("4-67");
-                    new WrapFileLinks(prefs.getFileLinkPreferences());
-            case "Markdown" ->
+                    return new WrapFileLinks(prefs.getFileLinkPreferences());
+            case "Markdown":
                     System.out.println("4-68");
-                    new MarkdownFormatter();
-            case "CSLType" ->
+                    return new MarkdownFormatter();
+            case "CSLType":
                     System.out.println("4-69");
-                    new CSLType();
-            case "ShortMonth" ->
+                    return new CSLType();
+            case "ShortMonth":
                     System.out.println("4-70");
-                    new ShortMonthFormatter();
-            default ->
+                    return new ShortMonthFormatter();
+            default:
                     System.out.println("4-71");
-                    null;
-        };
+                    return null;
+        }
     }
 
     /**
