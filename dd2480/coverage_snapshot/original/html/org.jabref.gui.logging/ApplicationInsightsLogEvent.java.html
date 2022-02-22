@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ApplicationInsightsLogEvent.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.logging</a> &gt; <span class="el_source">ApplicationInsightsLogEvent.java</span></div><h1>ApplicationInsightsLogEvent.java</h1><pre class="source lang-java linenums">package org.jabref.gui.logging;
+
+/*
+ * ApplicationInsightsJava
+ * Copyright (c) Microsoft Corporation
+ * All rights reserved.
+ *
+ * MIT License
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this
+ * software and associated documentation files (the &quot;&quot;Software&quot;&quot;), to deal in the Software
+ * without restriction, including without limitation the rights to use, copy, modify, merge,
+ * publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+ * persons to whom the Software is furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all copies or
+ * substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+ * PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+ * FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+
+import com.microsoft.applicationinsights.internal.common.ApplicationInsightsEvent;
+import com.microsoft.applicationinsights.internal.logger.InternalLogger;
+import com.microsoft.applicationinsights.telemetry.SeverityLevel;
+import org.tinylog.core.LogEntry;
+
+// TODO: Remove this copy as soon as the one included in AI is compatible with log4j 3
+public final class ApplicationInsightsLogEvent extends ApplicationInsightsEvent {
+
+    private final LogEntry logEvent;
+
+<span class="nc" id="L38">    public ApplicationInsightsLogEvent(LogEntry logEvent) {</span>
+<span class="nc" id="L39">        this.logEvent = logEvent;</span>
+<span class="nc" id="L40">    }</span>
+
+    @Override
+    public String getMessage() {
+<span class="nc bnc" id="L44" title="All 2 branches missed.">        String message = this.logEvent.getMessage() != null ? this.logEvent.getMessage() : &quot;Tinylog Trace&quot;;</span>
+
+<span class="nc" id="L46">        return message;</span>
+    }
+
+    @Override
+    public boolean isException() {
+<span class="nc bnc" id="L51" title="All 2 branches missed.">        return this.logEvent.getException() != null;</span>
+    }
+
+    @Override
+    public Exception getException() {
+<span class="nc" id="L56">        Exception exception = null;</span>
+
+<span class="nc bnc" id="L58" title="All 2 branches missed.">        if (isException()) {</span>
+<span class="nc" id="L59">            Throwable throwable = this.logEvent.getException();</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">            exception = throwable instanceof Exception ? (Exception) throwable : new Exception(throwable);</span>
+        }
+
+<span class="nc" id="L63">        return exception;</span>
+    }
+
+    @Override
+    public Map&lt;String, String&gt; getCustomParameters() {
+
+<span class="nc" id="L69">        Map&lt;String, String&gt; metaData = new HashMap&lt;&gt;();</span>
+
+<span class="nc" id="L71">        metaData.put(&quot;SourceType&quot;, &quot;slf4j&quot;);</span>
+
+<span class="nc bnc" id="L73" title="All 2 branches missed.">        addLogEventProperty(&quot;LoggingLevel&quot;, logEvent.getLevel() != null ? logEvent.getLevel().name() : null, metaData);</span>
+<span class="nc" id="L74">        addLogEventProperty(&quot;ThreadName&quot;, logEvent.getThread().getName(), metaData);</span>
+<span class="nc" id="L75">        addLogEventProperty(&quot;TimeStamp&quot;, getFormattedDate(logEvent.getTimestamp().toInstant().toEpochMilli()), metaData);</span>
+
+<span class="nc bnc" id="L77" title="All 2 branches missed.">        if (isException()) {</span>
+<span class="nc" id="L78">            addLogEventProperty(&quot;Logger Message&quot;, getMessage(), metaData);</span>
+
+<span class="nc bnc" id="L80" title="All 2 branches missed.">            for (StackTraceElement stackTraceElement : logEvent.getException().getStackTrace()) {</span>
+
+<span class="nc" id="L82">                addLogEventProperty(&quot;ClassName&quot;, stackTraceElement.getClassName(), metaData);</span>
+<span class="nc" id="L83">                addLogEventProperty(&quot;FileName&quot;, stackTraceElement.getFileName(), metaData);</span>
+<span class="nc" id="L84">                addLogEventProperty(&quot;MethodName&quot;, stackTraceElement.getMethodName(), metaData);</span>
+<span class="nc" id="L85">                addLogEventProperty(&quot;LineNumber&quot;, String.valueOf(stackTraceElement.getLineNumber()), metaData);</span>
+            }
+
+        }
+
+<span class="nc bnc" id="L90" title="All 2 branches missed.">        for (Entry&lt;String, String&gt; entry : logEvent.getContext().entrySet()) {</span>
+<span class="nc" id="L91">            addLogEventProperty(entry.getKey(), entry.getValue(), metaData);</span>
+<span class="nc" id="L92">        }</span>
+
+        // TODO: Username, domain and identity should be included as in .NET version.
+        // TODO: Should check, seems that it is not included in Log4j2.
+
+<span class="nc" id="L97">        return metaData;</span>
+    }
+
+    @Override
+    public SeverityLevel getNormalizedSeverityLevel() {
+<span class="nc" id="L102">        org.tinylog.Level logEventLevel = logEvent.getLevel();</span>
+
+<span class="nc bnc" id="L104" title="All 5 branches missed.">        switch (logEventLevel) {</span>
+
+            case ERROR:
+<span class="nc" id="L107">                return SeverityLevel.Error;</span>
+            case WARN:
+<span class="nc" id="L109">                return SeverityLevel.Warning;</span>
+            case INFO:
+<span class="nc" id="L111">                return SeverityLevel.Information;</span>
+            case TRACE:
+            case DEBUG:
+<span class="nc" id="L114">                return SeverityLevel.Verbose;</span>
+            default:
+<span class="nc" id="L116">                InternalLogger.INSTANCE.error(&quot;Unknown slf4joption, %d, using TRACE level as default&quot;, logEventLevel);</span>
+<span class="nc" id="L117">                return SeverityLevel.Verbose;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

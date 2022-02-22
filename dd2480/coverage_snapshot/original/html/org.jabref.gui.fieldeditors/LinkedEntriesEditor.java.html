@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LinkedEntriesEditor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.fieldeditors</a> &gt; <span class="el_source">LinkedEntriesEditor.java</span></div><h1>LinkedEntriesEditor.java</h1><pre class="source lang-java linenums">package org.jabref.gui.fieldeditors;
+
+import java.util.stream.Collectors;
+
+import javafx.beans.binding.Bindings;
+import javafx.fxml.FXML;
+import javafx.scene.Parent;
+import javafx.scene.layout.HBox;
+
+import org.jabref.gui.autocompleter.SuggestionProvider;
+import org.jabref.gui.util.ViewModelListCellFactory;
+import org.jabref.logic.integrity.FieldCheckers;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.ParsedEntryLink;
+import org.jabref.model.entry.field.Field;
+
+import com.airhacks.afterburner.views.ViewLoader;
+import com.jfoenix.controls.JFXChip;
+import com.jfoenix.controls.JFXChipView;
+import com.jfoenix.controls.JFXDefaultChip;
+
+public class LinkedEntriesEditor extends HBox implements FieldEditorFX {
+
+    @FXML
+    private final LinkedEntriesEditorViewModel viewModel;
+    @FXML
+    private JFXChipView&lt;ParsedEntryLink&gt; chipView;
+
+<span class="nc" id="L30">    public LinkedEntriesEditor(Field field, BibDatabaseContext databaseContext, SuggestionProvider&lt;BibEntry&gt; suggestionProvider, FieldCheckers fieldCheckers) {</span>
+<span class="nc" id="L31">        this.viewModel = new LinkedEntriesEditorViewModel(field, suggestionProvider, databaseContext, fieldCheckers);</span>
+
+<span class="nc" id="L33">        ViewLoader.view(this)</span>
+<span class="nc" id="L34">                  .root(this)</span>
+<span class="nc" id="L35">                  .load();</span>
+
+<span class="nc" id="L37">        chipView.setConverter(viewModel.getStringConverter());</span>
+<span class="nc" id="L38">        var autoCompletionItemFactory = new ViewModelListCellFactory&lt;ParsedEntryLink&gt;()</span>
+<span class="nc" id="L39">                .withText(ParsedEntryLink::getKey);</span>
+<span class="nc" id="L40">        chipView.getAutoCompletePopup().setSuggestionsCellFactory(autoCompletionItemFactory);</span>
+<span class="nc" id="L41">        chipView.getAutoCompletePopup().setCellLimit(5);</span>
+<span class="nc" id="L42">        chipView.getSuggestions().addAll(suggestionProvider.getPossibleSuggestions().stream().map(ParsedEntryLink::new).collect(Collectors.toList()));</span>
+
+<span class="nc" id="L44">        chipView.setChipFactory((view, item) -&gt; {</span>
+<span class="nc" id="L45">            JFXChip&lt;ParsedEntryLink&gt; chip = new JFXDefaultChip&lt;&gt;(view, item);</span>
+<span class="nc" id="L46">            chip.setOnMouseClicked(event -&gt; viewModel.jumpToEntry(item));</span>
+<span class="nc" id="L47">            return chip;</span>
+        });
+
+<span class="nc" id="L50">        Bindings.bindContentBidirectional(chipView.getChips(), viewModel.linkedEntriesProperty());</span>
+<span class="nc" id="L51">    }</span>
+
+    public LinkedEntriesEditorViewModel getViewModel() {
+<span class="nc" id="L54">        return viewModel;</span>
+    }
+
+    @Override
+    public void bindToEntry(BibEntry entry) {
+<span class="nc" id="L59">        viewModel.bindToEntry(entry);</span>
+<span class="nc" id="L60">    }</span>
+
+    @Override
+    public Parent getNode() {
+<span class="nc" id="L64">        return this;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

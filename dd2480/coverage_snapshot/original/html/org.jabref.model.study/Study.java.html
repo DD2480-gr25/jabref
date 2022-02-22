@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Study.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.model.study</a> &gt; <span class="el_source">Study.java</span></div><h1>Study.java</h1><pre class="source lang-java linenums">package org.jabref.model.study;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Objects;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+
+/**
+ * This class represents a scientific study.
+ *
+ * This class defines all aspects of a scientific study relevant to the application. It is a proxy for the file based study definition.
+ */
+
+@JsonPropertyOrder({&quot;authors&quot;, &quot;title&quot;, &quot;last-search-date&quot;, &quot;research-questions&quot;, &quot;queries&quot;, &quot;databases&quot;})
+public class Study {
+    private List&lt;String&gt; authors;
+    private String title;
+    @JsonProperty(&quot;last-search-date&quot;)
+    private LocalDate lastSearchDate;
+    @JsonProperty(&quot;research-questions&quot;)
+    private List&lt;String&gt; researchQuestions;
+    private List&lt;StudyQuery&gt; queries;
+    private List&lt;StudyDatabase&gt; databases;
+
+<span class="fc" id="L27">    public Study(List&lt;String&gt; authors, String title, List&lt;String&gt; researchQuestions, List&lt;StudyQuery&gt; queryEntries, List&lt;StudyDatabase&gt; databases) {</span>
+<span class="fc" id="L28">        this.authors = authors;</span>
+<span class="fc" id="L29">        this.title = title;</span>
+<span class="fc" id="L30">        this.researchQuestions = researchQuestions;</span>
+<span class="fc" id="L31">        this.queries = queryEntries;</span>
+<span class="fc" id="L32">        this.databases = databases;</span>
+<span class="fc" id="L33">    }</span>
+
+    /**
+     * Used for Jackson deserialization
+     */
+<span class="fc" id="L38">    public Study() {</span>
+<span class="fc" id="L39">    }</span>
+
+    public List&lt;String&gt; getAuthors() {
+<span class="fc" id="L42">        return authors;</span>
+    }
+
+    public void setAuthors(List&lt;String&gt; authors) {
+<span class="fc" id="L46">        this.authors = authors;</span>
+<span class="fc" id="L47">    }</span>
+
+    public List&lt;StudyQuery&gt; getQueries() {
+<span class="fc" id="L50">        return queries;</span>
+    }
+
+    public void setQueries(List&lt;StudyQuery&gt; queries) {
+<span class="fc" id="L54">        this.queries = queries;</span>
+<span class="fc" id="L55">    }</span>
+
+    public LocalDate getLastSearchDate() {
+<span class="fc" id="L58">        return lastSearchDate;</span>
+    }
+
+    public void setLastSearchDate(LocalDate date) {
+<span class="fc" id="L62">        lastSearchDate = date;</span>
+<span class="fc" id="L63">    }</span>
+
+    public List&lt;StudyDatabase&gt; getDatabases() {
+<span class="fc" id="L66">        return databases;</span>
+    }
+
+    public void setDatabases(List&lt;StudyDatabase&gt; databases) {
+<span class="fc" id="L70">        this.databases = databases;</span>
+<span class="fc" id="L71">    }</span>
+
+    public String getTitle() {
+<span class="fc" id="L74">        return title;</span>
+    }
+
+    public void setTitle(String title) {
+<span class="fc" id="L78">        this.title = title;</span>
+<span class="fc" id="L79">    }</span>
+
+    public List&lt;String&gt; getResearchQuestions() {
+<span class="fc" id="L82">        return researchQuestions;</span>
+    }
+
+    public void setResearchQuestions(List&lt;String&gt; researchQuestions) {
+<span class="fc" id="L86">        this.researchQuestions = researchQuestions;</span>
+<span class="fc" id="L87">    }</span>
+
+    @Override
+    public String toString() {
+<span class="nc" id="L91">        return &quot;Study{&quot; +</span>
+                &quot;authors=&quot; + authors +
+                &quot;, studyName='&quot; + title + '\'' +
+                &quot;, lastSearchDate=&quot; + lastSearchDate +
+                &quot;, researchQuestions=&quot; + researchQuestions +
+                &quot;, queries=&quot; + queries +
+                &quot;, libraries=&quot; + databases +
+                '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+<span class="pc bpc" id="L103" title="1 of 2 branches missed.">        if (this == o) {</span>
+<span class="nc" id="L104">            return true;</span>
+        }
+<span class="pc bpc" id="L106" title="2 of 4 branches missed.">        if (o == null || getClass() != o.getClass()) {</span>
+<span class="nc" id="L107">            return false;</span>
+        }
+
+<span class="fc" id="L110">        Study study = (Study) o;</span>
+
+<span class="pc bpc" id="L112" title="4 of 6 branches missed.">        if (getAuthors() != null ? !getAuthors().equals(study.getAuthors()) : study.getAuthors() != null) {</span>
+<span class="nc" id="L113">            return false;</span>
+        }
+<span class="pc bpc" id="L115" title="4 of 6 branches missed.">        if (getTitle() != null ? !getTitle().equals(study.getTitle()) : study.getTitle() != null) {</span>
+<span class="nc" id="L116">            return false;</span>
+        }
+<span class="pc bpc" id="L118" title="4 of 6 branches missed.">        if (getLastSearchDate() != null ? !getLastSearchDate().equals(study.getLastSearchDate()) : study.getLastSearchDate() != null) {</span>
+<span class="nc" id="L119">            return false;</span>
+        }
+<span class="pc bpc" id="L121" title="4 of 6 branches missed.">        if (getResearchQuestions() != null ? !getResearchQuestions().equals(study.getResearchQuestions()) : study.getResearchQuestions() != null) {</span>
+<span class="nc" id="L122">            return false;</span>
+        }
+<span class="pc bpc" id="L124" title="4 of 6 branches missed.">        if (getQueries() != null ? !getQueries().equals(study.getQueries()) : study.getQueries() != null) {</span>
+<span class="nc" id="L125">            return false;</span>
+        }
+<span class="pc bpc" id="L127" title="3 of 4 branches missed.">        return getDatabases() != null ? getDatabases().equals(study.getDatabases()) : study.getDatabases() == null;</span>
+    }
+
+    public boolean equalsBesideLastSearchDate(Object o) {
+<span class="pc bpc" id="L131" title="1 of 2 branches missed.">        if (this == o) {</span>
+<span class="nc" id="L132">            return true;</span>
+        }
+<span class="pc bpc" id="L134" title="2 of 4 branches missed.">        if (o == null || getClass() != o.getClass()) {</span>
+<span class="nc" id="L135">            return false;</span>
+        }
+
+<span class="fc" id="L138">        Study study = (Study) o;</span>
+
+<span class="pc bpc" id="L140" title="4 of 6 branches missed.">        if (getAuthors() != null ? !getAuthors().equals(study.getAuthors()) : study.getAuthors() != null) {</span>
+<span class="nc" id="L141">            return false;</span>
+        }
+<span class="pc bpc" id="L143" title="4 of 6 branches missed.">        if (getTitle() != null ? !getTitle().equals(study.getTitle()) : study.getTitle() != null) {</span>
+<span class="nc" id="L144">            return false;</span>
+        }
+<span class="pc bpc" id="L146" title="4 of 6 branches missed.">        if (getResearchQuestions() != null ? !getResearchQuestions().equals(study.getResearchQuestions()) : study.getResearchQuestions() != null) {</span>
+<span class="nc" id="L147">            return false;</span>
+        }
+<span class="pc bpc" id="L149" title="4 of 6 branches missed.">        if (getQueries() != null ? !getQueries().equals(study.getQueries()) : study.getQueries() != null) {</span>
+<span class="nc" id="L150">            return false;</span>
+        }
+<span class="pc bpc" id="L152" title="3 of 4 branches missed.">        return getDatabases() != null ? getDatabases().equals(study.getDatabases()) : study.getDatabases() == null;</span>
+    }
+
+    @Override
+    public int hashCode() {
+<span class="nc" id="L157">        return Objects.hashCode(this);</span>
+    }
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

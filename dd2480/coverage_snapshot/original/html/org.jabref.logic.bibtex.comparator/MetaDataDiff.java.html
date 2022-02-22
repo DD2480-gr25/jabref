@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MetaDataDiff.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.bibtex.comparator</a> &gt; <span class="el_source">MetaDataDiff.java</span></div><h1>MetaDataDiff.java</h1><pre class="source lang-java linenums">package org.jabref.logic.bibtex.comparator;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+
+import org.jabref.logic.l10n.Localization;
+import org.jabref.model.metadata.MetaData;
+import org.jabref.preferences.PreferencesService;
+
+public class MetaDataDiff {
+
+    private final Optional&lt;GroupDiff&gt; groupDiff;
+    private final MetaData originalMetaData;
+    private final MetaData newMetaData;
+
+<span class="nc" id="L18">    private MetaDataDiff(MetaData originalMetaData, MetaData newMetaData) {</span>
+<span class="nc" id="L19">        this.originalMetaData = originalMetaData;</span>
+<span class="nc" id="L20">        this.newMetaData = newMetaData;</span>
+<span class="nc" id="L21">        this.groupDiff = GroupDiff.compare(originalMetaData, newMetaData);</span>
+<span class="nc" id="L22">    }</span>
+
+    public static Optional&lt;MetaDataDiff&gt; compare(MetaData originalMetaData, MetaData newMetaData) {
+<span class="pc bpc" id="L25" title="1 of 2 branches missed.">        if (originalMetaData.equals(newMetaData)) {</span>
+<span class="fc" id="L26">            return Optional.empty();</span>
+        } else {
+<span class="nc" id="L28">            return Optional.of(new MetaDataDiff(originalMetaData, newMetaData));</span>
+        }
+    }
+
+    /**
+     * @implNote Should be kept in sync with {@link MetaData#equals(Object)}
+     */
+    public List&lt;String&gt; getDifferences(PreferencesService preferences) {
+<span class="nc" id="L36">        List&lt;String&gt; changes = new ArrayList&lt;&gt;();</span>
+
+<span class="nc bnc" id="L38" title="All 2 branches missed.">        if (originalMetaData.isProtected() != newMetaData.isProtected()) {</span>
+<span class="nc" id="L39">            changes.add(Localization.lang(&quot;Library protection&quot;));</span>
+        }
+<span class="nc bnc" id="L41" title="All 2 branches missed.">        if (!Objects.equals(originalMetaData.getGroups(), newMetaData.getGroups())) {</span>
+<span class="nc" id="L42">            changes.add(Localization.lang(&quot;Modified groups tree&quot;));</span>
+        }
+<span class="nc bnc" id="L44" title="All 2 branches missed.">        if (!Objects.equals(originalMetaData.getEncoding(), newMetaData.getEncoding())) {</span>
+<span class="nc" id="L45">            changes.add(Localization.lang(&quot;Library encoding&quot;));</span>
+        }
+<span class="nc bnc" id="L47" title="All 2 branches missed.">        if (!Objects.equals(originalMetaData.getSaveOrderConfig(), newMetaData.getSaveOrderConfig())) {</span>
+<span class="nc" id="L48">            changes.add(Localization.lang(&quot;Save sort order&quot;));</span>
+        }
+<span class="nc bnc" id="L50" title="All 2 branches missed.">        if (!Objects.equals(originalMetaData.getCiteKeyPattern(preferences.getGlobalCitationKeyPattern()), newMetaData.getCiteKeyPattern(preferences.getGlobalCitationKeyPattern()))) {</span>
+<span class="nc" id="L51">            changes.add(Localization.lang(&quot;Key patterns&quot;));</span>
+        }
+<span class="nc bnc" id="L53" title="All 2 branches missed.">        if (!Objects.equals(originalMetaData.getUserFileDirectories(), newMetaData.getUserFileDirectories())) {</span>
+<span class="nc" id="L54">            changes.add(Localization.lang(&quot;User-specific file directory&quot;));</span>
+        }
+<span class="nc bnc" id="L56" title="All 2 branches missed.">        if (!Objects.equals(originalMetaData.getLatexFileDirectories(), newMetaData.getLatexFileDirectories())) {</span>
+<span class="nc" id="L57">            changes.add(Localization.lang(&quot;LaTeX file directory&quot;));</span>
+        }
+<span class="nc bnc" id="L59" title="All 2 branches missed.">        if (!Objects.equals(originalMetaData.getDefaultCiteKeyPattern(), newMetaData.getDefaultCiteKeyPattern())) {</span>
+<span class="nc" id="L60">            changes.add(Localization.lang(&quot;Default pattern&quot;));</span>
+        }
+<span class="nc bnc" id="L62" title="All 2 branches missed.">        if (!Objects.equals(originalMetaData.getSaveActions(), newMetaData.getSaveActions())) {</span>
+<span class="nc" id="L63">            changes.add(Localization.lang(&quot;Save actions&quot;));</span>
+        }
+<span class="nc bnc" id="L65" title="All 2 branches missed.">        if (originalMetaData.getMode() != newMetaData.getMode()) {</span>
+<span class="nc" id="L66">            changes.add(Localization.lang(&quot;Library mode&quot;));</span>
+        }
+<span class="nc bnc" id="L68" title="All 2 branches missed.">        if (!Objects.equals(originalMetaData.getDefaultFileDirectory(), newMetaData.getDefaultFileDirectory())) {</span>
+<span class="nc" id="L69">            changes.add(Localization.lang(&quot;General file directory&quot;));</span>
+        }
+<span class="nc bnc" id="L71" title="All 2 branches missed.">        if (!Objects.equals(originalMetaData.getContentSelectors(), newMetaData.getContentSelectors())) {</span>
+<span class="nc" id="L72">            changes.add(Localization.lang(&quot;Content selectors&quot;));</span>
+        }
+<span class="nc" id="L74">        return changes;</span>
+    }
+
+    public MetaData getNewMetaData() {
+<span class="nc" id="L78">        return newMetaData;</span>
+    }
+
+    public Optional&lt;GroupDiff&gt; getGroupDifferences() {
+<span class="nc" id="L82">        return groupDiff;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

@@ -1,0 +1,363 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Bootstrap.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.openoffice</a> &gt; <span class="el_source">Bootstrap.java</span></div><h1>Bootstrap.java</h1><pre class="source lang-java linenums">// -*- Mode: Java; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+
+/*
+ * This file is part of the LibreOffice project.
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * This file incorporates work covered by the following license notice:
+ *
+ *   Licensed to the Apache Software Foundation (ASF) under one or more
+ *   contributor license agreements. See the NOTICE file distributed
+ *   with this work for additional information regarding copyright
+ *   ownership. The ASF licenses this file to you under the Apache
+ *   License, Version 2.0 (the &quot;License&quot;); you may not use this file
+ *   except in compliance with the License. You may obtain a copy of
+ *   the License at http://www.apache.org/licenses/LICENSE-2.0 .
+ */
+
+package org.jabref.gui.openoffice;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Hashtable;
+import java.util.Map;
+import java.util.Random;
+
+import com.sun.star.bridge.UnoUrlResolver;
+import com.sun.star.bridge.XUnoUrlResolver;
+import com.sun.star.comp.helper.BootstrapException;
+import com.sun.star.comp.helper.ComponentContext;
+import com.sun.star.comp.helper.ComponentContextEntry;
+import com.sun.star.comp.loader.JavaLoader;
+import com.sun.star.comp.servicemanager.ServiceManager;
+import com.sun.star.container.XSet;
+import com.sun.star.lang.XInitialization;
+import com.sun.star.lang.XMultiComponentFactory;
+import com.sun.star.lang.XMultiServiceFactory;
+import com.sun.star.lib.util.NativeLibraryLoader;
+import com.sun.star.loader.XImplementationLoader;
+import com.sun.star.uno.UnoRuntime;
+import com.sun.star.uno.XComponentContext;
+
+/** Bootstrap offers functionality to obtain a context or simply
+    a service manager.
+    The service manager can create a few basic services, whose implementations  are:
+    &lt;ul&gt;
+    &lt;li&gt;com.sun.star.comp.loader.JavaLoader&lt;/li&gt;
+    &lt;li&gt;com.sun.star.comp.urlresolver.UrlResolver&lt;/li&gt;
+    &lt;li&gt;com.sun.star.comp.bridgefactory.BridgeFactory&lt;/li&gt;
+    &lt;li&gt;com.sun.star.comp.connections.Connector&lt;/li&gt;
+    &lt;li&gt;com.sun.star.comp.connections.Acceptor&lt;/li&gt;
+    &lt;li&gt;com.sun.star.comp.servicemanager.ServiceManager&lt;/li&gt;
+    &lt;/ul&gt;
+
+    Other services can be inserted into the service manager by
+    using its XSet interface:
+    &lt;pre&gt;
+        XSet xSet = UnoRuntime.queryInterface( XSet.class, aMultiComponentFactory );
+        // insert the service manager
+        xSet.insert( aSingleComponentFactory );
+    &lt;/pre&gt;
+*/
+<span class="nc" id="L71">public class Bootstrap {</span>
+
+<span class="nc" id="L73">    private static final Random RANDOM_PIPE_NAME = new Random();</span>
+<span class="nc" id="L74">    private static boolean M_LOADED_JUH = false;</span>
+
+    private static void insertBasicFactories(XSet xSet, XImplementationLoader xImpLoader) throws Exception {
+        // insert the factory of the loader
+<span class="nc" id="L78">        xSet.insert(xImpLoader.activate(&quot;com.sun.star.comp.loader.JavaLoader&quot;, null, null, null));</span>
+
+        // insert the factory of the URLResolver
+<span class="nc" id="L81">        xSet.insert(xImpLoader.activate(&quot;com.sun.star.comp.urlresolver.UrlResolver&quot;, null, null, null));</span>
+
+        // insert the bridgefactory
+<span class="nc" id="L84">        xSet.insert(xImpLoader.activate(&quot;com.sun.star.comp.bridgefactory.BridgeFactory&quot;, null, null, null));</span>
+
+        // insert the connector
+<span class="nc" id="L87">        xSet.insert(xImpLoader.activate(&quot;com.sun.star.comp.connections.Connector&quot;, null, null, null));</span>
+
+        // insert the acceptor
+<span class="nc" id="L90">        xSet.insert(xImpLoader.activate(&quot;com.sun.star.comp.connections.Acceptor&quot;, null, null, null));</span>
+<span class="nc" id="L91">    }</span>
+
+    /**
+     * Returns an array of default commandline options to start bootstrapped
+     * instance of soffice with. You may use it in connection with bootstrap
+     * method for example like this:
+     * &lt;pre&gt;
+     *     List list = Arrays.asList( Bootstrap.getDefaultOptions() );
+     *     list.remove(&quot;--nologo&quot;);
+     *     list.remove(&quot;--nodefault&quot;);
+     *     list.add(&quot;--invisible&quot;);
+     *
+     *     Bootstrap.bootstrap( list.toArray( new String[list.size()] );
+     * &lt;/pre&gt;
+     *
+     * @return an array of default commandline options
+     * @see #bootstrap(String[])
+     * @since LibreOffice 5.1
+     */
+    public static final String[] getDefaultOptions() {
+<span class="nc" id="L111">        return new String[] {&quot;--nologo&quot;, &quot;--nodefault&quot;, &quot;--norestore&quot;, &quot;--nolockcheck&quot;};</span>
+    }
+
+    /**
+     * backwards compatibility stub.
+     *
+     * @param context_entries the hash table contains mappings of entry names (type string) to context entries (type class ComponentContextEntry).
+     * @return a new context.
+     * @throws Exception if things go awry.
+     */
+    public static XComponentContext createInitialComponentContext(Hashtable&lt;String, Object&gt; context_entries) throws Exception {
+<span class="nc" id="L122">        return createInitialComponentContext((Map&lt;String, Object&gt;) context_entries);</span>
+    }
+
+    /**
+     * Bootstraps an initial component context with service manager and basic jurt components inserted.
+     *
+     * @param context_entries the hash table contains mappings of entry names (type string) to context entries (type class ComponentContextEntry).
+     * @return a new context.
+     * @throws Exception if things go awry.
+     */
+    public static XComponentContext createInitialComponentContext(Map&lt;String, Object&gt; context_entries) throws Exception {
+<span class="nc" id="L133">        ServiceManager xSMgr = new ServiceManager();</span>
+
+<span class="nc" id="L135">        XImplementationLoader xImpLoader = UnoRuntime.queryInterface(XImplementationLoader.class, new JavaLoader());</span>
+<span class="nc" id="L136">        XInitialization xInit = UnoRuntime.queryInterface(XInitialization.class, xImpLoader);</span>
+<span class="nc" id="L137">        Object[] args = new Object[] {xSMgr};</span>
+<span class="nc" id="L138">        xInit.initialize(args);</span>
+
+        // initial component context
+<span class="nc bnc" id="L141" title="All 2 branches missed.">        if (context_entries == null) {</span>
+<span class="nc" id="L142">            context_entries = new HashMap&lt;&gt;(1);</span>
+        }
+        // add smgr
+<span class="nc" id="L145">        context_entries.put(&quot;/singletons/com.sun.star.lang.theServiceManager&quot;, new ComponentContextEntry(null, xSMgr));</span>
+        // ... xxx todo: add standard entries
+<span class="nc" id="L147">        XComponentContext xContext = new ComponentContext(context_entries, null);</span>
+
+<span class="nc" id="L149">        xSMgr.setDefaultContext(xContext);</span>
+
+<span class="nc" id="L151">        XSet xSet = UnoRuntime.queryInterface(XSet.class, xSMgr);</span>
+        // insert basic jurt factories
+<span class="nc" id="L153">        insertBasicFactories(xSet, xImpLoader);</span>
+
+<span class="nc" id="L155">        return xContext;</span>
+    }
+
+    /**
+     * Bootstraps a servicemanager with the jurt base components registered.
+     * &lt;p&gt;
+     * See also UNOIDL &lt;code&gt;com.sun.star.lang.ServiceManager&lt;/code&gt;.
+     *
+     * @return a freshly bootstrapped service manager
+     * @throws Exception if things go awry.
+     */
+    public static XMultiServiceFactory createSimpleServiceManager() throws Exception {
+<span class="nc" id="L167">        return UnoRuntime.queryInterface(XMultiServiceFactory.class, createInitialComponentContext((Map&lt;String, Object&gt;) null).getServiceManager());</span>
+    }
+
+    /**
+     * Bootstraps the initial component context from a native UNO installation.
+     *
+     * @return a freshly bootstrapped component context.
+     * &lt;p&gt;
+     * See also
+     * &lt;code&gt;cppuhelper/defaultBootstrap_InitialComponentContext()&lt;/code&gt;.
+     * @throws Exception if things go awry.
+     */
+    public static final XComponentContext defaultBootstrap_InitialComponentContext() throws Exception {
+<span class="nc" id="L180">        return defaultBootstrap_InitialComponentContext((String) null, (Map&lt;String, String&gt;) null);</span>
+    }
+
+    /**
+     * Backwards compatibility stub.
+     *
+     * @param ini_file             ini_file (may be null: uno.rc besides cppuhelper lib)
+     * @param bootstrap_parameters bootstrap parameters (maybe null)
+     * @return a freshly bootstrapped component context.
+     * @throws Exception if things go awry.
+     */
+    public static final XComponentContext defaultBootstrap_InitialComponentContext(String ini_file, Hashtable&lt;String, String&gt; bootstrap_parameters) throws Exception {
+<span class="nc" id="L192">        return defaultBootstrap_InitialComponentContext(ini_file, (Map&lt;String, String&gt;) bootstrap_parameters);</span>
+    }
+
+    /**
+     * Bootstraps the initial component context from a native UNO installation.
+     * &lt;p&gt;
+     * See also
+     * &lt;code&gt;cppuhelper/defaultBootstrap_InitialComponentContext()&lt;/code&gt;.
+     *
+     * @param ini_file             ini_file (may be null: uno.rc besides cppuhelper lib)
+     * @param bootstrap_parameters bootstrap parameters (maybe null)
+     * @return a freshly bootstrapped component context.
+     * @throws Exception if things go awry.
+     */
+    public static final XComponentContext defaultBootstrap_InitialComponentContext(String ini_file, Map&lt;String, String&gt; bootstrap_parameters) throws Exception {
+        // jni convenience: easier to iterate over array than calling Hashtable
+<span class="nc" id="L208">        String pairs[] = null;</span>
+<span class="nc bnc" id="L209" title="All 2 branches missed.">        if (null != bootstrap_parameters) {</span>
+<span class="nc" id="L210">            pairs = new String[2 * bootstrap_parameters.size()];</span>
+<span class="nc" id="L211">            int n = 0;</span>
+<span class="nc bnc" id="L212" title="All 2 branches missed.">            for (Map.Entry&lt;String, String&gt; bootstrap_parameter : bootstrap_parameters.entrySet()) {</span>
+<span class="nc" id="L213">                pairs[n++] = bootstrap_parameter.getKey();</span>
+<span class="nc" id="L214">                pairs[n++] = bootstrap_parameter.getValue();</span>
+<span class="nc" id="L215">            }</span>
+        }
+
+<span class="nc bnc" id="L218" title="All 2 branches missed.">        if (!M_LOADED_JUH) {</span>
+<span class="nc bnc" id="L219" title="All 2 branches missed.">            if (&quot;The Android Project&quot;.equals(System.getProperty(&quot;java.vendor&quot;))) {</span>
+                // Find out if we are configured with DISABLE_DYNLOADING or
+                // not. Try to load the lo-bootstrap shared library which
+                // won't exist in the DISABLE_DYNLOADING case. (And which will
+                // be already loaded otherwise, so nothing unexpected happens
+                // that case.) Yeah, this would be simpler if I just could be
+                // bothered to keep a separate branch for DISABLE_DYNLOADING
+                // on Android, merging in master periodically, until I know
+                // for sure whether it is what I want, or not.
+
+<span class="nc" id="L229">                boolean disable_dynloading = false;</span>
+                try {
+<span class="nc" id="L231">                    System.loadLibrary(&quot;lo-bootstrap&quot;);</span>
+<span class="nc" id="L232">                } catch (UnsatisfiedLinkError e) {</span>
+<span class="nc" id="L233">                    disable_dynloading = true;</span>
+<span class="nc" id="L234">                }</span>
+
+<span class="nc bnc" id="L236" title="All 2 branches missed.">                if (!disable_dynloading) {</span>
+<span class="nc" id="L237">                    NativeLibraryLoader.loadLibrary(Bootstrap.class.getClassLoader(), &quot;juh&quot;);</span>
+                }
+<span class="nc" id="L239">            } else {</span>
+<span class="nc" id="L240">                NativeLibraryLoader.loadLibrary(Bootstrap.class.getClassLoader(), &quot;juh&quot;);</span>
+            }
+<span class="nc" id="L242">            M_LOADED_JUH = true;</span>
+        }
+<span class="nc" id="L244">        return UnoRuntime.queryInterface(XComponentContext.class, cppuhelper_bootstrap(ini_file, pairs, Bootstrap.class.getClassLoader()));</span>
+    }
+
+    private static native Object cppuhelper_bootstrap(String ini_file, String bootstrap_parameters[], ClassLoader loader) throws Exception;
+
+    /**
+     * Bootstraps the component context from a UNO installation.
+     *
+     * @return a bootstrapped component context.
+     * @throws BootstrapException if things go awry.
+     * @since UDK 3.1.0
+     */
+    public static final XComponentContext bootstrap(Path ooPath) throws BootstrapException {
+<span class="nc" id="L257">        String[] defaultArgArray = getDefaultOptions();</span>
+<span class="nc" id="L258">        return bootstrap(defaultArgArray, ooPath);</span>
+    }
+
+    /**
+     * Bootstraps the component context from a UNO installation.
+     *
+     * @param argArray an array of strings - commandline options to start instance of soffice with
+     * @return a bootstrapped component context.
+     * @throws BootstrapException if things go awry.
+     * @see #getDefaultOptions()
+     * @since LibreOffice 5.1
+     */
+    public static final XComponentContext bootstrap(String[] argArray, Path path) throws BootstrapException {
+
+<span class="nc" id="L272">        XComponentContext xContext = null;</span>
+
+        try {
+            // create default local component context
+<span class="nc" id="L276">            XComponentContext xLocalContext = createInitialComponentContext((Map&lt;String, Object&gt;) null);</span>
+<span class="nc bnc" id="L277" title="All 2 branches missed.">            if (xLocalContext == null) {</span>
+<span class="nc" id="L278">                throw new BootstrapException(&quot;no local component context!&quot;);</span>
+            }
+
+            // create call with arguments
+            // We need a socket, pipe does not work. https://api.libreoffice.org/examples/examples.html
+<span class="nc" id="L283">            String[] cmdArray = new String[argArray.length + 2];</span>
+<span class="nc" id="L284">            cmdArray[0] = path.toAbsolutePath().toString();</span>
+<span class="nc" id="L285">            cmdArray[1] = (&quot;--accept=socket,host=localhost,port=2083&quot; + &quot;;urp;&quot;);</span>
+
+<span class="nc" id="L287">            System.arraycopy(argArray, 0, cmdArray, 2, argArray.length);</span>
+
+            // start office process
+<span class="nc" id="L290">            Process p = Runtime.getRuntime().exec(cmdArray);</span>
+<span class="nc" id="L291">            pipe(p.getInputStream(), System.out, &quot;CO&gt; &quot;);</span>
+<span class="nc" id="L292">            pipe(p.getErrorStream(), System.err, &quot;CE&gt; &quot;);</span>
+
+            // initial service manager
+<span class="nc" id="L295">            XMultiComponentFactory xLocalServiceManager = xLocalContext.getServiceManager();</span>
+<span class="nc bnc" id="L296" title="All 2 branches missed.">            if (xLocalServiceManager == null) {</span>
+<span class="nc" id="L297">                throw new BootstrapException(&quot;no initial service manager!&quot;);</span>
+            }
+
+            // create a URL resolver
+<span class="nc" id="L301">            XUnoUrlResolver xUrlResolver = UnoUrlResolver.create(xLocalContext);</span>
+
+            // connection string
+<span class="nc" id="L304">            String sConnect = &quot;uno:socket,host=localhost,port=2083&quot; + &quot;;urp;StarOffice.ComponentContext&quot;;</span>
+
+            // wait until office is started
+<span class="nc" id="L307">            for (int i = 0; ; ++i) {</span>
+                try {
+                    // try to connect to office
+<span class="nc" id="L310">                    Object context = xUrlResolver.resolve(sConnect);</span>
+<span class="nc" id="L311">                    xContext = UnoRuntime.queryInterface(XComponentContext.class, context);</span>
+<span class="nc bnc" id="L312" title="All 2 branches missed.">                    if (xContext == null) {</span>
+<span class="nc" id="L313">                        throw new BootstrapException(&quot;no component context!&quot;);</span>
+                    }
+<span class="nc" id="L315">                    break;</span>
+<span class="nc" id="L316">                } catch (com.sun.star.connection.NoConnectException ex) {</span>
+                    // Wait 500 ms, then try to connect again, but do not wait
+                    // longer than 5 min (= 600 * 500 ms) total:
+<span class="nc bnc" id="L319" title="All 2 branches missed.">                    if (i == 600) {</span>
+<span class="nc" id="L320">                        throw new BootstrapException(ex);</span>
+                    }
+<span class="nc" id="L322">                    Thread.sleep(500);</span>
+                }
+            }
+<span class="nc" id="L325">        } catch (BootstrapException e) {</span>
+<span class="nc" id="L326">            throw e;</span>
+<span class="nc" id="L327">        } catch (java.lang.RuntimeException e) {</span>
+<span class="nc" id="L328">            throw e;</span>
+<span class="nc" id="L329">        } catch (java.lang.Exception e) {</span>
+<span class="nc" id="L330">            throw new BootstrapException(e);</span>
+<span class="nc" id="L331">        }</span>
+
+<span class="nc" id="L333">        return xContext;</span>
+    }
+
+    private static void pipe(final InputStream in, final PrintStream out, final String prefix) {
+
+<span class="nc" id="L338">        new Thread(&quot;Pipe: &quot; + prefix) {</span>
+
+            @Override
+            public void run() {
+                try {
+<span class="nc" id="L343">                    BufferedReader r = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));</span>
+
+                    for (; ; ) {
+<span class="nc" id="L346">                        String s = r.readLine();</span>
+<span class="nc bnc" id="L347" title="All 2 branches missed.">                        if (s == null) {</span>
+<span class="nc" id="L348">                            break;</span>
+                        }
+<span class="nc" id="L350">                        out.println(prefix + s);</span>
+<span class="nc" id="L351">                    }</span>
+<span class="nc" id="L352">                } catch (UnsupportedEncodingException e) {</span>
+<span class="nc" id="L353">                    e.printStackTrace(System.err);</span>
+<span class="nc" id="L354">                } catch (java.io.IOException e) {</span>
+<span class="nc" id="L355">                    e.printStackTrace(System.err);</span>
+<span class="nc" id="L356">                }</span>
+<span class="nc" id="L357">            }</span>
+<span class="nc" id="L358">        }.start();</span>
+<span class="nc" id="L359">    }</span>
+}
+
+// vim:set shiftwidth=4 softtabstop=4 expandtab:
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

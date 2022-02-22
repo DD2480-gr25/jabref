@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CiteSeer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.importer.fetcher</a> &gt; <span class="el_source">CiteSeer.java</span></div><h1>CiteSeer.java</h1><pre class="source lang-java linenums">package org.jabref.logic.importer.fetcher;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import org.jabref.logic.cleanup.FieldFormatterCleanup;
+import org.jabref.logic.cleanup.Formatter;
+import org.jabref.logic.formatter.bibtexfields.HtmlToUnicodeFormatter;
+import org.jabref.logic.formatter.casechanger.TitleCaseFormatter;
+import org.jabref.logic.help.HelpFile;
+import org.jabref.logic.importer.FetcherException;
+import org.jabref.logic.importer.Parser;
+import org.jabref.logic.importer.SearchBasedParserFetcher;
+import org.jabref.logic.importer.fetcher.transformers.DefaultQueryTransformer;
+import org.jabref.logic.importer.fileformat.CoinsParser;
+import org.jabref.logic.util.OS;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.field.InternalField;
+import org.jabref.model.entry.field.StandardField;
+
+import org.apache.http.client.utils.URIBuilder;
+import org.apache.lucene.queryparser.flexible.core.nodes.QueryNode;
+
+public class CiteSeer implements SearchBasedParserFetcher {
+
+<span class="fc" id="L35">    public CiteSeer() {</span>
+<span class="fc" id="L36">    }</span>
+
+    @Override
+    public String getName() {
+<span class="fc" id="L40">        return &quot;CiteSeerX&quot;;</span>
+    }
+
+    @Override
+    public Optional&lt;HelpFile&gt; getHelpPage() {
+<span class="nc" id="L45">        return Optional.of(HelpFile.FETCHER_CITESEERX);</span>
+    }
+
+    @Override
+    public URL getURLForQuery(QueryNode luceneQuery) throws URISyntaxException, MalformedURLException, FetcherException {
+<span class="fc" id="L50">        URIBuilder uriBuilder = new URIBuilder(&quot;https://citeseer.ist.psu.edu/search&quot;);</span>
+<span class="fc" id="L51">        uriBuilder.addParameter(&quot;sort&quot;, &quot;rlv&quot;); // Sort by relevance</span>
+<span class="fc" id="L52">        uriBuilder.addParameter(&quot;q&quot;, new DefaultQueryTransformer().transformLuceneQuery(luceneQuery).orElse(&quot;&quot;)); // Query</span>
+<span class="fc" id="L53">        uriBuilder.addParameter(&quot;t&quot;, &quot;doc&quot;); // Type: documents</span>
+        // uriBuilder.addParameter(&quot;start&quot;, &quot;0&quot;); // Start index (not supported at the moment)
+<span class="fc" id="L55">        return uriBuilder.build().toURL();</span>
+    }
+
+    @Override
+    public Parser getParser() {
+        // MathSciNet returns COinS result embedded in HTML
+        // So we extract the data string from the &lt;span class=&quot;Z3988&quot; title=&quot;&lt;data&gt;&quot;&gt;&lt;/span&gt; tags and pass the content to the COinS parser
+<span class="fc" id="L62">        return inputStream -&gt; {</span>
+<span class="fc" id="L63">            String response = new BufferedReader(new InputStreamReader(inputStream)).lines().collect(Collectors.joining(OS.NEWLINE));</span>
+<span class="fc" id="L64">            List&lt;BibEntry&gt; entries = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L65">            CoinsParser parser = new CoinsParser();</span>
+<span class="fc" id="L66">            Pattern pattern = Pattern.compile(&quot;&lt;span class=\&quot;Z3988\&quot; title=\&quot;(.*)\&quot;&gt;&lt;/span&gt;&quot;);</span>
+<span class="fc" id="L67">            Matcher matcher = pattern.matcher(response);</span>
+<span class="fc bfc" id="L68" title="All 2 branches covered.">            while (matcher.find()) {</span>
+<span class="fc" id="L69">                String encodedDataString = matcher.group(1);</span>
+<span class="fc" id="L70">                entries.addAll(parser.parseEntries(encodedDataString));</span>
+<span class="fc" id="L71">            }</span>
+<span class="fc" id="L72">            return entries;</span>
+        };
+    }
+
+    @Override
+    public void doPostCleanup(BibEntry entry) {
+        // CiteSeer escapes some characters in a way that is not recognized by the normal html to unicode formatter
+        // We, of course, also want to convert these special characters
+<span class="fc" id="L80">        Formatter extendedHtmlFormatter = new HtmlToUnicodeFormatter() {</span>
+            @Override
+            public String format(String fieldText) {
+<span class="fc" id="L83">                String formatted = super.format(fieldText);</span>
+<span class="fc" id="L84">                formatted = formatted.replaceAll(&quot;%3A&quot;, &quot;:&quot;);</span>
+<span class="fc" id="L85">                formatted = formatted.replaceAll(&quot;%3Cem%3&quot;, &quot;&quot;);</span>
+<span class="fc" id="L86">                formatted = formatted.replaceAll(&quot;%3C%2Fem%3E&quot;, &quot;&quot;);</span>
+<span class="fc" id="L87">                formatted = formatted.replaceAll(&quot;%2C\\+&quot;, &quot; &quot;);</span>
+<span class="fc" id="L88">                formatted = formatted.replaceAll(&quot;\\+&quot;, &quot; &quot;);</span>
+<span class="fc" id="L89">                return formatted;</span>
+            }
+        };
+<span class="fc" id="L92">        new FieldFormatterCleanup(InternalField.INTERNAL_ALL_FIELD, extendedHtmlFormatter).cleanup(entry);</span>
+
+        // Many titles in the CiteSeer database have all-capital titles, for convenience we convert them to title case
+<span class="fc" id="L95">        new FieldFormatterCleanup(StandardField.TITLE, new TitleCaseFormatter()).cleanup(entry);</span>
+<span class="fc" id="L96">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

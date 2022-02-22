@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PushToApplicationPreferences.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.preferences</a> &gt; <span class="el_source">PushToApplicationPreferences.java</span></div><h1>PushToApplicationPreferences.java</h1><pre class="source lang-java linenums">package org.jabref.preferences;
+
+import java.util.Map;
+
+public class PushToApplicationPreferences {
+    private Map&lt;String, String&gt; pushToApplicationCommandPaths;
+    private String emacsArguments;
+    private String vimServer;
+
+<span class="nc" id="L10">    public PushToApplicationPreferences(Map&lt;String, String&gt; pushToApplicationCommandPaths, String emacsArguments, String vimServer) {</span>
+<span class="nc" id="L11">        this.pushToApplicationCommandPaths = pushToApplicationCommandPaths;</span>
+<span class="nc" id="L12">        this.emacsArguments = emacsArguments;</span>
+<span class="nc" id="L13">        this.vimServer = vimServer;</span>
+<span class="nc" id="L14">    }</span>
+
+    public Map&lt;String, String&gt; getPushToApplicationCommandPaths() {
+<span class="nc" id="L17">        return pushToApplicationCommandPaths;</span>
+    }
+
+    public PushToApplicationPreferences withPushToApplicationCommandPaths(Map&lt;String, String&gt; commandPaths) {
+<span class="nc" id="L21">        this.pushToApplicationCommandPaths = commandPaths;</span>
+<span class="nc" id="L22">        return this;</span>
+    }
+
+    public String getEmacsArguments() {
+<span class="nc" id="L26">        return emacsArguments;</span>
+    }
+
+    public PushToApplicationPreferences withEmacsArguments(String emacsArguments) {
+<span class="nc" id="L30">        this.emacsArguments = emacsArguments;</span>
+<span class="nc" id="L31">        return this;</span>
+    }
+
+    public String getVimServer() {
+<span class="nc" id="L35">        return vimServer;</span>
+    }
+
+    public PushToApplicationPreferences withVimServer(String vimServer) {
+<span class="nc" id="L39">        this.vimServer = vimServer;</span>
+<span class="nc" id="L40">        return this;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>
