@@ -34,7 +34,7 @@ public class FieldNameLabelTest {
 
     /**
      * Test getDescription() by comparing the output with
-     * all the fields descriptions
+     * all the fields descriptions in the method
      */
 
     @Test
