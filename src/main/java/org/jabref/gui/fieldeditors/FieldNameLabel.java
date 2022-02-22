@@ -36,7 +36,7 @@ public class FieldNameLabel extends Label {
     public String getDescription(Field field) {
         /*
          * Cyclomatic complexity
-         * pat672: 95
+         * pat672: 96
          * jolerus: TBD
          */
         if (field.isStandardField()) {
