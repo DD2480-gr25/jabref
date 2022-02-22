@@ -34,6 +34,11 @@ public class FieldNameLabel extends Label {
     }
 
     public String getDescription(Field field) {
+        /*
+         * Cyclomatic complexity
+         * pat672: 95
+         * jolerus: TBD
+         */
         if (field.isStandardField()) {
             StandardField standardField = (StandardField) field;
             switch (standardField) {
