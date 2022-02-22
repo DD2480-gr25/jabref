@@ -128,7 +128,7 @@ public class BibEntry implements Cloneable {
     private Optional<Field> getSourceField(Field targetField, EntryType targetEntry, EntryType sourceEntry) {
         /*
          * Cyclomatic complexity
-         * pat672: 22
+         * pat672: 80
          * emiros: TBD
          */
         //// 1. Sort out forbidden fields
@@ -139,7 +139,7 @@ public class BibEntry implements Cloneable {
             (targetField == StandardField.RELATED) ||
             (targetField == StandardField.SORTKEY)) {
             return Optional.empty();
-        }
+        } // pat672  CCN 6
 
         //// 2. Handle special field mappings
         if (((sourceEntry == StandardEntryType.MvBook) && (targetEntry == StandardEntryType.InBook)) ||
@@ -154,7 +154,7 @@ public class BibEntry implements Cloneable {
             if (targetField == StandardField.BOOKAUTHOR) {
                 return Optional.of(StandardField.AUTHOR);
             }
-        }
+        } // pat672  CCN 14
 
         if (((sourceEntry == StandardEntryType.MvBook) && (targetEntry == StandardEntryType.Book)) ||
                 ((sourceEntry == StandardEntryType.MvBook) && (targetEntry == StandardEntryType.InBook)) ||
@@ -188,7 +188,7 @@ public class BibEntry implements Cloneable {
             if (targetField == StandardField.SHORTTITLE) {
                 return Optional.empty();
             }
-        }
+        } // pat672  CCN 29
 
         if (((sourceEntry == StandardEntryType.Book) && (targetEntry == StandardEntryType.InBook)) ||
             ((sourceEntry == StandardEntryType.Book) && (targetEntry == StandardEntryType.BookInBook)) ||
@@ -218,7 +218,7 @@ public class BibEntry implements Cloneable {
             if ((targetField == StandardField.SHORTTITLE)) {
                 return Optional.empty();
             }
-        }
+        } // pat672  CCN 21
 
         if (((sourceEntry == IEEETranEntryType.Periodical) && (targetEntry == StandardEntryType.Article)) ||
             ((sourceEntry == IEEETranEntryType.Periodical) && (targetEntry == StandardEntryType.SuppPeriodical))) {
@@ -239,7 +239,7 @@ public class BibEntry implements Cloneable {
             if ((targetField == StandardField.SHORTTITLE)) {
                 return Optional.empty();
             }
-        }
+        } // pat672  CCN 9
 
         //// 3. Fallback to inherit the field with the same name.
         return Optional.ofNullable(targetField);
