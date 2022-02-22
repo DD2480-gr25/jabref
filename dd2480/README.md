@@ -78,8 +78,8 @@ Fully tested:
    18. U1, U2, N1
    19. M3, DO
 2. Parsing of date tags with correct priority
-3. importDatabaseWithNullForStringThrowsException
-4. importDatabaseWithNullForBufferedReaderThrowsException
+3. Should throw exception if string input is null 
+4. Should throw exception if called with null for BufferedReader 
 5. Fixing author and editor first name and last name ordering
 
 Untested:
@@ -96,10 +96,35 @@ When identifying these requirements we noticed some dead code that we will recom
 
 #### GvkParser::parseEntry
 Tested:
-1. a
+1. Parsing of GVK query tags:
+   1. mak tag 002@
+   2. ppn tag 003@
+   3. author tags 028A, 028B
+   4. editor tag 028C
+   5. title tag 021A
+   6. publisher tag 033A
+   7. year tag 011@
+   8. overwrite other tags with information from the 036D tag 
+   9. series tag 036E
+   10. note tag 037A
+   11. edition tag 032@
+   12. isbn tag 004A
+   13. page total tag 034D
+   14. proceedings tag 030F
+2. Should return empty on bad query
+3. Should parse subtitles
+4. Parsing an entry of "Default" type
 
 Untested:
-1. b
+1. Parsing an "028A" author tag when a previous author tag has already been parsed
+2. Parsing an "028B" author tag when no other author tag has preceded it
+3. Parsing of GBK query tags
+   1. "031A" denoting year, volume, number, pages 
+   2. Subfield "b" of "037C" for setting value of address, if no "033A" tag was previously found
+   3. "027D" denoting the journal or book title + publisher with address
+4. Parsing an entry of type "InCollection"
+5. Parsing an entry of type "Article"
+6. Parsing an entry of type "PhdThesis" (sourced from tag "037C" with subfield "a")
 
 #### BibEntry::getSourceField
 Tested:
