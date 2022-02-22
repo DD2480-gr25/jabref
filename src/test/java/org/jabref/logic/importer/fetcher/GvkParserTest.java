@@ -64,4 +64,16 @@ public class GvkParserTest {
             assertEquals(Optional.of("Word1 word2"), entries.get(4).getField(StandardField.SUBTITLE));
         }
     }
+
+    @Test
+    public void parsingCoauthorWithoutPriorAuthors() throws Exception {
+        try (InputStream is = GvkParserTest.class.getResourceAsStream("gvk_artificial_coauthor_test.xml")) {
+            GvkParser parser = new GvkParser();
+            List<BibEntry> entries = parser.parseEntries(is);
+            assertNotNull(entries);
+            assertEquals(1, entries.size());
+
+            assertEquals(Optional.of("John Doe"), entries.get(0).getField(StandardField.AUTHOR));
+        }
+    }
 }
