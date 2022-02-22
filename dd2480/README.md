@@ -24,7 +24,7 @@ The branch coverage appears significantly higher for 4 out of 5 methods than the
 The only outlier is `FieldNameLabel::getDescription`. 
 
 ### Identify the requirements that are tested or untested by the given test suite
-#### `RTFChars::transformSpecialCharacter`
+#### RTFChars::transformSpecialCharacter
 Tested:
 1. Code transforms unicode representation of special characters into their base equivalent:
    1. All variations of 'A', 'a'
@@ -55,14 +55,53 @@ Tested:
 Untested:
 1. All variations of 'o' (characters 242-248 exc. 247, 333, 335)
 
-#### `RisImporter::importDatabase`
+#### RisImporter::importDatabase
+Fully tested:
+1. Parsing of RIS tags:
+   1. TY
+   2. T1, TI
+   3. BT
+   4. JO, J1, JF
+   5. T3
+   6. ED
+   7. LA
+   8. CA
+   9. DB
+   10. SP
+   11. PB
+   12. EP
+   13. ET
+   14. SN
+   15. VL
+   16. N2, AB
+   17. KW
+   18. U1, U2, N1
+   19. M3, DO
+2. Parsing of date tags with correct priority
+3. importDatabaseWithNullForStringThrowsException
+4. importDatabaseWithNullForBufferedReaderThrowsException
+5. Fixing author and editor first name and last name ordering
+
+Untested:
+1. Parsing of fields that have no direct mapping in the bibtext standard: AV, CN, NV, OP, RI, RP, SE
+2. Parsing of RIS tags:
+   1. C3
+   2. RN
+   3. ST
+   4. C2
+   5. TA
+3. When parsing line with tags "JA" and "JF", setting the line value to the journal field if the entry type is not Conference Proceedings  
+
+When identifying these requirements we noticed some dead code that we will recommend removing, such as a duplicate `else if` condition for the tag "DB"
+
+#### GvkParser::parseEntry
 Tested:
 1. a
 
 Untested:
 1. b
 
-#### `BibEntry::getSourceField`
+#### BibEntry::getSourceField
 Tested:
 1. Handle special field mappings, checking author (All 28 branches tested)
 
@@ -72,7 +111,7 @@ Untested:
 3. Handle special field mappings, checking journal title (8 out of 18 branches missed)
 
 
-#### `FieldNameLabel::getDescription`
+#### FieldNameLabel::getDescription
 Nothing tested.
 
 Untested:
