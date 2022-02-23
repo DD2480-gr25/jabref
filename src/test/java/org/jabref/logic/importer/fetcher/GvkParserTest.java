@@ -111,4 +111,40 @@ public class GvkParserTest {
             assertEquals(Optional.empty(), entries.get(0).getField(StandardField.PAGETOTAL));
         }
     }
+
+    @Test
+    public void parsingJournalPublisherWithNoValueForTag027D() throws Exception {
+        try (InputStream is = GvkParserTest.class.getResourceAsStream("gvk_artificial_fields_test.xml")) {
+            GvkParser parser = new GvkParser();
+            List<BibEntry> entries = parser.parseEntries(is);
+            assertNotNull(entries);
+            assertEquals(1, entries.size());
+            assertEquals(Optional.of("Science"), entries.get(0).getField(StandardField.JOURNAL));
+            assertEquals(Optional.of("test_publisher"), entries.get(0).getField(StandardField.PUBLISHER));
+        }
+    }
+
+    @Test
+    public void parsingNoteWithNoValueForTag037A() throws Exception {
+        try (InputStream is = GvkParserTest.class.getResourceAsStream("gvk_artificial_fields_test.xml")) {
+            GvkParser parser = new GvkParser();
+            List<BibEntry> entries = parser.parseEntries(is);
+            assertNotNull(entries);
+            assertEquals(1, entries.size());
+            assertEquals(Optional.of("test_note"), entries.get(0).getField(StandardField.NOTE));
+        }
+    }
+
+    @Test
+    public void parsingISBNWithNoValueForTag004A() throws Exception {
+        try (InputStream is = GvkParserTest.class.getResourceAsStream("gvk_artificial_fields_test.xml")) {
+            GvkParser parser = new GvkParser();
+            List<BibEntry> entries = parser.parseEntries(is);
+            assertNotNull(entries);
+            assertEquals(1, entries.size());
+            assertEquals(Optional.of("test_isbn13"), entries.get(0).getField(StandardField.ISBN));
+        }
+    }
+
+
 }
