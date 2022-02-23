@@ -12,30 +12,19 @@
     <subfield code="a">Doe</subfield>
     <subfield code="d">John</subfield>
   </datafield>
-</record>
-<record xmlns="info:srw/schema/5/picaXML-v1.0">
   <datafield tag="037C">
     <subfield code="b">test_address</subfield>
   </datafield>
-  <datafield tag="037C">
-    <subfield code="a">test_Diss</subfield>
-  </datafield>
-</record>
-<record xmlns="info:srw/schema/5/picaXML-v1.0">
   <datafield tag="028A">
     <subfield code="a">Doe</subfield>
     <subfield code="d">Jane</subfield>
   </datafield>
-</record>
-<record xmlns="info:srw/schema/5/picaXML-v1.0">
   <datafield tag="031A">
     <subfield code="j">2022</subfield>
     <subfield code="e">7</subfield>
     <subfield code="a">8</subfield>
     <subfield code="h">9</subfield>
   </datafield>
-</record>
-<record xmlns="info:srw/schema/5/picaXML-v1.0">
   <datafield tag="034D">
     <subfield code="a"></subfield>
   </datafield>
