@@ -13,6 +13,30 @@
     <subfield code="d">John</subfield>
   </datafield>
 </record>
+<record xmlns="info:srw/schema/5/picaXML-v1.0">
+  <datafield tag="002@">
+    <subfield code="d"></subfield>
+  </datafield>
+</record>
+<record xmlns="info:srw/schema/5/picaXML-v1.0">
+  <datafield tag="028A">
+    <subfield code="a">Doe</subfield>
+    <subfield code="d">Jane</subfield>
+  </datafield>
+</record>
+<record xmlns="info:srw/schema/5/picaXML-v1.0">
+  <datafield tag="031A">
+    <subfield code="j">2022</subfield>
+    <subfield code="e">7</subfield>
+    <subfield code="a">8</subfield>
+    <subfield code="h">9</subfield>
+  </datafield>
+</record>
+<record xmlns="info:srw/schema/5/picaXML-v1.0">
+  <datafield tag="034D">
+    <subfield code="a"></subfield>
+  </datafield>
+</record>
 </zs:recordData>
 <zs:recordPosition>1</zs:recordPosition>
 </zs:record>
