@@ -14,8 +14,11 @@
   </datafield>
 </record>
 <record xmlns="info:srw/schema/5/picaXML-v1.0">
-  <datafield tag="002@">
-    <subfield code="d"></subfield>
+  <datafield tag="037C">
+    <subfield code="b">test_address</subfield>
+  </datafield>
+  <datafield tag="037C">
+    <subfield code="a">test_Diss</subfield>
   </datafield>
 </record>
 <record xmlns="info:srw/schema/5/picaXML-v1.0">
