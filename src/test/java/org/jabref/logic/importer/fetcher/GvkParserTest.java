@@ -10,6 +10,7 @@ import org.jabref.logic.bibtex.BibEntryAssert;
 import org.jabref.logic.importer.fileformat.GvkParser;
 import org.jabref.model.entry.BibEntry;
 import org.jabref.model.entry.field.StandardField;
+import org.jabref.model.entry.types.StandardEntryType;
 import org.jabref.testutils.category.FetcherTest;
 
 import org.junit.jupiter.api.Test;
@@ -98,6 +99,17 @@ public class GvkParserTest {
             assertNotNull(entries);
             assertEquals(1, entries.size());
             assertEquals(Optional.of("test_address"), entries.get(0).getField(StandardField.ADDRESS));
+        }
+    }
+
+    @Test
+    public void setEntryTypeForTag037C() throws Exception {
+        try (InputStream is = GvkParserTest.class.getResourceAsStream("gvk_artificial_various_test.xml")) {
+            GvkParser parser = new GvkParser();
+            List<BibEntry> entries = parser.parseEntries(is);
+            assertNotNull(entries);
+            assertEquals(1, entries.size());
+            assertEquals(StandardEntryType.PhdThesis, entries.get(0).getType());
         }
     }
 

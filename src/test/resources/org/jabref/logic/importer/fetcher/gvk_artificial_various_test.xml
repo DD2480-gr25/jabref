@@ -14,6 +14,7 @@
   </datafield>
   <datafield tag="037C">
     <subfield code="b">test_address</subfield>
+    <subfield code="a">Dissertation</subfield>
   </datafield>
   <datafield tag="028A">
     <subfield code="a">Doe</subfield>
