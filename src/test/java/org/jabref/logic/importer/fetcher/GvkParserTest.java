@@ -101,4 +101,15 @@ public class GvkParserTest {
             assertEquals(Optional.of("PhdThesis"), entries.get(0).getField(StandardField.TYPE));
         }
     }
+
+    @Test
+    public void parsingPagetotalWithNoValueForTag034D() throws Exception {
+        try (InputStream is = GvkParserTest.class.getResourceAsStream("gvk_artificial_coauthor_test.xml")) {
+            GvkParser parser = new GvkParser();
+            List<BibEntry> entries = parser.parseEntries(is);
+            assertNotNull(entries);
+            assertEquals(1, entries.size());
+            assertEquals(Optional.of(""), entries.get(0).getField(StandardField.PAGETOTAL));
+        }
+    }
 }
