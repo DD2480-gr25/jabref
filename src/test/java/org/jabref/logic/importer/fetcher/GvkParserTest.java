@@ -66,14 +66,29 @@ public class GvkParserTest {
     }
 
     @Test
-    public void parsingCoauthorWithoutPriorAuthors() throws Exception {
+    public void firstParsingCoauthorThenParsingAuthorConcatenates() throws Exception {
         try (InputStream is = GvkParserTest.class.getResourceAsStream("gvk_artificial_coauthor_test.xml")) {
             GvkParser parser = new GvkParser();
             List<BibEntry> entries = parser.parseEntries(is);
             assertNotNull(entries);
             assertEquals(1, entries.size());
-
-            assertEquals(Optional.of("John Doe"), entries.get(0).getField(StandardField.AUTHOR));
+            assertEquals(Optional.of("John Doe and Jane Doe"), entries.get(0).getField(StandardField.AUTHOR));
         }
     }
+
+    @Test
+    public void parsingYearVolumeNumberPagesForTag031A() throws Exception {
+        try (InputStream is = GvkParserTest.class.getResourceAsStream("gvk_artificial_coauthor_test.xml")) {
+            GvkParser parser = new GvkParser();
+            List<BibEntry> entries = parser.parseEntries(is);
+            assertNotNull(entries);
+            assertEquals(1, entries.size());
+            assertEquals(Optional.of("2022"), entries.get(0).getField(StandardField.YEAR));
+            assertEquals(Optional.of("7"), entries.get(0).getField(StandardField.VOLUME));
+            assertEquals(Optional.of("8"), entries.get(0).getField(StandardField.NUMBER));
+            assertEquals(Optional.of("9"), entries.get(0).getField(StandardField.PAGES));
+        }
+    }
+
+
 }
