@@ -67,7 +67,7 @@ public class GvkParserTest {
 
     @Test
     public void firstParsingCoauthorThenParsingAuthorConcatenates() throws Exception {
-        try (InputStream is = GvkParserTest.class.getResourceAsStream("gvk_artificial_coauthor_test.xml")) {
+        try (InputStream is = GvkParserTest.class.getResourceAsStream("gvk_artificial_various_test.xml")) {
             GvkParser parser = new GvkParser();
             List<BibEntry> entries = parser.parseEntries(is);
             assertNotNull(entries);
@@ -78,7 +78,7 @@ public class GvkParserTest {
 
     @Test
     public void parsingYearVolumeNumberPagesForTag031A() throws Exception {
-        try (InputStream is = GvkParserTest.class.getResourceAsStream("gvk_artificial_coauthor_test.xml")) {
+        try (InputStream is = GvkParserTest.class.getResourceAsStream("gvk_artificial_various_test.xml")) {
             GvkParser parser = new GvkParser();
             List<BibEntry> entries = parser.parseEntries(is);
             assertNotNull(entries);
@@ -92,7 +92,7 @@ public class GvkParserTest {
 
     @Test
     public void parsingAdressAndPhdThesisForTag037C() throws Exception {
-        try (InputStream is = GvkParserTest.class.getResourceAsStream("gvk_artificial_coauthor_test.xml")) {
+        try (InputStream is = GvkParserTest.class.getResourceAsStream("gvk_artificial_various_test.xml")) {
             GvkParser parser = new GvkParser();
             List<BibEntry> entries = parser.parseEntries(is);
             assertNotNull(entries);
@@ -104,7 +104,7 @@ public class GvkParserTest {
 
     @Test
     public void parsingPagetotalWithNoValueForTag034D() throws Exception {
-        try (InputStream is = GvkParserTest.class.getResourceAsStream("gvk_artificial_coauthor_test.xml")) {
+        try (InputStream is = GvkParserTest.class.getResourceAsStream("gvk_artificial_various_test.xml")) {
             GvkParser parser = new GvkParser();
             List<BibEntry> entries = parser.parseEntries(is);
             assertNotNull(entries);
