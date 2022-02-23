@@ -236,15 +236,29 @@ Untested:
    6.  JOURNALTITLE
    7.  LOCATION
    
-2.  If the field is an instance of "InternalField" and;
+2. If the field is an instance of "InternalField" and;
     1.   If the field is a "KEY_FIELD" the code returns a description.
     2.   Otherwise it returns an empty string.
    
-3.  If the field is an instance of "SpecialField" it will return a description if the field is;
-    1.  PRINTED
-    2.  PRIORITY
-    3.  QUALITY
-    4.  RANKING
-    5.  READ_STATUS
-    6.  RELEVANCE
+3. If the field is an instance of "SpecialField" it will return a description if the field is;
+    1. PRINTED
+    2. PRIORITY
+    3. QUALITY
+    4. RANKING
+    5. READ_STATUS
+    6. RELEVANCE
     Otherwise it will return an empty string.
+
+### Improve testing coverage
+
+#### RisImporter::importDatabase
+RisImporter is tested through the `RISImporterTestFiles` test class which contains a parameterized test method 
+`testImportEntries` that will load in test cases in the form of .ris files and compare them against "oracle" files 
+in the form of .bib files. Thus, in order to add more testing coverage, we need to add additional test files 
+under `src/test/resources/org/jabref/logic/importer/fileformat`.
+
+The following test cases i.e. test files were added:
+1. `RisImporterTestPeriodicalAbbrv.ris`: Tests the following requirement: "When parsing a line with tags "JA" and "JF", setting the line's value should be set to the journal field only if the entry type is not Conference Proceedings"
+2. `RisImporterTest10`: Tests parsing of previously untested RIS tags C3, N1, and ST
+3. `RisImporterTest11`: Tests parsing of previously untested RIS tags RN, C2, and TA
+4. `RisImporterTestUnmappedTags`: Tests RIS tags with no direct bibtext-mapping namely RP, AV, CN, OP, RI
