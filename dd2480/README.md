@@ -261,4 +261,5 @@ The following test cases i.e. test files were added:
 1. `RisImporterTestPeriodicalAbbrv.ris`: Tests the following requirement: "When parsing a line with tags "JA" and "JF", setting the line's value should be set to the journal field only if the entry type is not Conference Proceedings"
 2. `RisImporterTest10`: Tests parsing of previously untested RIS tags C3, N1, and ST
 3. `RisImporterTest11`: Tests parsing of previously untested RIS tags RN, C2, and TA
-4. `RisImporterTestUnmappedTags`: Tests RIS tags with no direct bibtext-mapping namely RP, AV, CN, OP, RI
+4. `RisImporterTest12`: Tests parsing of previously untested RIS tags SE and NV
+5. `RisImporterTestUnmappedTags`: Tests RIS tags with no direct bibtext-mapping namely RP, AV, CN, OP, RI
