@@ -173,27 +173,7 @@ public class BibEntry implements Cloneable {
                 ((sourceEntry == StandardEntryType.MvProceedings) && (targetEntry == StandardEntryType.InProceedings)) ||
                 ((sourceEntry == StandardEntryType.MvReference) && (targetEntry == StandardEntryType.Reference)) ||
                 ((sourceEntry == StandardEntryType.MvReference) && (targetEntry == StandardEntryType.InReference))) {
-            if (targetField == StandardField.MAINTITLE) {
-                return Optional.of(StandardField.TITLE);
-            }
-            if (targetField == StandardField.MAINSUBTITLE) {
-                return Optional.of(StandardField.SUBTITLE);
-            }
-            if (targetField == StandardField.MAINTITLEADDON) {
-                return Optional.of(StandardField.TITLEADDON);
-            }
-
-            // those fields are no more available for the same-name inheritance strategy
-            if ((targetField == StandardField.TITLE) ||
-                (targetField == StandardField.SUBTITLE) ||
-                (targetField == StandardField.TITLEADDON)) {
-                return Optional.empty();
-            }
-
-            // for these fields, inheritance is not allowed for the specified entry types
-            if (targetField == StandardField.SHORTTITLE) {
-                return Optional.empty();
-            }
+                    return getSourceFieldMv(targetField);
         }
 
         if (((sourceEntry == StandardEntryType.Book) && (targetEntry == StandardEntryType.InBook)) ||
@@ -203,31 +183,19 @@ public class BibEntry implements Cloneable {
             ((sourceEntry == StandardEntryType.Collection) && (targetEntry == StandardEntryType.SuppCollection)) ||
             ((sourceEntry == StandardEntryType.Reference) && (targetEntry == StandardEntryType.InReference)) ||
             ((sourceEntry == StandardEntryType.Proceedings) && (targetEntry == StandardEntryType.InProceedings))) {
-            if (targetField == StandardField.BOOKTITLE) {
-                return Optional.of(StandardField.TITLE);
-            }
-            if (targetField == StandardField.BOOKSUBTITLE) {
-                return Optional.of(StandardField.SUBTITLE);
-            }
-            if (targetField == StandardField.BOOKTITLEADDON) {
-                return Optional.of(StandardField.TITLEADDON);
-            }
-
-            // those fields are no more available for the same-name inheritance strategy
-            if ((targetField == StandardField.TITLE) ||
-                (targetField == StandardField.SUBTITLE) ||
-                (targetField == StandardField.TITLEADDON)) {
-                return Optional.empty();
-            }
-
-            // for these fields, inheritance is not allowed for the specified entry types
-            if ((targetField == StandardField.SHORTTITLE)) {
-                return Optional.empty();
-            }
+                return getSourceFieldBook(targetField);
         }
 
-        if (((sourceEntry == IEEETranEntryType.Periodical) && (targetEntry == StandardEntryType.Article)) ||
-            ((sourceEntry == IEEETranEntryType.Periodical) && (targetEntry == StandardEntryType.SuppPeriodical))) {
+        if (sourceEntry == IEEETranEntryType.Periodical) {
+                return getSourceFieldPeriodical(targetField, targetEntry);
+        }
+
+        //// 3. Fallback to inherit the field with the same name.
+        return Optional.ofNullable(targetField);
+    }
+
+    private Optional<Field> getSourceFieldPeriodical(Field targetField, EntryType targetEntry) {
+        if (targetEntry == StandardEntryType.Article || targetEntry == StandardEntryType.SuppPeriodical) {
             if (targetField == StandardField.JOURNALTITLE) {
                 return Optional.of(StandardField.TITLE);
             }
@@ -237,7 +205,7 @@ public class BibEntry implements Cloneable {
 
             // those fields are no more available for the same-name inheritance strategy
             if ((targetField == StandardField.TITLE) ||
-                (targetField == StandardField.SUBTITLE)) {
+                    (targetField == StandardField.SUBTITLE)) {
                 return Optional.empty();
             }
 
@@ -246,8 +214,59 @@ public class BibEntry implements Cloneable {
                 return Optional.empty();
             }
         }
+        //Fallback
+        return Optional.ofNullable(targetField);
+    }
 
-        //// 3. Fallback to inherit the field with the same name.
+    private Optional<Field> getSourceFieldBook(Field targetField) {
+        if (targetField == StandardField.BOOKTITLE) {
+            return Optional.of(StandardField.TITLE);
+        }
+        if (targetField == StandardField.BOOKSUBTITLE) {
+            return Optional.of(StandardField.SUBTITLE);
+        }
+        if (targetField == StandardField.BOOKTITLEADDON) {
+            return Optional.of(StandardField.TITLEADDON);
+        }
+
+        // those fields are no more available for the same-name inheritance strategy
+        if ((targetField == StandardField.TITLE) ||
+                (targetField == StandardField.SUBTITLE) ||
+                (targetField == StandardField.TITLEADDON)) {
+            return Optional.empty();
+        }
+
+        // for these fields, inheritance is not allowed for the specified entry types
+        if ((targetField == StandardField.SHORTTITLE)) {
+            return Optional.empty();
+        }
+        //Fallback
+        return Optional.ofNullable(targetField);
+    }
+
+    private Optional<Field> getSourceFieldMv(Field targetField) {
+        if (targetField == StandardField.MAINTITLE) {
+            return Optional.of(StandardField.TITLE);
+        }
+        if (targetField == StandardField.MAINSUBTITLE) {
+            return Optional.of(StandardField.SUBTITLE);
+        }
+        if (targetField == StandardField.MAINTITLEADDON) {
+            return Optional.of(StandardField.TITLEADDON);
+        }
+
+        // those fields are no more available for the same-name inheritance strategy
+        if ((targetField == StandardField.TITLE) ||
+                (targetField == StandardField.SUBTITLE) ||
+                (targetField == StandardField.TITLEADDON)) {
+            return Optional.empty();
+        }
+
+        // for these fields, inheritance is not allowed for the specified entry types
+        if (targetField == StandardField.SHORTTITLE) {
+            return Optional.empty();
+        }
+        //Fallback
         return Optional.ofNullable(targetField);
     }
 
