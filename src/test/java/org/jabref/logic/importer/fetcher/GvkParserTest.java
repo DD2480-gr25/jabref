@@ -103,13 +103,13 @@ public class GvkParserTest {
     }
 
     @Test
-    public void setEntryTypeForTag037C() throws Exception {
+    public void parsing036DTitle() throws Exception {
         try (InputStream is = GvkParserTest.class.getResourceAsStream("gvk_artificial_various_test.xml")) {
             GvkParser parser = new GvkParser();
             List<BibEntry> entries = parser.parseEntries(is);
             assertNotNull(entries);
             assertEquals(1, entries.size());
-            assertEquals(StandardEntryType.PhdThesis, entries.get(0).getType());
+            assertEquals(Optional.of("test"), entries.get(0).getField(StandardField.TITLE));
         }
     }
 
@@ -157,6 +157,4 @@ public class GvkParserTest {
             assertEquals(Optional.of("test_isbn13"), entries.get(0).getField(StandardField.ISBN));
         }
     }
-
-
 }
