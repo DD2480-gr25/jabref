@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FieldFormatterCleanup.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.cleanup</a> &gt; <span class="el_source">FieldFormatterCleanup.java</span></div><h1>FieldFormatterCleanup.java</h1><pre class="source lang-java linenums">package org.jabref.logic.cleanup;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+
+import org.jabref.model.FieldChange;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.event.EntriesEventSource;
+import org.jabref.model.entry.field.Field;
+import org.jabref.model.entry.field.FieldFactory;
+import org.jabref.model.entry.field.InternalField;
+
+/**
+ * Formats a given entry field with the specified formatter.
+ */
+public class FieldFormatterCleanup implements CleanupJob {
+
+    private final Field field;
+    private final Formatter formatter;
+
+<span class="fc" id="L25">    public FieldFormatterCleanup(Field field, Formatter formatter) {</span>
+<span class="fc" id="L26">        this.field = field;</span>
+<span class="fc" id="L27">        this.formatter = formatter;</span>
+<span class="fc" id="L28">    }</span>
+
+    @Override
+    public List&lt;FieldChange&gt; cleanup(BibEntry entry) {
+<span class="fc bfc" id="L32" title="All 2 branches covered.">        if (InternalField.INTERNAL_ALL_FIELD.equals(field)) {</span>
+<span class="fc" id="L33">            return cleanupAllFields(entry);</span>
+<span class="fc bfc" id="L34" title="All 2 branches covered.">        } else if (InternalField.INTERNAL_ALL_TEXT_FIELDS_FIELD.equals(field)) {</span>
+<span class="fc" id="L35">            return cleanupAllTextFields(entry);</span>
+        } else {
+<span class="fc" id="L37">            return cleanupSingleField(field, entry);</span>
+        }
+    }
+
+    /**
+     * Runs the formatter on the specified field in the given entry.
+     * &lt;p&gt;
+     * If the formatter returns an empty string, then the field is removed.
+     *
+     * @param fieldKey the field on which to run the formatter
+     * @param entry    the entry to be cleaned up
+     * @return a list of changes of the entry
+     */
+    private List&lt;FieldChange&gt; cleanupSingleField(Field fieldKey, BibEntry entry) {
+<span class="fc bfc" id="L51" title="All 2 branches covered.">        if (!entry.hasField(fieldKey)) {</span>
+            // Not set -&gt; nothing to do
+<span class="fc" id="L53">            return Collections.emptyList();</span>
+        }
+<span class="fc" id="L55">        String oldValue = entry.getField(fieldKey).orElse(null);</span>
+
+        // Run formatter
+<span class="fc" id="L58">        String newValue = formatter.format(oldValue);</span>
+<span class="fc bfc" id="L59" title="All 2 branches covered.">        if (formatter instanceof NormalizeNewlinesFormatter) {</span>
+<span class="fc" id="L60">            newValue = oldValue;</span>
+        }
+
+<span class="fc bfc" id="L63" title="All 2 branches covered.">        if (oldValue.equals(newValue)) {</span>
+<span class="fc" id="L64">            return Collections.emptyList();</span>
+        } else {
+<span class="fc bfc" id="L66" title="All 2 branches covered.">            if (newValue.isEmpty()) {</span>
+<span class="fc" id="L67">                entry.clearField(fieldKey);</span>
+<span class="fc" id="L68">                newValue = null;</span>
+            } else {
+<span class="fc" id="L70">                entry.setField(fieldKey, newValue, EntriesEventSource.SAVE_ACTION);</span>
+            }
+<span class="fc" id="L72">            FieldChange change = new FieldChange(entry, fieldKey, oldValue, newValue);</span>
+<span class="fc" id="L73">            return Collections.singletonList(change);</span>
+        }
+    }
+
+    private List&lt;FieldChange&gt; cleanupAllFields(BibEntry entry) {
+<span class="fc" id="L78">        List&lt;FieldChange&gt; fieldChanges = new ArrayList&lt;&gt;();</span>
+
+<span class="fc bfc" id="L80" title="All 2 branches covered.">        for (Field fieldKey : entry.getFields()) {</span>
+<span class="fc bfc" id="L81" title="All 2 branches covered.">            if (!fieldKey.equals(InternalField.KEY_FIELD)) {</span>
+<span class="fc" id="L82">                fieldChanges.addAll(cleanupSingleField(fieldKey, entry));</span>
+            }
+<span class="fc" id="L84">        }</span>
+
+<span class="fc" id="L86">        return fieldChanges;</span>
+    }
+
+    private List&lt;FieldChange&gt; cleanupAllTextFields(BibEntry entry) {
+<span class="fc" id="L90">        List&lt;FieldChange&gt; fieldChanges = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L91">        Set&lt;Field&gt; fields = new HashSet&lt;&gt;(entry.getFields());</span>
+<span class="fc" id="L92">        fields.removeAll(FieldFactory.getNotTextFieldNames());</span>
+<span class="fc bfc" id="L93" title="All 2 branches covered.">        for (Field fieldKey : fields) {</span>
+<span class="fc bfc" id="L94" title="All 2 branches covered.">            if (!fieldKey.equals(InternalField.KEY_FIELD)) {</span>
+<span class="fc" id="L95">                fieldChanges.addAll(cleanupSingleField(fieldKey, entry));</span>
+            }
+<span class="fc" id="L97">        }</span>
+
+<span class="fc" id="L99">        return fieldChanges;</span>
+    }
+
+    public Field getField() {
+<span class="fc" id="L103">        return field;</span>
+    }
+
+    public Formatter getFormatter() {
+<span class="fc" id="L107">        return formatter;</span>
+    }
+
+    @Override
+    public boolean equals(Object o) {
+<span class="pc bpc" id="L112" title="1 of 2 branches missed.">        if (this == o) {</span>
+<span class="nc" id="L113">            return true;</span>
+        }
+<span class="pc bpc" id="L115" title="1 of 2 branches missed.">        if (o instanceof FieldFormatterCleanup) {</span>
+<span class="fc" id="L116">            FieldFormatterCleanup that = (FieldFormatterCleanup) o;</span>
+<span class="pc bpc" id="L117" title="2 of 4 branches missed.">            return Objects.equals(field, that.field) &amp;&amp; Objects.equals(formatter, that.formatter);</span>
+        }
+<span class="nc" id="L119">        return false;</span>
+    }
+
+    @Override
+    public int hashCode() {
+<span class="nc" id="L124">        return Objects.hash(field, formatter);</span>
+    }
+
+    @Override
+    public String toString() {
+<span class="nc" id="L129">        return field + &quot;: &quot; + formatter.getName();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

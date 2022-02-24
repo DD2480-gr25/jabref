@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FileTabViewModel.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.preferences.file</a> &gt; <span class="el_source">FileTabViewModel.java</span></div><h1>FileTabViewModel.java</h1><pre class="source lang-java linenums">package org.jabref.gui.preferences.file;
+
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+
+import org.jabref.gui.preferences.PreferenceTabViewModel;
+import org.jabref.preferences.ImportExportPreferences;
+
+public class FileTabViewModel implements PreferenceTabViewModel {
+
+<span class="nc" id="L13">    private final BooleanProperty openLastStartupProperty = new SimpleBooleanProperty();</span>
+<span class="nc" id="L14">    private final StringProperty noWrapFilesProperty = new SimpleStringProperty(&quot;&quot;);</span>
+<span class="nc" id="L15">    private final BooleanProperty doNotResolveStringsProperty = new SimpleBooleanProperty();</span>
+<span class="nc" id="L16">    private final BooleanProperty resolveStringsProperty = new SimpleBooleanProperty();</span>
+<span class="nc" id="L17">    private final StringProperty resolveStringsForFieldsProperty = new SimpleStringProperty(&quot;&quot;);</span>
+<span class="nc" id="L18">    private final BooleanProperty alwaysReformatBibProperty = new SimpleBooleanProperty();</span>
+<span class="nc" id="L19">    private final BooleanProperty warnAboutDuplicatesOnImportProperty = new SimpleBooleanProperty();</span>
+<span class="nc" id="L20">    private final BooleanProperty autosaveLocalLibraries = new SimpleBooleanProperty();</span>
+
+    private final ImportExportPreferences importExportPreferences;
+
+<span class="nc" id="L24">    FileTabViewModel(ImportExportPreferences importExportPreferences) {</span>
+<span class="nc" id="L25">        this.importExportPreferences = importExportPreferences;</span>
+<span class="nc" id="L26">    }</span>
+
+    @Override
+    public void setValues() {
+<span class="nc" id="L30">        openLastStartupProperty.setValue(importExportPreferences.shouldOpenLastEdited());</span>
+<span class="nc" id="L31">        noWrapFilesProperty.setValue(importExportPreferences.getNonWrappableFields());</span>
+
+<span class="nc bnc" id="L33" title="All 2 branches missed.">        doNotResolveStringsProperty.setValue(!importExportPreferences.resolveStrings());</span>
+<span class="nc" id="L34">        resolveStringsProperty.setValue(importExportPreferences.resolveStrings());</span>
+<span class="nc" id="L35">        resolveStringsForFieldsProperty.setValue(importExportPreferences.getResolvableFields());</span>
+<span class="nc" id="L36">        alwaysReformatBibProperty.setValue(importExportPreferences.shouldAlwaysReformatOnSave());</span>
+<span class="nc" id="L37">        warnAboutDuplicatesOnImportProperty.setValue(importExportPreferences.shouldWarnAboutDuplicatesOnImport());</span>
+<span class="nc" id="L38">        autosaveLocalLibraries.setValue(importExportPreferences.shouldAutoSave());</span>
+<span class="nc" id="L39">    }</span>
+
+    @Override
+    public void storeSettings() {
+<span class="nc" id="L43">        importExportPreferences.setOpenLastEdited(openLastStartupProperty.getValue());</span>
+<span class="nc bnc" id="L44" title="All 2 branches missed.">        importExportPreferences.setResolveStrings(!doNotResolveStringsProperty.getValue());</span>
+<span class="nc" id="L45">        importExportPreferences.setNonWrappableFields(noWrapFilesProperty.getValue().trim());</span>
+<span class="nc" id="L46">        importExportPreferences.setResolvableFields(resolveStringsForFieldsProperty.getValue().trim());</span>
+<span class="nc" id="L47">        importExportPreferences.setAlwaysReformatOnSave(alwaysReformatBibProperty.getValue());</span>
+<span class="nc" id="L48">        importExportPreferences.setWarnAboutDuplicatesOnImport(warnAboutDuplicatesOnImportProperty.getValue());</span>
+<span class="nc" id="L49">        importExportPreferences.setAutoSave(autosaveLocalLibraries.getValue());</span>
+<span class="nc" id="L50">    }</span>
+
+    // General
+
+    public BooleanProperty openLastStartupProperty() {
+<span class="nc" id="L55">        return openLastStartupProperty;</span>
+    }
+
+    // ImportExport
+
+    public StringProperty noWrapFilesProperty() {
+<span class="nc" id="L61">        return noWrapFilesProperty;</span>
+    }
+
+    public BooleanProperty doNotResolveStringsProperty() {
+<span class="nc" id="L65">        return doNotResolveStringsProperty;</span>
+    }
+
+    public BooleanProperty resolveStringsProperty() {
+<span class="nc" id="L69">        return resolveStringsProperty;</span>
+    }
+
+    public StringProperty resolveStringsForFieldsProperty() {
+<span class="nc" id="L73">        return resolveStringsForFieldsProperty;</span>
+    }
+
+    public BooleanProperty alwaysReformatBibProperty() {
+<span class="nc" id="L77">        return alwaysReformatBibProperty;</span>
+    }
+
+    public BooleanProperty warnAboutDuplicatesOnImportProperty() {
+<span class="nc" id="L81">        return warnAboutDuplicatesOnImportProperty;</span>
+    }
+
+    // Autosave
+    public BooleanProperty autosaveLocalLibrariesProperty() {
+<span class="nc" id="L86">        return autosaveLocalLibraries;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

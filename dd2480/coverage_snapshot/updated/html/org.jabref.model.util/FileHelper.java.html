@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FileHelper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.model.util</a> &gt; <span class="el_source">FileHelper.java</span></div><h1>FileHelper.java</h1><pre class="source lang-java linenums">package org.jabref.model.util;
+
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Optional;
+
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.preferences.FilePreferences;
+
+import org.apache.tika.config.TikaConfig;
+import org.apache.tika.detect.Detector;
+import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
+import org.apache.tika.mime.MediaType;
+import org.apache.tika.mime.MimeType;
+import org.apache.tika.mime.MimeTypeException;
+import org.apache.tika.parser.AutoDetectParser;
+
+<span class="nc" id="L26">public class FileHelper {</span>
+
+    /**
+     * Returns the extension of a file or Optional.empty() if the file does not have one (no . in name).
+     *
+     * @param file
+     * @return The extension, trimmed and in lowercase.
+     */
+    public static Optional&lt;String&gt; getFileExtension(Path file) {
+<span class="fc" id="L35">        return getFileExtension(file.toString());</span>
+    }
+
+    /**
+     * Returns the extension of a file name or Optional.empty() if the file does not have one (no &quot;.&quot; in name).
+     *
+     * @param fileName
+     * @return The extension (without leading dot), trimmed and in lowercase.
+     */
+    public static Optional&lt;String&gt; getFileExtension(String fileName) {
+<span class="fc" id="L45">        Metadata metadata = new Metadata();</span>
+<span class="fc" id="L46">        metadata.add(TikaCoreProperties.RESOURCE_NAME_KEY, fileName);</span>
+
+<span class="fc bfc" id="L48" title="All 2 branches covered.">        if (isUrl(fileName)) {</span>
+<span class="fc" id="L49">            try (InputStream is = new URL(fileName).openStream()) {</span>
+<span class="fc" id="L50">                return detectExtension(is, metadata);</span>
+<span class="nc" id="L51">            } catch (IOException | MimeTypeException e) {</span>
+<span class="nc" id="L52">                return Optional.empty();</span>
+            }
+        }
+
+<span class="fc" id="L56">        int dotPosition = fileName.lastIndexOf('.');</span>
+<span class="pc bpc" id="L57" title="1 of 4 branches missed.">        if ((dotPosition &gt; 0) &amp;&amp; (dotPosition &lt; (fileName.length() - 1))) {</span>
+<span class="fc" id="L58">            return Optional.of(fileName.substring(dotPosition + 1).trim().toLowerCase(Locale.ROOT));</span>
+        }
+<span class="fc" id="L60">        return Optional.empty();</span>
+    }
+
+    private static Optional&lt;String&gt; detectExtension(InputStream is, Metadata metaData) throws IOException, MimeTypeException {
+<span class="fc" id="L64">        BufferedInputStream bis = new BufferedInputStream(is);</span>
+<span class="fc" id="L65">        AutoDetectParser parser = new AutoDetectParser();</span>
+<span class="fc" id="L66">        Detector detector = parser.getDetector();</span>
+<span class="fc" id="L67">        MediaType mediaType = detector.detect(bis, metaData);</span>
+<span class="fc" id="L68">        MimeType mimeType = TikaConfig.getDefaultConfig().getMimeRepository().forName(mediaType.toString());</span>
+<span class="fc" id="L69">        String extension = mimeType.getExtension();</span>
+
+<span class="pc bpc" id="L71" title="1 of 2 branches missed.">        if (extension.isEmpty()) {</span>
+<span class="nc" id="L72">            return Optional.empty();</span>
+        }
+
+<span class="fc" id="L75">        return Optional.of(extension.substring(1));</span>
+    }
+
+    /**
+     * Converts a relative filename to an absolute one, if necessary. Returns an empty optional if the file does not
+     * exist.&lt;br/&gt;
+     * &lt;p&gt;
+     * Uses &lt;ul&gt;
+     * &lt;li&gt;the default directory associated with the extension of the file&lt;/li&gt;
+     * &lt;li&gt;the standard file directory&lt;/li&gt;
+     * &lt;li&gt;the directory of the BIB file&lt;/li&gt;
+     * &lt;/ul&gt;
+     *
+     * @param databaseContext The database this file belongs to.
+     * @param fileName        The filename, may also be a relative path to the file
+     */
+    public static Optional&lt;Path&gt; find(final BibDatabaseContext databaseContext, String fileName, FilePreferences filePreferences) {
+<span class="fc" id="L92">        return find(fileName, databaseContext.getFileDirectories(filePreferences));</span>
+    }
+
+    /**
+     * Converts a relative filename to an absolute one, if necessary. Returns
+     * an empty optional if the file does not exist.
+     * &lt;p&gt;
+     * Will look in each of the given directories starting from the beginning and
+     * returning the first found file to match if any.
+     */
+    public static Optional&lt;Path&gt; find(String fileName, List&lt;Path&gt; directories) {
+<span class="fc" id="L103">        return directories.stream()</span>
+<span class="fc" id="L104">                          .flatMap(directory -&gt; find(fileName, directory).stream())</span>
+<span class="fc" id="L105">                          .findFirst();</span>
+    }
+
+    /**
+     * Converts a relative filename to an absolute one, if necessary. Returns
+     * an empty optional if the file does not exist.
+     */
+    public static Optional&lt;Path&gt; find(String fileName, Path directory) {
+<span class="fc" id="L113">        Objects.requireNonNull(fileName);</span>
+<span class="fc" id="L114">        Objects.requireNonNull(directory);</span>
+
+        // Explicitly check for an empty String, as File.exists returns true on that empty path, because it maps to the default jar location
+        // if we then call toAbsoluteDir, it would always return the jar-location folder. This is not what we want here
+<span class="fc bfc" id="L118" title="All 2 branches covered.">        if (fileName.isEmpty()) {</span>
+<span class="fc" id="L119">            return Optional.of(directory);</span>
+        }
+
+<span class="fc" id="L122">        Path resolvedFile = directory.resolve(fileName);</span>
+<span class="fc bfc" id="L123" title="All 2 branches covered.">        if (Files.exists(resolvedFile)) {</span>
+<span class="fc" id="L124">            return Optional.of(resolvedFile);</span>
+        } else {
+<span class="fc" id="L126">            return Optional.empty();</span>
+        }
+    }
+
+    private static boolean isUrl(String url) {
+        try {
+<span class="fc" id="L132">            new URL(url);</span>
+<span class="fc" id="L133">            return true;</span>
+<span class="fc" id="L134">        } catch (Exception e) {</span>
+<span class="fc" id="L135">            return false;</span>
+        }
+    }
+
+    public static Path relativize(Path path, List&lt;Path&gt; fileDirectories) {
+<span class="fc bfc" id="L140" title="All 2 branches covered.">        if (!path.isAbsolute()) {</span>
+<span class="fc" id="L141">            return path;</span>
+        }
+
+<span class="pc bpc" id="L144" title="1 of 2 branches missed.">        for (Path directory : fileDirectories) {</span>
+<span class="pc bpc" id="L145" title="1 of 2 branches missed.">            if (path.startsWith(directory)) {</span>
+<span class="fc" id="L146">                return directory.relativize(path);</span>
+            }
+<span class="nc" id="L148">        }</span>
+<span class="nc" id="L149">        return path;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

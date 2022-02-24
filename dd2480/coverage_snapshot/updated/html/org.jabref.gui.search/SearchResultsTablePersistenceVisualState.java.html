@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SearchResultsTablePersistenceVisualState.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.search</a> &gt; <span class="el_source">SearchResultsTablePersistenceVisualState.java</span></div><h1>SearchResultsTablePersistenceVisualState.java</h1><pre class="source lang-java linenums">package org.jabref.gui.search;
+
+import java.util.stream.Collectors;
+
+import javafx.scene.control.TableView;
+
+import org.jabref.gui.maintable.AbstractPersistenceVisualStateTable;
+import org.jabref.gui.maintable.BibEntryTableViewModel;
+import org.jabref.gui.maintable.ColumnPreferences;
+import org.jabref.gui.maintable.columns.MainTableColumn;
+import org.jabref.preferences.PreferencesService;
+
+/**
+ * Keep track of changes made to the columns (reordering, resorting, resizing).
+ */
+public class SearchResultsTablePersistenceVisualState extends AbstractPersistenceVisualStateTable {
+
+    public SearchResultsTablePersistenceVisualState(final TableView&lt;BibEntryTableViewModel&gt; searchResultsTable, PreferencesService preferences) {
+<span class="nc" id="L19">        super(searchResultsTable, preferences);</span>
+<span class="nc" id="L20">    }</span>
+
+    /**
+     * Stores shown columns, their width and their sortType in preferences.
+     */
+    @Override
+    protected void updateColumns() {
+<span class="nc" id="L27">        preferences.storeSearchDialogColumnPreferences(new ColumnPreferences(</span>
+<span class="nc" id="L28">                mainTable.getColumns().stream()</span>
+<span class="nc" id="L29">                         .filter(col -&gt; col instanceof MainTableColumn&lt;?&gt;)</span>
+<span class="nc" id="L30">                         .map(column -&gt; ((MainTableColumn&lt;?&gt;) column).getModel())</span>
+<span class="nc" id="L31">                         .collect(Collectors.toList()),</span>
+<span class="nc" id="L32">                preferences.getSearchDialogColumnPreferences().getColumnSortOrder()));</span>
+<span class="nc" id="L33">    }</span>
+
+    /**
+     * Stores the SortOrder of the the Table in the preferences. Cannot be combined with updateColumns, because JavaFX
+     * would provide just an empty list for the sort order on other changes.
+     */
+    @Override
+    protected void updateSortOrder() {
+<span class="nc" id="L41">        preferences.storeSearchDialogColumnPreferences(new ColumnPreferences(</span>
+<span class="nc" id="L42">                preferences.getSearchDialogColumnPreferences().getColumns(),</span>
+<span class="nc" id="L43">                mainTable.getSortOrder().stream()</span>
+<span class="nc" id="L44">                         .filter(col -&gt; col instanceof MainTableColumn&lt;?&gt;)</span>
+<span class="nc" id="L45">                         .map(column -&gt; ((MainTableColumn&lt;?&gt;) column).getModel())</span>
+<span class="nc" id="L46">                         .collect(Collectors.toList())));</span>
+<span class="nc" id="L47">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

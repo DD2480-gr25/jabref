@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AutosaveManager.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.autosaveandbackup</a> &gt; <span class="el_source">AutosaveManager.java</span></div><h1>AutosaveManager.java</h1><pre class="source lang-java linenums">package org.jabref.logic.autosaveandbackup;
+
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+
+import org.jabref.logic.util.CoarseChangeFilter;
+import org.jabref.logic.util.DelayTaskThrottler;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.database.event.AutosaveEvent;
+import org.jabref.model.database.event.BibDatabaseContextChangedEvent;
+
+import com.google.common.eventbus.EventBus;
+import com.google.common.eventbus.Subscribe;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Saves the given {@link BibDatabaseContext} on every {@link BibDatabaseContextChangedEvent} by posting a new {@link AutosaveEvent}.
+ * An intelligent {@link ScheduledThreadPoolExecutor} prevents a high load while saving and rejects all redundant save tasks.
+ * The scheduled action is stored and canceled if a newer save action is proposed.
+ */
+public class AutosaveManager {
+
+<span class="nc" id="L25">    private static final Logger LOGGER = LoggerFactory.getLogger(AutosaveManager.class);</span>
+
+<span class="nc" id="L27">    private static Set&lt;AutosaveManager&gt; runningInstances = new HashSet&lt;&gt;();</span>
+
+    private final BibDatabaseContext bibDatabaseContext;
+
+    private final EventBus eventBus;
+    private final CoarseChangeFilter changeFilter;
+    private final DelayTaskThrottler throttler;
+
+<span class="nc" id="L35">    private AutosaveManager(BibDatabaseContext bibDatabaseContext) {</span>
+<span class="nc" id="L36">        this.bibDatabaseContext = bibDatabaseContext;</span>
+<span class="nc" id="L37">        this.throttler = new DelayTaskThrottler(2000);</span>
+<span class="nc" id="L38">        this.eventBus = new EventBus();</span>
+<span class="nc" id="L39">        this.changeFilter = new CoarseChangeFilter(bibDatabaseContext);</span>
+<span class="nc" id="L40">        changeFilter.registerListener(this);</span>
+<span class="nc" id="L41">    }</span>
+
+    @Subscribe
+    public synchronized void listen(@SuppressWarnings(&quot;unused&quot;) BibDatabaseContextChangedEvent event) {
+<span class="nc bnc" id="L45" title="All 2 branches missed.">        if (!event.isFilteredOut()) {</span>
+<span class="nc" id="L46">            startAutosaveTask();</span>
+        }
+<span class="nc" id="L48">    }</span>
+
+    private void startAutosaveTask() {
+<span class="nc" id="L51">        throttler.schedule(() -&gt; {</span>
+<span class="nc" id="L52">            eventBus.post(new AutosaveEvent());</span>
+<span class="nc" id="L53">        });</span>
+<span class="nc" id="L54">    }</span>
+
+    private void shutdown() {
+<span class="nc" id="L57">        changeFilter.unregisterListener(this);</span>
+<span class="nc" id="L58">        changeFilter.shutdown();</span>
+<span class="nc" id="L59">        throttler.shutdown();</span>
+<span class="nc" id="L60">    }</span>
+
+    /**
+     * Starts the Autosaver which is associated with the given {@link BibDatabaseContext}.
+     *
+     * @param bibDatabaseContext Associated {@link BibDatabaseContext}
+     */
+    public static AutosaveManager start(BibDatabaseContext bibDatabaseContext) {
+<span class="nc" id="L68">        AutosaveManager autosaver = new AutosaveManager(bibDatabaseContext);</span>
+<span class="nc" id="L69">        runningInstances.add(autosaver);</span>
+<span class="nc" id="L70">        return autosaver;</span>
+    }
+
+    /**
+     * Shuts down the Autosaver which is associated with the given {@link BibDatabaseContext}.
+     *
+     * @param bibDatabaseContext Associated {@link BibDatabaseContext}
+     */
+    public static void shutdown(BibDatabaseContext bibDatabaseContext) {
+<span class="nc bnc" id="L79" title="All 2 branches missed.">        runningInstances.stream().filter(instance -&gt; instance.bibDatabaseContext == bibDatabaseContext).findAny()</span>
+<span class="nc" id="L80">                        .ifPresent(instance -&gt; {</span>
+<span class="nc" id="L81">                            instance.shutdown();</span>
+<span class="nc" id="L82">                            runningInstances.remove(instance);</span>
+<span class="nc" id="L83">                        });</span>
+<span class="nc" id="L84">    }</span>
+
+    public void registerListener(Object listener) {
+<span class="nc" id="L87">        eventBus.register(listener);</span>
+<span class="nc" id="L88">    }</span>
+
+    public void unregisterListener(Object listener) {
+        try {
+<span class="nc" id="L92">            eventBus.unregister(listener);</span>
+<span class="nc" id="L93">        } catch (IllegalArgumentException e) {</span>
+            // occurs if the event source has not been registered, should not prevent shutdown
+<span class="nc" id="L95">            LOGGER.debug(&quot;Proble, unregistering&quot;, e);</span>
+<span class="nc" id="L96">        }</span>
+<span class="nc" id="L97">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

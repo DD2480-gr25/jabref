@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DuplicateResolverDialog.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.duplicationFinder</a> &gt; <span class="el_source">DuplicateResolverDialog.java</span></div><h1>DuplicateResolverDialog.java</h1><pre class="source lang-java linenums">package org.jabref.gui.duplicationFinder;
+
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonBar.ButtonData;
+import javafx.scene.control.ButtonType;
+import javafx.scene.layout.BorderPane;
+
+import org.jabref.gui.StateManager;
+import org.jabref.gui.duplicationFinder.DuplicateResolverDialog.DuplicateResolverResult;
+import org.jabref.gui.help.HelpAction;
+import org.jabref.gui.mergeentries.MergeEntries;
+import org.jabref.gui.util.BaseDialog;
+import org.jabref.gui.util.DialogWindowState;
+import org.jabref.logic.help.HelpFile;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.entry.BibEntry;
+
+public class DuplicateResolverDialog extends BaseDialog&lt;DuplicateResolverResult&gt; {
+
+    private final BibDatabaseContext database;
+    private final StateManager stateManager;
+
+<span class="nc" id="L25">    public enum DuplicateResolverType {</span>
+<span class="nc" id="L26">        DUPLICATE_SEARCH,</span>
+<span class="nc" id="L27">        IMPORT_CHECK,</span>
+<span class="nc" id="L28">        INSPECTION,</span>
+<span class="nc" id="L29">        DUPLICATE_SEARCH_WITH_EXACT</span>
+    }
+
+<span class="nc" id="L32">    public enum DuplicateResolverResult {</span>
+<span class="nc" id="L33">        KEEP_BOTH,</span>
+<span class="nc" id="L34">        KEEP_LEFT,</span>
+<span class="nc" id="L35">        KEEP_RIGHT,</span>
+<span class="nc" id="L36">        AUTOREMOVE_EXACT,</span>
+<span class="nc" id="L37">        KEEP_MERGE,</span>
+<span class="nc" id="L38">        BREAK</span>
+    }
+
+    private MergeEntries me;
+
+<span class="nc" id="L43">    public DuplicateResolverDialog(BibEntry one, BibEntry two, DuplicateResolverType type, BibDatabaseContext database, StateManager stateManager) {</span>
+<span class="nc" id="L44">        this.setTitle(Localization.lang(&quot;Possible duplicate entries&quot;));</span>
+<span class="nc" id="L45">        this.database = database;</span>
+<span class="nc" id="L46">        this.stateManager = stateManager;</span>
+<span class="nc" id="L47">        init(one, two, type);</span>
+<span class="nc" id="L48">    }</span>
+
+    private void init(BibEntry one, BibEntry two, DuplicateResolverType type) {
+
+<span class="nc" id="L52">        HelpAction helpCommand = new HelpAction(HelpFile.FIND_DUPLICATES);</span>
+<span class="nc" id="L53">        ButtonType help = new ButtonType(Localization.lang(&quot;Help&quot;), ButtonData.HELP);</span>
+
+<span class="nc" id="L55">        ButtonType cancel = ButtonType.CANCEL;</span>
+<span class="nc" id="L56">        ButtonType merge = new ButtonType(Localization.lang(&quot;Keep merged entry only&quot;), ButtonData.APPLY);</span>
+
+<span class="nc" id="L58">        ButtonBar options = new ButtonBar();</span>
+        ButtonType both;
+        ButtonType second;
+        ButtonType first;
+<span class="nc" id="L62">        ButtonType removeExact = new ButtonType(Localization.lang(&quot;Automatically remove exact duplicates&quot;), ButtonData.APPLY);</span>
+<span class="nc" id="L63">        boolean removeExactVisible = false;</span>
+
+<span class="nc bnc" id="L65" title="All 4 branches missed.">        switch (type) {</span>
+            case DUPLICATE_SEARCH:
+<span class="nc" id="L67">                first = new ButtonType(Localization.lang(&quot;Keep left&quot;), ButtonData.APPLY);</span>
+<span class="nc" id="L68">                second = new ButtonType(Localization.lang(&quot;Keep right&quot;), ButtonData.APPLY);</span>
+<span class="nc" id="L69">                both = new ButtonType(Localization.lang(&quot;Keep both&quot;), ButtonData.APPLY);</span>
+<span class="nc" id="L70">                me = new MergeEntries(one, two);</span>
+<span class="nc" id="L71">                break;</span>
+            case INSPECTION:
+<span class="nc" id="L73">                first = new ButtonType(Localization.lang(&quot;Remove old entry&quot;), ButtonData.APPLY);</span>
+<span class="nc" id="L74">                second = new ButtonType(Localization.lang(&quot;Remove entry from import&quot;), ButtonData.APPLY);</span>
+<span class="nc" id="L75">                both = new ButtonType(Localization.lang(&quot;Keep both&quot;), ButtonData.APPLY);</span>
+<span class="nc" id="L76">                me = new MergeEntries(one, two, Localization.lang(&quot;Old entry&quot;),</span>
+<span class="nc" id="L77">                        Localization.lang(&quot;From import&quot;));</span>
+<span class="nc" id="L78">                break;</span>
+            case DUPLICATE_SEARCH_WITH_EXACT:
+<span class="nc" id="L80">                first = new ButtonType(Localization.lang(&quot;Keep left&quot;), ButtonData.APPLY);</span>
+<span class="nc" id="L81">                second = new ButtonType(Localization.lang(&quot;Keep right&quot;), ButtonData.APPLY);</span>
+<span class="nc" id="L82">                both = new ButtonType(Localization.lang(&quot;Keep both&quot;), ButtonData.APPLY);</span>
+
+<span class="nc" id="L84">                removeExactVisible = true;</span>
+
+<span class="nc" id="L86">                me = new MergeEntries(one, two);</span>
+<span class="nc" id="L87">                break;</span>
+            default:
+<span class="nc" id="L89">                first = new ButtonType(Localization.lang(&quot;Import and remove old entry&quot;), ButtonData.APPLY);</span>
+<span class="nc" id="L90">                second = new ButtonType(Localization.lang(&quot;Do not import entry&quot;), ButtonData.APPLY);</span>
+<span class="nc" id="L91">                both = new ButtonType(Localization.lang(&quot;Import and keep old entry&quot;), ButtonData.APPLY);</span>
+<span class="nc" id="L92">                me = new MergeEntries(one, two, Localization.lang(&quot;Old entry&quot;),</span>
+<span class="nc" id="L93">                        Localization.lang(&quot;From import&quot;));</span>
+                break;
+        }
+<span class="nc bnc" id="L96" title="All 2 branches missed.">        if (removeExactVisible) {</span>
+<span class="nc" id="L97">            this.getDialogPane().getButtonTypes().add(removeExact);</span>
+        }
+
+<span class="nc" id="L100">        this.getDialogPane().getButtonTypes().addAll(first, second, both, merge, cancel, help);</span>
+
+        // Retrieves the previous window state and sets the new dialog window size and position to match it
+<span class="nc" id="L103">        DialogWindowState state = stateManager.getDialogWindowState(getClass().getSimpleName());</span>
+<span class="nc bnc" id="L104" title="All 2 branches missed.">        if (state != null) {</span>
+<span class="nc" id="L105">            this.getDialogPane().setPrefSize(state.getWidth(), state.getHeight());</span>
+<span class="nc" id="L106">            this.setX(state.getX());</span>
+<span class="nc" id="L107">            this.setY(state.getY());</span>
+        }
+
+<span class="nc" id="L110">        BorderPane borderPane = new BorderPane(me);</span>
+<span class="nc" id="L111">        borderPane.setBottom(options);</span>
+
+<span class="nc" id="L113">        this.setResultConverter(button -&gt; {</span>
+            // Updates the window state on button press
+<span class="nc" id="L115">            stateManager.setDialogWindowState(getClass().getSimpleName(), new DialogWindowState(this.getX(), this.getY(), this.getDialogPane().getHeight(), this.getDialogPane().getWidth()));</span>
+
+<span class="nc bnc" id="L117" title="All 2 branches missed.">            if (button.equals(first)) {</span>
+<span class="nc" id="L118">                return DuplicateResolverResult.KEEP_LEFT;</span>
+<span class="nc bnc" id="L119" title="All 2 branches missed.">            } else if (button.equals(second)) {</span>
+<span class="nc" id="L120">                return DuplicateResolverResult.KEEP_RIGHT;</span>
+<span class="nc bnc" id="L121" title="All 2 branches missed.">            } else if (button.equals(both)) {</span>
+<span class="nc" id="L122">                return DuplicateResolverResult.KEEP_BOTH;</span>
+<span class="nc bnc" id="L123" title="All 2 branches missed.">            } else if (button.equals(merge)) {</span>
+<span class="nc" id="L124">                return DuplicateResolverResult.KEEP_MERGE;</span>
+<span class="nc bnc" id="L125" title="All 2 branches missed.">            } else if (button.equals(removeExact)) {</span>
+<span class="nc" id="L126">                return DuplicateResolverResult.AUTOREMOVE_EXACT;</span>
+            }
+<span class="nc" id="L128">            return null;</span>
+        });
+
+<span class="nc" id="L131">        getDialogPane().setContent(borderPane);</span>
+<span class="nc" id="L132">        Button helpButton = (Button) this.getDialogPane().lookupButton(help);</span>
+<span class="nc" id="L133">        helpButton.setOnAction(evt -&gt; helpCommand.execute());</span>
+<span class="nc" id="L134">    }</span>
+
+    public BibEntry getMergedEntry() {
+<span class="nc" id="L137">        return me.getMergeEntry();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

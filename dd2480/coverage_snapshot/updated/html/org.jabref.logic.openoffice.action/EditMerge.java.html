@@ -1,0 +1,345 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EditMerge.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.openoffice.action</a> &gt; <span class="el_source">EditMerge.java</span></div><h1>EditMerge.java</h1><pre class="source lang-java linenums">package org.jabref.logic.openoffice.action;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.jabref.logic.openoffice.frontend.OOFrontend;
+import org.jabref.logic.openoffice.frontend.UpdateCitationMarkers;
+import org.jabref.logic.openoffice.style.OOBibStyle;
+import org.jabref.model.openoffice.ootext.OOText;
+import org.jabref.model.openoffice.style.Citation;
+import org.jabref.model.openoffice.style.CitationGroup;
+import org.jabref.model.openoffice.style.CitationType;
+import org.jabref.model.openoffice.uno.CreationException;
+import org.jabref.model.openoffice.uno.NoDocumentException;
+import org.jabref.model.openoffice.uno.UnoScreenRefresh;
+import org.jabref.model.openoffice.uno.UnoTextRange;
+import org.jabref.model.openoffice.util.OOListUtil;
+
+import com.sun.star.beans.IllegalTypeException;
+import com.sun.star.beans.NotRemoveableException;
+import com.sun.star.beans.PropertyVetoException;
+import com.sun.star.lang.WrappedTargetException;
+import com.sun.star.text.XTextCursor;
+import com.sun.star.text.XTextDocument;
+import com.sun.star.text.XTextRange;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class EditMerge {
+
+<span class="nc" id="L34">    private static final Logger LOGGER = LoggerFactory.getLogger(EditMerge.class);</span>
+
+    private EditMerge() {
+        // hide constructor
+    }
+
+    /*
+     * @return true if modified document
+     */
+    public static boolean mergeCitationGroups(XTextDocument doc, OOFrontend frontend, OOBibStyle style)
+        throws
+        CreationException,
+        IllegalArgumentException,
+        IllegalTypeException,
+        NoDocumentException,
+        NotRemoveableException,
+        PropertyVetoException,
+        WrappedTargetException {
+
+        boolean madeModifications;
+
+        try {
+<span class="nc" id="L56">            UnoScreenRefresh.lockControllers(doc);</span>
+
+<span class="nc" id="L58">            List&lt;JoinableGroupData&gt; joinableGroups = EditMerge.scan(doc, frontend);</span>
+
+<span class="nc bnc" id="L60" title="All 2 branches missed.">            for (JoinableGroupData joinableGroupData : joinableGroups) {</span>
+
+<span class="nc" id="L62">                List&lt;CitationGroup&gt; groups = joinableGroupData.group;</span>
+
+<span class="nc" id="L64">                List&lt;Citation&gt; newCitations = (groups.stream()</span>
+<span class="nc" id="L65">                                               .flatMap(group -&gt; group.citationsInStorageOrder.stream())</span>
+<span class="nc" id="L66">                                               .collect(Collectors.toList()));</span>
+
+<span class="nc" id="L68">                CitationType citationType = groups.get(0).citationType;</span>
+<span class="nc" id="L69">                List&lt;Optional&lt;OOText&gt;&gt; pageInfos = frontend.backend.combinePageInfos(groups);</span>
+
+<span class="nc" id="L71">                frontend.removeCitationGroups(groups, doc);</span>
+<span class="nc" id="L72">                XTextCursor textCursor = joinableGroupData.groupCursor;</span>
+<span class="nc" id="L73">                textCursor.setString(&quot;&quot;); // Also remove the spaces between.</span>
+
+<span class="nc" id="L75">                List&lt;String&gt; citationKeys = OOListUtil.map(newCitations, Citation::getCitationKey);</span>
+
+                /* insertSpaceAfter: no, it is already there (or could be) */
+<span class="nc" id="L78">                boolean insertSpaceAfter = false;</span>
+<span class="nc" id="L79">                UpdateCitationMarkers.createAndFillCitationGroup(frontend,</span>
+                                                                 doc,
+                                                                 citationKeys,
+                                                                 pageInfos,
+                                                                 citationType,
+<span class="nc" id="L84">                                                                 OOText.fromString(&quot;tmp&quot;),</span>
+                                                                 textCursor,
+                                                                 style,
+                                                                 insertSpaceAfter);
+<span class="nc" id="L88">            }</span>
+
+<span class="nc bnc" id="L90" title="All 2 branches missed.">            madeModifications = !joinableGroups.isEmpty();</span>
+
+        } finally {
+<span class="nc" id="L93">            UnoScreenRefresh.unlockControllers(doc);</span>
+        }
+
+<span class="nc" id="L96">        return madeModifications;</span>
+    }
+
+    private static class JoinableGroupData {
+        /** A list of consecutive citation groups only separated by spaces. */
+        List&lt;CitationGroup&gt; group;
+
+        /** A cursor covering the XTextRange of each entry in group (and the spaces between them) */
+        XTextCursor groupCursor;
+
+<span class="nc" id="L106">        JoinableGroupData(List&lt;CitationGroup&gt; group, XTextCursor groupCursor) {</span>
+<span class="nc" id="L107">            this.group = group;</span>
+<span class="nc" id="L108">            this.groupCursor = groupCursor;</span>
+<span class="nc" id="L109">        }</span>
+    }
+
+    private static class ScanState {
+
+        // Citation groups in the current group
+        List&lt;CitationGroup&gt; currentGroup;
+
+        // A cursor that covers the Citation groups in currentGroup, including the space between
+        // them.
+        // null if currentGroup.isEmpty()
+        XTextCursor currentGroupCursor;
+
+        // A cursor starting at the end of the last CitationGroup in
+        // currentGroup. null if currentGroup.isEmpty()
+        XTextCursor cursorBetween;
+
+        // The last element of currentGroup.
+        // null if currentGroup.isEmpty()
+        CitationGroup prev;
+
+        // The XTextRange for prev.
+        // null if currentGroup.isEmpty()
+        XTextRange prevRange;
+
+<span class="nc" id="L134">        ScanState() {</span>
+<span class="nc" id="L135">            reset();</span>
+<span class="nc" id="L136">        }</span>
+
+        void reset() {
+<span class="nc" id="L139">            currentGroup = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L140">            currentGroupCursor = null;</span>
+<span class="nc" id="L141">            cursorBetween = null;</span>
+<span class="nc" id="L142">            prev = null;</span>
+<span class="nc" id="L143">            prevRange = null;</span>
+<span class="nc" id="L144">        }</span>
+    }
+
+    /**
+     * Decide if group could be added to state.currentGroup
+     *
+     * @param group The CitationGroup to test
+     * @param currentRange The XTextRange corresponding to group.
+     *
+     * @return false if cannot add, true if can.  If returned true, then state.cursorBetween and
+     *  state.currentGroupCursor are expanded to end at the start of currentRange.
+     */
+    private static boolean checkAddToGroup(ScanState state, CitationGroup group, XTextRange currentRange) {
+
+<span class="nc bnc" id="L158" title="All 2 branches missed.">        if (state.currentGroup.isEmpty()) {</span>
+<span class="nc" id="L159">            return false;</span>
+        }
+
+<span class="nc" id="L162">        Objects.requireNonNull(state.currentGroupCursor);</span>
+<span class="nc" id="L163">        Objects.requireNonNull(state.cursorBetween);</span>
+<span class="nc" id="L164">        Objects.requireNonNull(state.prev);</span>
+<span class="nc" id="L165">        Objects.requireNonNull(state.prevRange);</span>
+
+        // Only combine (Author 2000) type citations
+<span class="nc bnc" id="L168" title="All 2 branches missed.">        if (group.citationType != CitationType.AUTHORYEAR_PAR) {</span>
+<span class="nc" id="L169">            return false;</span>
+        }
+
+<span class="nc bnc" id="L172" title="All 2 branches missed.">        if (state.prev != null) {</span>
+
+            // Even if we combine AUTHORYEAR_INTEXT citations, we would not mix them with AUTHORYEAR_PAR
+<span class="nc bnc" id="L175" title="All 2 branches missed.">            if (group.citationType != state.prev.citationType) {</span>
+<span class="nc" id="L176">                return false;</span>
+            }
+
+<span class="nc bnc" id="L179" title="All 2 branches missed.">            if (!UnoTextRange.comparables(state.prevRange, currentRange)) {</span>
+<span class="nc" id="L180">                return false;</span>
+            }
+
+            // Sanity check: the current range should start later than the previous.
+<span class="nc" id="L184">            int textOrder = UnoTextRange.compareStarts(state.prevRange, currentRange);</span>
+<span class="nc bnc" id="L185" title="All 2 branches missed.">            if (textOrder != (-1)) {</span>
+<span class="nc" id="L186">                String msg =</span>
+<span class="nc" id="L187">                    String.format(&quot;MergeCitationGroups:&quot;</span>
+                                  + &quot; \&quot;%s\&quot; supposed to be followed by \&quot;%s\&quot;,&quot;
+                                  + &quot; but %s&quot;,
+<span class="nc" id="L190">                                  state.prevRange.getString(),</span>
+<span class="nc" id="L191">                                  currentRange.getString(),</span>
+<span class="nc bnc" id="L192" title="All 2 branches missed.">                                  ((textOrder == 0)</span>
+<span class="nc" id="L193">                                   ? &quot;they start at the same position&quot;</span>
+<span class="nc" id="L194">                                   : &quot;the start of the latter precedes the start of the first&quot;));</span>
+<span class="nc" id="L195">                LOGGER.warn(msg);</span>
+<span class="nc" id="L196">                return false;</span>
+            }
+        }
+
+<span class="nc bnc" id="L200" title="All 2 branches missed.">        if (state.cursorBetween == null) {</span>
+<span class="nc" id="L201">            return false;</span>
+        }
+
+<span class="nc" id="L204">        Objects.requireNonNull(state.cursorBetween);</span>
+<span class="nc" id="L205">        Objects.requireNonNull(state.currentGroupCursor);</span>
+
+        // assume: currentGroupCursor.getEnd() == cursorBetween.getEnd()
+<span class="nc bnc" id="L208" title="All 2 branches missed.">        if (UnoTextRange.compareEnds(state.cursorBetween, state.currentGroupCursor) != 0) {</span>
+<span class="nc" id="L209">            LOGGER.warn(&quot;MergeCitationGroups: cursorBetween.end != currentGroupCursor.end&quot;);</span>
+<span class="nc" id="L210">            throw new IllegalStateException(&quot;MergeCitationGroups failed&quot;);</span>
+        }
+
+        /*
+         * Try to expand state.currentGroupCursor and state.cursorBetween by going right to reach
+         * rangeStart.
+         */
+<span class="nc" id="L217">        XTextRange rangeStart = currentRange.getStart();</span>
+<span class="nc" id="L218">        boolean couldExpand = true;</span>
+<span class="nc" id="L219">        XTextCursor thisCharCursor =</span>
+<span class="nc" id="L220">            (currentRange.getText().createTextCursorByRange(state.cursorBetween.getEnd()));</span>
+
+<span class="nc bnc" id="L222" title="All 4 branches missed.">        while (couldExpand &amp;&amp; (UnoTextRange.compareEnds(state.cursorBetween, rangeStart) &lt; 0)) {</span>
+            //
+            // Check that we only walk through inline whitespace.
+            //
+<span class="nc" id="L226">            couldExpand = thisCharCursor.goRight((short) 1, true);</span>
+<span class="nc" id="L227">            String thisChar = thisCharCursor.getString();</span>
+<span class="nc" id="L228">            thisCharCursor.collapseToEnd();</span>
+<span class="nc bnc" id="L229" title="All 6 branches missed.">            if (thisChar.isEmpty() || &quot;\n&quot;.equals(thisChar) || !thisChar.trim().isEmpty()) {</span>
+<span class="nc" id="L230">                couldExpand = false;</span>
+<span class="nc bnc" id="L231" title="All 2 branches missed.">                if (!thisChar.isEmpty()) {</span>
+<span class="nc" id="L232">                    thisCharCursor.goLeft((short) 1, false);</span>
+                }
+                break;
+            }
+<span class="nc" id="L236">            state.cursorBetween.goRight((short) 1, true);</span>
+<span class="nc" id="L237">            state.currentGroupCursor.goRight((short) 1, true);</span>
+
+            // These two should move in sync:
+<span class="nc bnc" id="L240" title="All 2 branches missed.">            if (UnoTextRange.compareEnds(state.cursorBetween, state.currentGroupCursor) != 0) {</span>
+<span class="nc" id="L241">                LOGGER.warn(&quot;MergeCitationGroups: cursorBetween.end != currentGroupCursor.end (during expand)&quot;);</span>
+<span class="nc" id="L242">                throw new IllegalStateException(&quot;MergeCitationGroups failed&quot;);</span>
+            }
+<span class="nc" id="L244">        }</span>
+
+<span class="nc" id="L246">        return couldExpand;</span>
+    }
+
+    /**
+     * Add group to state.currentGroup
+     * Set state.cursorBetween to start at currentRange.getEnd()
+     * Expand state.currentGroupCursor to also cover currentRange
+     * Set state.prev to group, state.prevRange to currentRange
+     */
+    private static void addToCurrentGroup(ScanState state, CitationGroup group, XTextRange currentRange) {
+<span class="nc" id="L256">        final boolean isNewGroup = state.currentGroup.isEmpty();</span>
+<span class="nc bnc" id="L257" title="All 2 branches missed.">        if (!isNewGroup) {</span>
+<span class="nc" id="L258">            Objects.requireNonNull(state.currentGroupCursor);</span>
+<span class="nc" id="L259">            Objects.requireNonNull(state.cursorBetween);</span>
+<span class="nc" id="L260">            Objects.requireNonNull(state.prev);</span>
+<span class="nc" id="L261">            Objects.requireNonNull(state.prevRange);</span>
+        }
+
+        // Add the current entry to a group.
+<span class="nc" id="L265">        state.currentGroup.add(group);</span>
+
+        // Set up cursorBetween to start at currentRange.getEnd()
+<span class="nc" id="L268">        XTextRange rangeEnd = currentRange.getEnd();</span>
+<span class="nc" id="L269">        state.cursorBetween = currentRange.getText().createTextCursorByRange(rangeEnd);</span>
+
+        // If new group, create currentGroupCursor
+<span class="nc bnc" id="L272" title="All 2 branches missed.">        if (isNewGroup) {</span>
+<span class="nc" id="L273">            state.currentGroupCursor = (currentRange.getText()</span>
+<span class="nc" id="L274">                                        .createTextCursorByRange(currentRange.getStart()));</span>
+        }
+
+        // include currentRange in currentGroupCursor
+<span class="nc" id="L278">        state.currentGroupCursor.goRight((short) (currentRange.getString().length()), true);</span>
+
+<span class="nc bnc" id="L280" title="All 2 branches missed.">        if (UnoTextRange.compareEnds(state.cursorBetween, state.currentGroupCursor) != 0) {</span>
+<span class="nc" id="L281">            LOGGER.warn(&quot;MergeCitationGroups: cursorBetween.end != currentGroupCursor.end&quot;);</span>
+<span class="nc" id="L282">            throw new IllegalStateException(&quot;MergeCitationGroups failed&quot;);</span>
+        }
+
+        /* Store data about last entry in currentGroup */
+<span class="nc" id="L286">        state.prev = group;</span>
+<span class="nc" id="L287">        state.prevRange = currentRange;</span>
+<span class="nc" id="L288">    }</span>
+
+    /**
+     *  Scan the document for joinable groups. Return those found.
+     */
+    private static List&lt;JoinableGroupData&gt; scan(XTextDocument doc, OOFrontend frontend)
+        throws
+        NoDocumentException,
+        WrappedTargetException {
+<span class="nc" id="L297">        List&lt;JoinableGroupData&gt; result = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L299">        List&lt;CitationGroup&gt; groups = frontend.getCitationGroupsSortedWithinPartitions(doc, false /* mapFootnotesToFootnoteMarks */);</span>
+<span class="nc bnc" id="L300" title="All 2 branches missed.">        if (groups.isEmpty()) {</span>
+<span class="nc" id="L301">            return result;</span>
+        }
+
+<span class="nc" id="L304">        ScanState state = new ScanState();</span>
+
+<span class="nc bnc" id="L306" title="All 2 branches missed.">        for (CitationGroup group : groups) {</span>
+
+<span class="nc" id="L308">            XTextRange currentRange = (frontend.getMarkRange(doc, group)</span>
+<span class="nc" id="L309">                                       .orElseThrow(IllegalStateException::new));</span>
+
+            /*
+             * Decide if we add group to the group. False when the group is empty.
+             */
+<span class="nc" id="L314">            boolean addToGroup = checkAddToGroup(state, group, currentRange);</span>
+
+            /*
+             * Even if we do not add it to an existing group, we might use it to start a new group.
+             *
+             * Can it start a new group?
+             */
+<span class="nc bnc" id="L321" title="All 2 branches missed.">            boolean canStartGroup = (group.citationType == CitationType.AUTHORYEAR_PAR);</span>
+
+<span class="nc bnc" id="L323" title="All 2 branches missed.">            if (!addToGroup) {</span>
+                // close currentGroup
+<span class="nc bnc" id="L325" title="All 2 branches missed.">                if (state.currentGroup.size() &gt; 1) {</span>
+<span class="nc" id="L326">                    result.add(new JoinableGroupData(state.currentGroup, state.currentGroupCursor));</span>
+                }
+                // Start a new, empty group
+<span class="nc" id="L329">                state.reset();</span>
+            }
+
+<span class="nc bnc" id="L332" title="All 4 branches missed.">            if (addToGroup || canStartGroup) {</span>
+<span class="nc" id="L333">                addToCurrentGroup(state, group, currentRange);</span>
+            }
+<span class="nc" id="L335">        }</span>
+
+        // close currentGroup
+<span class="nc bnc" id="L338" title="All 2 branches missed.">        if (state.currentGroup.size() &gt; 1) {</span>
+<span class="nc" id="L339">            result.add(new JoinableGroupData(state.currentGroup, state.currentGroupCursor));</span>
+        }
+<span class="nc" id="L341">        return result;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

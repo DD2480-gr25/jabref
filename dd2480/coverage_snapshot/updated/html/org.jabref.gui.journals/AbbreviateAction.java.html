@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AbbreviateAction.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.journals</a> &gt; <span class="el_source">AbbreviateAction.java</span></div><h1>AbbreviateAction.java</h1><pre class="source lang-java linenums">package org.jabref.gui.journals;
+
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.stream.Collectors;
+
+import org.jabref.gui.DialogService;
+import org.jabref.gui.Globals;
+import org.jabref.gui.JabRefExecutorService;
+import org.jabref.gui.JabRefFrame;
+import org.jabref.gui.StateManager;
+import org.jabref.gui.actions.ActionHelper;
+import org.jabref.gui.actions.SimpleCommand;
+import org.jabref.gui.actions.StandardActions;
+import org.jabref.gui.undo.NamedCompound;
+import org.jabref.gui.util.BackgroundTask;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.field.FieldFactory;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Converts journal full names to either iso or medline abbreviations for all selected entries.
+ */
+public class AbbreviateAction extends SimpleCommand {
+
+<span class="nc" id="L33">    private static final Logger LOGGER = LoggerFactory.getLogger(AbbreviateAction.class);</span>
+
+    private final StandardActions action;
+    private final JabRefFrame frame;
+    private final DialogService dialogService;
+    private final StateManager stateManager;
+
+    private AbbreviationType abbreviationType;
+
+    public AbbreviateAction(StandardActions action,
+                            JabRefFrame frame,
+                            DialogService dialogService,
+<span class="nc" id="L45">                            StateManager stateManager) {</span>
+
+<span class="nc" id="L47">        this.action = action;</span>
+<span class="nc" id="L48">        this.frame = frame;</span>
+<span class="nc" id="L49">        this.dialogService = dialogService;</span>
+<span class="nc" id="L50">        this.stateManager = stateManager;</span>
+
+<span class="nc bnc" id="L52" title="All 4 branches missed.">        switch (action) {</span>
+<span class="nc" id="L53">            case ABBREVIATE_DEFAULT -&gt; abbreviationType = AbbreviationType.DEFAULT;</span>
+<span class="nc" id="L54">            case ABBREVIATE_MEDLINE -&gt; abbreviationType = AbbreviationType.MEDLINE;</span>
+<span class="nc" id="L55">            case ABBREVIATE_SHORTEST_UNIQUE -&gt; abbreviationType = AbbreviationType.SHORTEST_UNIQUE;</span>
+<span class="nc" id="L56">            default -&gt; LOGGER.debug(&quot;Unknown action: &quot; + action.name());</span>
+        }
+
+<span class="nc" id="L59">        this.executable.bind(ActionHelper.needsEntriesSelected(stateManager));</span>
+<span class="nc" id="L60">    }</span>
+
+    @Override
+    public void execute() {
+
+<span class="nc bnc" id="L65" title="All 6 branches missed.">        if (action == StandardActions.ABBREVIATE_DEFAULT</span>
+                || action == StandardActions.ABBREVIATE_MEDLINE
+                || action == StandardActions.ABBREVIATE_SHORTEST_UNIQUE) {
+
+<span class="nc" id="L69">            dialogService.notify(Localization.lang(&quot;Abbreviating...&quot;));</span>
+<span class="nc" id="L70">            stateManager.getActiveDatabase().ifPresent(databaseContext -&gt;</span>
+<span class="nc" id="L71">                    BackgroundTask.wrap(() -&gt; abbreviate(stateManager.getActiveDatabase().get(), stateManager.getSelectedEntries()))</span>
+<span class="nc" id="L72">                                  .onSuccess(dialogService::notify)</span>
+<span class="nc" id="L73">                                  .executeWith(Globals.TASK_EXECUTOR));</span>
+<span class="nc bnc" id="L74" title="All 2 branches missed.">        } else if (action == StandardActions.UNABBREVIATE) {</span>
+
+<span class="nc" id="L76">            dialogService.notify(Localization.lang(&quot;Unabbreviating...&quot;));</span>
+<span class="nc" id="L77">            stateManager.getActiveDatabase().ifPresent(databaseContext -&gt;</span>
+<span class="nc" id="L78">                    BackgroundTask.wrap(() -&gt; unabbreviate(stateManager.getActiveDatabase().get(), stateManager.getSelectedEntries()))</span>
+<span class="nc" id="L79">                                  .onSuccess(dialogService::notify)</span>
+<span class="nc" id="L80">                                  .executeWith(Globals.TASK_EXECUTOR));</span>
+        } else {
+<span class="nc" id="L82">            LOGGER.debug(&quot;Unknown action: &quot; + action.name());</span>
+        }
+<span class="nc" id="L84">    }</span>
+
+    private String abbreviate(BibDatabaseContext databaseContext, List&lt;BibEntry&gt; entries) {
+<span class="nc" id="L87">        UndoableAbbreviator undoableAbbreviator = new UndoableAbbreviator(</span>
+                Globals.journalAbbreviationRepository,
+                abbreviationType);
+
+<span class="nc" id="L91">        NamedCompound ce = new NamedCompound(Localization.lang(&quot;Abbreviate journal names&quot;));</span>
+
+        // Collect all callables to execute in one collection.
+<span class="nc" id="L94">        Set&lt;Callable&lt;Boolean&gt;&gt; tasks = entries.stream().&lt;Callable&lt;Boolean&gt;&gt;map(entry -&gt; () -&gt;</span>
+<span class="nc" id="L95">                FieldFactory.getJournalNameFields().stream().anyMatch(journalField -&gt;</span>
+<span class="nc" id="L96">                        undoableAbbreviator.abbreviate(databaseContext.getDatabase(), entry, journalField, ce)))</span>
+<span class="nc" id="L97">                .collect(Collectors.toSet());</span>
+
+        // Execute the callables and wait for the results.
+<span class="nc" id="L100">        List&lt;Future&lt;Boolean&gt;&gt; futures = JabRefExecutorService.INSTANCE.executeAll(tasks);</span>
+
+        // Evaluate the results of the callables.
+<span class="nc" id="L103">        long count = futures.stream().filter(future -&gt; {</span>
+            try {
+<span class="nc" id="L105">                return future.get();</span>
+<span class="nc" id="L106">            } catch (InterruptedException | ExecutionException exception) {</span>
+<span class="nc" id="L107">                LOGGER.error(&quot;Unable to retrieve value.&quot;, exception);</span>
+<span class="nc" id="L108">                return false;</span>
+            }
+<span class="nc" id="L110">        }).count();</span>
+
+<span class="nc bnc" id="L112" title="All 2 branches missed.">        if (count &gt; 0) {</span>
+<span class="nc" id="L113">            ce.end();</span>
+<span class="nc" id="L114">            frame.getUndoManager().addEdit(ce);</span>
+<span class="nc" id="L115">            frame.getCurrentLibraryTab().markBaseChanged();</span>
+<span class="nc" id="L116">            return Localization.lang(&quot;Abbreviated %0 journal names.&quot;, String.valueOf(count));</span>
+        }
+<span class="nc" id="L118">        return Localization.lang(&quot;No journal names could be abbreviated.&quot;);</span>
+    }
+
+    private String unabbreviate(BibDatabaseContext databaseContext, List&lt;BibEntry&gt; entries) {
+<span class="nc" id="L122">        UndoableUnabbreviator undoableAbbreviator = new UndoableUnabbreviator(Globals.journalAbbreviationRepository);</span>
+
+<span class="nc" id="L124">        NamedCompound ce = new NamedCompound(Localization.lang(&quot;Unabbreviate journal names&quot;));</span>
+<span class="nc" id="L125">        int count = entries.stream().mapToInt(entry -&gt;</span>
+<span class="nc" id="L126">                (int) FieldFactory.getJournalNameFields().stream().filter(journalField -&gt;</span>
+<span class="nc" id="L127">                        undoableAbbreviator.unabbreviate(databaseContext.getDatabase(), entry, journalField, ce)).count()).sum();</span>
+<span class="nc bnc" id="L128" title="All 2 branches missed.">        if (count &gt; 0) {</span>
+<span class="nc" id="L129">            ce.end();</span>
+<span class="nc" id="L130">            frame.getUndoManager().addEdit(ce);</span>
+<span class="nc" id="L131">            frame.getCurrentLibraryTab().markBaseChanged();</span>
+<span class="nc" id="L132">            return Localization.lang(&quot;Unabbreviated %0 journal names.&quot;, String.valueOf(count));</span>
+        }
+<span class="nc" id="L134">        return Localization.lang(&quot;No journal names could be unabbreviated.&quot;);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>
