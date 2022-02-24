@@ -209,13 +209,7 @@ class RTFCharsTest {
         assertEquals("\\'e4", formatter.format("\\\"a"));
         assertEquals("\\'eb", formatter.format("\\\"e"));
         assertEquals("\\'ef", formatter.format("\\\"i"));
-        assertEquals("\\'f2", formatter.format("\\`{o}"));
-        assertEquals("\\'f3", formatter.format("\\´{o}"));
-        assertEquals("\\'f4", formatter.format("\\´{o}"));
-        assertEquals("\\'f5", formatter.format("\\~o"));
-        assertEquals("\\'f5", formatter.format("\\~o"));
         assertEquals("\\'f6", formatter.format("\\\"o"));
-
         assertEquals("\\u252u", formatter.format("\\\"u"));
 
         assertEquals("\\'f1", formatter.format("\\~n"));

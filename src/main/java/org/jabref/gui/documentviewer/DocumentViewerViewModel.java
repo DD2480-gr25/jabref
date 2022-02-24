@@ -24,7 +24,6 @@ import org.jabref.model.entry.LinkedFile;
 import org.jabref.preferences.PreferencesService;
 
 import com.tobiasdiez.easybind.EasyBind;
-import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -105,8 +104,8 @@ public class DocumentViewerViewModel extends AbstractViewModel {
     }
 
     private void setCurrentDocument(Path path) {
-        try (PDDocument document = Loader.loadPDF(path.toFile())) {
-            currentDocument.set(new PdfDocumentViewModel(document));
+        try {
+            currentDocument.set(new PdfDocumentViewModel(PDDocument.load(path.toFile())));
         } catch (IOException e) {
             LOGGER.error("Could not set Document Viewer", e);
         }
