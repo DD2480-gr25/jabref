@@ -26,13 +26,8 @@ import org.jabref.model.strings.StringUtil;
 
 import org.apache.xmpbox.DateConverter;
 import org.apache.xmpbox.schema.DublinCoreSchema;
-import org.apache.xmpbox.type.BadFieldValueException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class DublinCoreExtractor {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(DublinCoreExtractor.class);
 
     private final DublinCoreSchema dcSchema;
     private final XmpPreferences xmpPreferences;
@@ -104,12 +99,7 @@ public class DublinCoreExtractor {
      * Abstract in BibTex - Description in DublinCore
      */
     private void extractAbstract() {
-        String description = null;
-        try {
-            description = dcSchema.getDescription();
-        } catch (BadFieldValueException e) {
-            LOGGER.warn("Could not get abstract, e");
-        }
+        String description = dcSchema.getDescription();
         if (!StringUtil.isNullOrEmpty(description)) {
             bibEntry.setField(StandardField.ABSTRACT, description);
         }
@@ -175,12 +165,7 @@ public class DublinCoreExtractor {
      * Rights are equivalent in both formats (BibTex and DublinCore)
      */
     private void extractRights() {
-        String rights = null;
-        try {
-            rights = dcSchema.getRights();
-        } catch (BadFieldValueException e) {
-           LOGGER.warn("Could not extract rights", e);
-        }
+        String rights = dcSchema.getRights();
         if (!StringUtil.isNullOrEmpty(rights)) {
             bibEntry.setField(new UnknownField("rights"), rights);
         }
@@ -210,12 +195,7 @@ public class DublinCoreExtractor {
      * Title is equivalent in both formats (BibTex and DublinCore)
      */
     private void extractTitle() {
-        String title = null;
-        try {
-            title = dcSchema.getTitle();
-        } catch (BadFieldValueException e) {
-            LOGGER.warn("Could not extract title", e);
-        }
+        String title = dcSchema.getTitle();
         if (!StringUtil.isNullOrEmpty(title)) {
             bibEntry.setField(StandardField.TITLE, title);
         }

@@ -24,7 +24,6 @@ import org.jabref.model.database.BibDatabaseMode;
 import org.jabref.model.entry.BibEntry;
 import org.jabref.model.entry.BibEntryTypesManager;
 
-import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDDocumentNameDictionary;
 import org.apache.pdfbox.pdmodel.PDEmbeddedFilesNameTreeNode;
@@ -69,7 +68,7 @@ public class EmbeddedBibFilePdfExporter extends Exporter {
         if (!Files.exists(file) || !FileUtil.isPDFFile(file)) {
             return;
         }
-        try (PDDocument document = Loader.loadPDF(file.toFile())) {
+        try (PDDocument document = PDDocument.load(file.toFile())) {
             PDDocumentNameDictionary nameDictionary = document.getDocumentCatalog().getNames();
             PDEmbeddedFilesNameTreeNode efTree;
             Map<String, PDComplexFileSpecification> names;
