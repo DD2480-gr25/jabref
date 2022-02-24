@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AbstractPersistenceVisualStateTable.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.maintable</a> &gt; <span class="el_source">AbstractPersistenceVisualStateTable.java</span></div><h1>AbstractPersistenceVisualStateTable.java</h1><pre class="source lang-java linenums">package org.jabref.gui.maintable;
+
+import javafx.beans.InvalidationListener;
+import javafx.scene.control.TableView;
+
+import org.jabref.gui.maintable.columns.MainTableColumn;
+import org.jabref.preferences.PreferencesService;
+
+/**
+ * Keep track of changes made to the columns (reordering, resorting, resizing).
+ */
+public abstract class AbstractPersistenceVisualStateTable {
+
+    protected final TableView&lt;BibEntryTableViewModel&gt; mainTable;
+    protected final PreferencesService preferences;
+
+<span class="nc" id="L17">    public AbstractPersistenceVisualStateTable(final TableView&lt;BibEntryTableViewModel&gt; mainTable, PreferencesService preferences) {</span>
+<span class="nc" id="L18">        this.mainTable = mainTable;</span>
+<span class="nc" id="L19">        this.preferences = preferences;</span>
+
+<span class="nc" id="L21">        mainTable.getColumns().addListener((InvalidationListener) obs -&gt; updateColumns());</span>
+<span class="nc" id="L22">        mainTable.getSortOrder().addListener((InvalidationListener) obs -&gt; updateSortOrder());</span>
+
+        // As we store the ColumnModels of the MainTable, we need to add the listener to the ColumnModel properties,
+        // since the value is bound to the model after the listener to the column itself is called.
+<span class="nc" id="L26">        mainTable.getColumns().forEach(col -&gt;</span>
+<span class="nc" id="L27">                ((MainTableColumn&lt;?&gt;) col).getModel().widthProperty().addListener(obs -&gt; updateColumns()));</span>
+<span class="nc" id="L28">        mainTable.getColumns().forEach(col -&gt;</span>
+<span class="nc" id="L29">                ((MainTableColumn&lt;?&gt;) col).getModel().sortTypeProperty().addListener(obs -&gt; updateColumns()));</span>
+<span class="nc" id="L30">    }</span>
+
+    /**
+     * Stores shown columns, their width and their sortType in preferences.
+     * override in subclass
+     */
+    protected abstract void updateColumns();
+
+    /**
+     * Stores the SortOrder of the table in the preferences. Cannot be combined with updateColumns, because JavaFX
+     * would provide just an empty list for the sort order on other changes.
+     * override in subclass
+     */
+    protected abstract void updateSortOrder();
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ConstantsPropertiesView.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.libraryproperties.constants</a> &gt; <span class="el_source">ConstantsPropertiesView.java</span></div><h1>ConstantsPropertiesView.java</h1><pre class="source lang-java linenums">package org.jabref.gui.libraryproperties.constants;
+
+import java.util.Optional;
+
+import javax.inject.Inject;
+
+import javafx.fxml.FXML;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.Tooltip;
+import javafx.util.converter.DefaultStringConverter;
+
+import org.jabref.gui.icon.IconTheme;
+import org.jabref.gui.libraryproperties.AbstractPropertiesTabView;
+import org.jabref.gui.libraryproperties.PropertiesTab;
+import org.jabref.gui.util.ValueTableCellFactory;
+import org.jabref.gui.util.ViewModelTextFieldTableCellVisualizationFactory;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.preferences.PreferencesService;
+
+import com.airhacks.afterburner.views.ViewLoader;
+
+public class ConstantsPropertiesView extends AbstractPropertiesTabView&lt;ConstantsPropertiesViewModel&gt; implements PropertiesTab {
+
+    @FXML private TableView&lt;ConstantsItemModel&gt; stringsList;
+    @FXML private TableColumn&lt;ConstantsItemModel, String&gt; labelColumn;
+    @FXML private TableColumn&lt;ConstantsItemModel, String&gt; contentColumn;
+    @FXML private TableColumn&lt;ConstantsItemModel, String&gt; actionsColumn;
+    @FXML private Button addStringButton;
+    @FXML private ButtonType saveButton;
+
+    @Inject private PreferencesService preferencesService;
+
+<span class="nc" id="L37">    public ConstantsPropertiesView(BibDatabaseContext databaseContext) {</span>
+<span class="nc" id="L38">        this.databaseContext = databaseContext;</span>
+
+<span class="nc" id="L40">        ViewLoader.view(this)</span>
+<span class="nc" id="L41">                  .root(this)</span>
+<span class="nc" id="L42">                  .load();</span>
+<span class="nc" id="L43">    }</span>
+
+    @Override
+    public String getTabName() {
+<span class="nc" id="L47">        return Localization.lang(&quot;String constants&quot;);</span>
+    }
+
+    public void initialize() {
+<span class="nc" id="L51">        this.viewModel = new ConstantsPropertiesViewModel(databaseContext);</span>
+
+<span class="nc" id="L53">        addStringButton.setTooltip(new Tooltip(Localization.lang(&quot;New string&quot;)));</span>
+
+<span class="nc" id="L55">        labelColumn.setSortable(true);</span>
+<span class="nc" id="L56">        labelColumn.setReorderable(false);</span>
+
+<span class="nc" id="L58">        labelColumn.setCellValueFactory(cellData -&gt; cellData.getValue().labelProperty());</span>
+<span class="nc" id="L59">        new ViewModelTextFieldTableCellVisualizationFactory&lt;ConstantsItemModel, String&gt;()</span>
+<span class="nc" id="L60">                .withValidation(ConstantsItemModel::labelValidation)</span>
+<span class="nc" id="L61">                .install(labelColumn, new DefaultStringConverter());</span>
+<span class="nc" id="L62">        labelColumn.setOnEditCommit((TableColumn.CellEditEvent&lt;ConstantsItemModel, String&gt; cellEvent) -&gt; {</span>
+
+<span class="nc" id="L64">            ConstantsItemModel cellItem = cellEvent.getTableView()</span>
+<span class="nc" id="L65">                                                   .getItems()</span>
+<span class="nc" id="L66">                                                   .get(cellEvent.getTablePosition().getRow());</span>
+
+<span class="nc" id="L68">            Optional&lt;ConstantsItemModel&gt; existingItem = viewModel.labelAlreadyExists(cellEvent.getNewValue());</span>
+
+<span class="nc bnc" id="L70" title="All 4 branches missed.">            if (existingItem.isPresent() &amp;&amp; !existingItem.get().equals(cellItem)) {</span>
+<span class="nc" id="L71">                dialogService.showErrorDialogAndWait(Localization.lang(</span>
+                        &quot;A string with the label '%0' already exists.&quot;,
+<span class="nc" id="L73">                        cellEvent.getNewValue()));</span>
+
+<span class="nc" id="L75">                cellItem.setLabel(cellEvent.getOldValue());</span>
+            } else {
+<span class="nc" id="L77">                cellItem.setLabel(cellEvent.getNewValue());</span>
+            }
+
+<span class="nc" id="L80">            cellEvent.getTableView().refresh();</span>
+<span class="nc" id="L81">        });</span>
+
+<span class="nc" id="L83">        contentColumn.setSortable(true);</span>
+<span class="nc" id="L84">        contentColumn.setReorderable(false);</span>
+<span class="nc" id="L85">        contentColumn.setCellValueFactory(cellData -&gt; cellData.getValue().contentProperty());</span>
+<span class="nc" id="L86">        new ViewModelTextFieldTableCellVisualizationFactory&lt;ConstantsItemModel, String&gt;()</span>
+<span class="nc" id="L87">                .withValidation(ConstantsItemModel::contentValidation)</span>
+<span class="nc" id="L88">                .install(contentColumn, new DefaultStringConverter());</span>
+<span class="nc" id="L89">        contentColumn.setOnEditCommit((TableColumn.CellEditEvent&lt;ConstantsItemModel, String&gt; cell) -&gt;</span>
+<span class="nc" id="L90">                cell.getRowValue().setContent(cell.getNewValue()));</span>
+
+<span class="nc" id="L92">        actionsColumn.setSortable(false);</span>
+<span class="nc" id="L93">        actionsColumn.setReorderable(false);</span>
+<span class="nc" id="L94">        actionsColumn.setCellValueFactory(cellData -&gt; cellData.getValue().labelProperty());</span>
+<span class="nc" id="L95">        new ValueTableCellFactory&lt;ConstantsItemModel, String&gt;()</span>
+<span class="nc" id="L96">                .withGraphic(label -&gt; IconTheme.JabRefIcons.DELETE_ENTRY.getGraphicNode())</span>
+<span class="nc" id="L97">                .withTooltip(label -&gt; Localization.lang(&quot;Remove string %0&quot;, label))</span>
+<span class="nc" id="L98">                .withOnMouseClickedEvent(item -&gt; evt -&gt;</span>
+<span class="nc" id="L99">                        viewModel.removeString(stringsList.getFocusModel().getFocusedItem()))</span>
+<span class="nc" id="L100">                .install(actionsColumn);</span>
+
+<span class="nc" id="L102">        stringsList.itemsProperty().bindBidirectional(viewModel.stringsListProperty());</span>
+<span class="nc" id="L103">        stringsList.setEditable(true);</span>
+<span class="nc" id="L104">    }</span>
+
+    @FXML
+    private void addString() {
+<span class="nc" id="L108">        viewModel.addNewString();</span>
+<span class="nc" id="L109">        stringsList.edit(stringsList.getItems().size() - 1, labelColumn);</span>
+<span class="nc" id="L110">    }</span>
+
+    @FXML
+    private void openHelp() {
+<span class="nc" id="L114">        viewModel.openHelpPage();</span>
+<span class="nc" id="L115">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

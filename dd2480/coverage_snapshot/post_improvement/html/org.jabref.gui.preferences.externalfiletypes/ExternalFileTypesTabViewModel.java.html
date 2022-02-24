@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ExternalFileTypesTabViewModel.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.preferences.externalfiletypes</a> &gt; <span class="el_source">ExternalFileTypesTabViewModel.java</span></div><h1>ExternalFileTypesTabViewModel.java</h1><pre class="source lang-java linenums">package org.jabref.gui.preferences.externalfiletypes;
+
+import java.util.Comparator;
+import java.util.List;
+
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+
+import org.jabref.gui.DialogService;
+import org.jabref.gui.externalfiletype.CustomExternalFileType;
+import org.jabref.gui.externalfiletype.EditExternalFileTypeEntryDialog;
+import org.jabref.gui.externalfiletype.ExternalFileType;
+import org.jabref.gui.externalfiletype.ExternalFileTypes;
+import org.jabref.gui.icon.IconTheme;
+import org.jabref.gui.preferences.PreferenceTabViewModel;
+import org.jabref.logic.l10n.Localization;
+
+import com.airhacks.afterburner.injection.Injector;
+
+public class ExternalFileTypesTabViewModel implements PreferenceTabViewModel {
+
+    private final ExternalFileTypes externalFileTypes;
+<span class="nc" id="L23">    private final ObservableList&lt;ExternalFileType&gt; fileTypes = FXCollections.observableArrayList();</span>
+
+<span class="nc" id="L25">    public ExternalFileTypesTabViewModel(ExternalFileTypes externalFileTypes) {</span>
+<span class="nc" id="L26">        this.externalFileTypes = externalFileTypes;</span>
+<span class="nc" id="L27">    }</span>
+
+    @Override
+    public void setValues() {
+<span class="nc" id="L31">        fileTypes.setAll(externalFileTypes.getExternalFileTypeSelection());</span>
+<span class="nc" id="L32">        fileTypes.sort(Comparator.comparing(ExternalFileType::getName));</span>
+<span class="nc" id="L33">    }</span>
+
+    public void storeSettings() {
+<span class="nc" id="L36">        externalFileTypes.setExternalFileTypes(fileTypes);</span>
+<span class="nc" id="L37">    }</span>
+
+    public void resetToDefaults() {
+<span class="nc" id="L40">        List&lt;ExternalFileType&gt; list = ExternalFileTypes.getDefaultExternalFileTypes();</span>
+<span class="nc" id="L41">        fileTypes.setAll(list);</span>
+<span class="nc" id="L42">        fileTypes.sort(Comparator.comparing(ExternalFileType::getName));</span>
+<span class="nc" id="L43">    }</span>
+
+    public void addNewType() {
+<span class="nc" id="L46">        CustomExternalFileType type = new CustomExternalFileType(&quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;&quot;, &quot;new&quot;, IconTheme.JabRefIcons.FILE);</span>
+<span class="nc" id="L47">        fileTypes.add(type);</span>
+<span class="nc" id="L48">        showEditDialog(type, Localization.lang(&quot;Add new file type&quot;));</span>
+<span class="nc" id="L49">    }</span>
+
+    public ObservableList&lt;ExternalFileType&gt; getFileTypes() {
+<span class="nc" id="L52">        return fileTypes;</span>
+    }
+
+    private void showEditDialog(ExternalFileType type, String dialogTitle) {
+        CustomExternalFileType typeForEdit;
+<span class="nc bnc" id="L57" title="All 2 branches missed.">        if (type instanceof CustomExternalFileType) {</span>
+<span class="nc" id="L58">            typeForEdit = (CustomExternalFileType) type;</span>
+        } else {
+<span class="nc" id="L60">            typeForEdit = new CustomExternalFileType(type);</span>
+<span class="nc" id="L61">            fileTypes.add(fileTypes.indexOf(type), typeForEdit);</span>
+<span class="nc" id="L62">            fileTypes.remove(type);</span>
+        }
+<span class="nc" id="L64">        DialogService dialogService = Injector.instantiateModelOrService(DialogService.class);</span>
+<span class="nc" id="L65">        dialogService.showCustomDialogAndWait(new EditExternalFileTypeEntryDialog(typeForEdit, dialogTitle));</span>
+<span class="nc" id="L66">    }</span>
+
+    public void edit(ExternalFileType type) {
+<span class="nc" id="L69">        showEditDialog(type, Localization.lang(&quot;Edit file type&quot;));</span>
+<span class="nc" id="L70">    }</span>
+
+    public void remove(ExternalFileType type) {
+<span class="nc" id="L73">        fileTypes.remove(type);</span>
+<span class="nc" id="L74">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

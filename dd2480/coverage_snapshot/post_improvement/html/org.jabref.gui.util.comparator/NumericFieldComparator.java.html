@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NumericFieldComparator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.util.comparator</a> &gt; <span class="el_source">NumericFieldComparator.java</span></div><h1>NumericFieldComparator.java</h1><pre class="source lang-java linenums">package org.jabref.gui.util.comparator;
+
+import java.util.Comparator;
+
+import org.jabref.model.strings.StringUtil;
+
+/**
+ * Comparator for numeric cases. The purpose of this class is to add the numeric comparison, because values are sorted
+ * as if they were strings.
+ */
+<span class="fc" id="L11">public class NumericFieldComparator implements Comparator&lt;String&gt; {</span>
+
+    @Override
+    public int compare(String val1, String val2) {
+<span class="fc" id="L15">        Integer valInt1 = parseInt(val1);</span>
+<span class="fc" id="L16">        Integer valInt2 = parseInt(val2);</span>
+
+<span class="fc bfc" id="L18" title="All 4 branches covered.">        if (valInt1 == null &amp;&amp; valInt2 == null) {</span>
+<span class="pc bpc" id="L19" title="1 of 4 branches missed.">            if (val1 != null &amp;&amp; val2 != null) {</span>
+<span class="fc" id="L20">                return val1.compareTo(val2);</span>
+            } else {
+<span class="fc" id="L22">                return 0;</span>
+            }
+<span class="fc bfc" id="L24" title="All 2 branches covered.">        } else if (valInt1 == null) {</span>
+            // We assume that &quot;null&quot; is &quot;less than&quot; any other value.
+<span class="fc" id="L26">            return -1;</span>
+<span class="fc bfc" id="L27" title="All 2 branches covered.">        } else if (valInt2 == null) {</span>
+<span class="fc" id="L28">            return 1;</span>
+        }
+
+        // If we arrive at this stage then both values are actually numeric !
+<span class="fc" id="L32">        return valInt1 - valInt2;</span>
+    }
+
+    private static Integer parseInt(String number) {
+<span class="fc bfc" id="L36" title="All 2 branches covered.">        if (!isNumber(number)) {</span>
+<span class="fc" id="L37">            return null;</span>
+        }
+
+        try {
+<span class="fc" id="L41">            return Integer.valueOf(number.trim());</span>
+<span class="nc" id="L42">        } catch (NumberFormatException ignore) {</span>
+<span class="nc" id="L43">            return null;</span>
+        }
+    }
+
+    private static boolean isNumber(String number) {
+<span class="fc bfc" id="L48" title="All 2 branches covered.">        if (StringUtil.isNullOrEmpty(number)) {</span>
+<span class="fc" id="L49">            return false;</span>
+        }
+<span class="fc bfc" id="L51" title="All 6 branches covered.">        if (number.length() == 1 &amp;&amp; (number.charAt(0) == '-' || number.charAt(0) == '+')) {</span>
+<span class="fc" id="L52">            return false;</span>
+        }
+<span class="fc bfc" id="L54" title="All 2 branches covered.">        for (int i = 0; i &lt; number.length(); i++) {</span>
+<span class="fc" id="L55">            char c = number.charAt(i);</span>
+<span class="pc bpc" id="L56" title="1 of 6 branches missed.">            if (i == 0 &amp;&amp; (c == '-' || c == '+')) {</span>
+<span class="nc" id="L57">                continue;</span>
+<span class="fc bfc" id="L58" title="All 2 branches covered.">            } else if (!Character.isDigit(c)) {</span>
+<span class="fc" id="L59">                return false;</span>
+            }
+        }
+
+<span class="fc" id="L63">        return true;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

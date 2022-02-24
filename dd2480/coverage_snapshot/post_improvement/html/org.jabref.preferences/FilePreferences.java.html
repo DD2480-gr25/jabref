@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FilePreferences.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.preferences</a> &gt; <span class="el_source">FilePreferences.java</span></div><h1>FilePreferences.java</h1><pre class="source lang-java linenums">package org.jabref.preferences;
+
+import java.nio.file.Path;
+import java.util.Optional;
+
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+
+import org.jabref.model.strings.StringUtil;
+
+public class FilePreferences {
+
+<span class="fc" id="L17">    public static final String[] DEFAULT_FILENAME_PATTERNS = new String[] {&quot;[bibtexkey]&quot;, &quot;[bibtexkey] - [title]&quot;};</span>
+
+<span class="nc" id="L19">    private final StringProperty user = new SimpleStringProperty();</span>
+<span class="nc" id="L20">    private final SimpleStringProperty mainFileDirectory = new SimpleStringProperty();</span>
+<span class="nc" id="L21">    private final BooleanProperty storeFilesRelativeToBibFile = new SimpleBooleanProperty();</span>
+<span class="nc" id="L22">    private final StringProperty fileNamePattern = new SimpleStringProperty();</span>
+<span class="nc" id="L23">    private final StringProperty fileDirectoryPattern = new SimpleStringProperty();</span>
+<span class="nc" id="L24">    private final BooleanProperty downloadLinkedFiles = new SimpleBooleanProperty();</span>
+<span class="nc" id="L25">    private final BooleanProperty fulltextIndexLinkedFiles = new SimpleBooleanProperty();</span>
+<span class="nc" id="L26">    private final ObjectProperty&lt;Path&gt; workingDirectory = new SimpleObjectProperty&lt;&gt;();</span>
+
+    public FilePreferences(String user,
+                           String mainFileDirectory,
+                           boolean storeFilesRelativeToBibFile,
+                           String fileNamePattern,
+                           String fileDirectoryPattern,
+                           boolean downloadLinkedFiles,
+                           boolean fulltextIndexLinkedFiles,
+<span class="nc" id="L35">                           Path workingDirectory) {</span>
+<span class="nc" id="L36">        this.user.setValue(user);</span>
+<span class="nc" id="L37">        this.mainFileDirectory.setValue(mainFileDirectory);</span>
+<span class="nc" id="L38">        this.storeFilesRelativeToBibFile.setValue(storeFilesRelativeToBibFile);</span>
+<span class="nc" id="L39">        this.fileNamePattern.setValue(fileNamePattern);</span>
+<span class="nc" id="L40">        this.fileDirectoryPattern.setValue(fileDirectoryPattern);</span>
+<span class="nc" id="L41">        this.downloadLinkedFiles.setValue(downloadLinkedFiles);</span>
+<span class="nc" id="L42">        this.fulltextIndexLinkedFiles.setValue(fulltextIndexLinkedFiles);</span>
+<span class="nc" id="L43">        this.workingDirectory.setValue(workingDirectory);</span>
+<span class="nc" id="L44">    }</span>
+
+    public String getUser() { // Read only
+<span class="nc" id="L47">        return user.getValue();</span>
+    }
+
+    public Optional&lt;Path&gt; getFileDirectory() {
+<span class="nc bnc" id="L51" title="All 2 branches missed.">        if (StringUtil.isBlank(mainFileDirectory.getValue())) {</span>
+<span class="nc" id="L52">            return Optional.empty();</span>
+        } else {
+<span class="nc" id="L54">            return Optional.of(Path.of(mainFileDirectory.getValue()));</span>
+        }
+    }
+
+    public StringProperty mainFileDirectoryProperty() {
+<span class="nc" id="L59">        return mainFileDirectory;</span>
+    }
+
+    public void setMainFileDirectory(String mainFileDirectory) {
+<span class="nc" id="L63">        this.mainFileDirectory.set(mainFileDirectory);</span>
+<span class="nc" id="L64">    }</span>
+
+    public boolean shouldStoreFilesRelativeToBibFile() {
+<span class="nc" id="L67">        return storeFilesRelativeToBibFile.get();</span>
+    }
+
+    public BooleanProperty storeFilesRelativeToBibFileProperty() {
+<span class="nc" id="L71">        return storeFilesRelativeToBibFile;</span>
+    }
+
+    public void setStoreFilesRelativeToBibFile(boolean shouldStoreFilesRelativeToBibFile) {
+<span class="nc" id="L75">        this.storeFilesRelativeToBibFile.set(shouldStoreFilesRelativeToBibFile);</span>
+<span class="nc" id="L76">    }</span>
+
+    public String getFileNamePattern() {
+<span class="nc" id="L79">        return fileNamePattern.get();</span>
+    }
+
+    public StringProperty fileNamePatternProperty() {
+<span class="nc" id="L83">        return fileNamePattern;</span>
+    }
+
+    public void setFileNamePattern(String fileNamePattern) {
+<span class="nc" id="L87">        this.fileNamePattern.set(fileNamePattern);</span>
+<span class="nc" id="L88">    }</span>
+
+    public String getFileDirectoryPattern() {
+<span class="nc" id="L91">        return fileDirectoryPattern.get();</span>
+    }
+
+    public StringProperty fileDirectoryPatternProperty() {
+<span class="nc" id="L95">        return fileDirectoryPattern;</span>
+    }
+
+    public void setFileDirectoryPattern(String fileDirectoryPattern) {
+<span class="nc" id="L99">        this.fileDirectoryPattern.set(fileDirectoryPattern);</span>
+<span class="nc" id="L100">    }</span>
+
+    public boolean shouldDownloadLinkedFiles() {
+<span class="nc" id="L103">        return downloadLinkedFiles.get();</span>
+    }
+
+    public BooleanProperty downloadLinkedFilesProperty() {
+<span class="nc" id="L107">        return downloadLinkedFiles;</span>
+    }
+
+    public void setDownloadLinkedFiles(boolean shouldDownloadLinkedFiles) {
+<span class="nc" id="L111">        this.downloadLinkedFiles.set(shouldDownloadLinkedFiles);</span>
+<span class="nc" id="L112">    }</span>
+
+    public boolean shouldFulltextIndexLinkedFiles() {
+<span class="nc" id="L115">        return fulltextIndexLinkedFiles.get();</span>
+    }
+
+    public BooleanProperty fulltextIndexLinkedFilesProperty() {
+<span class="nc" id="L119">        return fulltextIndexLinkedFiles;</span>
+    }
+
+    public void setFulltextIndexLinkedFiles(boolean shouldFulltextIndexLinkedFiles) {
+<span class="nc" id="L123">        this.fulltextIndexLinkedFiles.set(shouldFulltextIndexLinkedFiles);</span>
+<span class="nc" id="L124">    }</span>
+
+    public Path getWorkingDirectory() {
+<span class="nc" id="L127">        return workingDirectory.get();</span>
+    }
+
+    public ObjectProperty&lt;Path&gt; workingDirectoryProperty() {
+<span class="nc" id="L131">        return workingDirectory;</span>
+    }
+
+    public void setWorkingDirectory(Path workingDirectory) {
+<span class="nc" id="L135">        this.workingDirectory.set(workingDirectory);</span>
+<span class="nc" id="L136">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

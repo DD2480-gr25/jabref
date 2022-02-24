@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SaveOrderConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.model.metadata</a> &gt; <span class="el_source">SaveOrderConfig.java</span></div><h1>SaveOrderConfig.java</h1><pre class="source lang-java linenums">package org.jabref.model.metadata;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+
+import org.jabref.model.entry.field.Field;
+import org.jabref.model.entry.field.FieldFactory;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Stores the save order config from MetaData
+ * &lt;p&gt;
+ * Format: &amp;lt;choice&gt;, pair of field + ascending (boolean)
+ */
+public class SaveOrderConfig {
+
+<span class="fc" id="L20">    public enum OrderType {</span>
+<span class="fc" id="L21">        SPECIFIED(&quot;specified&quot;),</span>
+<span class="fc" id="L22">        ORIGINAL(&quot;original&quot;),</span>
+<span class="fc" id="L23">        TABLE(&quot;table&quot;);</span>
+
+        private final String name;
+
+<span class="fc" id="L27">        OrderType(String name) {</span>
+<span class="fc" id="L28">            this.name = name;</span>
+<span class="fc" id="L29">        }</span>
+
+        @Override
+        public String toString() {
+<span class="fc" id="L33">            return name;</span>
+        }
+
+        public static SaveOrderConfig.OrderType fromBooleans(boolean saveInSpecifiedOrder, boolean saveInOriginalOrder) {
+<span class="nc" id="L37">            SaveOrderConfig.OrderType orderType = SaveOrderConfig.OrderType.TABLE;</span>
+<span class="nc bnc" id="L38" title="All 2 branches missed.">            if (saveInSpecifiedOrder) {</span>
+<span class="nc" id="L39">                orderType = SaveOrderConfig.OrderType.SPECIFIED;</span>
+<span class="nc bnc" id="L40" title="All 2 branches missed.">            } else if (saveInOriginalOrder) {</span>
+<span class="nc" id="L41">                orderType = SaveOrderConfig.OrderType.ORIGINAL;</span>
+            }
+
+<span class="nc" id="L44">            return orderType;</span>
+        }
+    }
+
+<span class="fc" id="L48">    private static final Logger LOGGER = LoggerFactory.getLogger(SaveOrderConfig.class);</span>
+
+<span class="fc" id="L50">    private final List&lt;SortCriterion&gt; sortCriteria = new ArrayList&lt;&gt;();</span>
+    private OrderType orderType;
+
+<span class="fc" id="L53">    public SaveOrderConfig() {</span>
+<span class="fc" id="L54">        this.orderType = OrderType.ORIGINAL;</span>
+<span class="fc" id="L55">    }</span>
+
+<span class="fc" id="L57">    public SaveOrderConfig(OrderType orderType, List&lt;SortCriterion&gt; sortCriteria) {</span>
+<span class="fc" id="L58">        this.orderType = orderType;</span>
+<span class="fc" id="L59">        this.sortCriteria.addAll(sortCriteria);</span>
+<span class="fc" id="L60">    }</span>
+
+<span class="fc" id="L62">    private SaveOrderConfig(List&lt;String&gt; data) {</span>
+<span class="fc" id="L63">        Objects.requireNonNull(data);</span>
+
+<span class="pc bpc" id="L65" title="1 of 2 branches missed.">        if (data.isEmpty()) {</span>
+<span class="nc" id="L66">            throw new IllegalArgumentException();</span>
+        }
+
+        try {
+<span class="fc" id="L70">            this.orderType = OrderType.valueOf(data.get(0).toUpperCase());</span>
+<span class="nc" id="L71">        } catch (IllegalArgumentException ex) {</span>
+<span class="nc bnc" id="L72" title="All 4 branches missed.">            if (data.size() &gt; 1 &amp;&amp; data.size() % 2 == 1) {</span>
+<span class="nc" id="L73">                LOGGER.warn(&quot;Could not parse sort order: {} - trying to parse the sort criteria&quot;, data.get(0));</span>
+<span class="nc" id="L74">                this.orderType = OrderType.SPECIFIED;</span>
+            } else {
+<span class="nc" id="L76">                LOGGER.warn(&quot;Could not parse sort order: {}&quot;, data.get(0));</span>
+<span class="nc" id="L77">                this.orderType = OrderType.ORIGINAL;</span>
+<span class="nc" id="L78">                return;</span>
+            }
+<span class="fc" id="L80">        }</span>
+
+<span class="fc bfc" id="L82" title="All 2 branches covered.">        for (int index = 1; index &lt; data.size(); index = index + 2) {</span>
+<span class="fc" id="L83">            sortCriteria.add(new SortCriterion(FieldFactory.parseField(data.get(index)), data.get(index + 1)));</span>
+        }
+<span class="fc" id="L85">    }</span>
+
+    public static SaveOrderConfig parse(List&lt;String&gt; orderedData) {
+<span class="fc" id="L88">        return new SaveOrderConfig(orderedData);</span>
+    }
+
+    public static SaveOrderConfig getDefaultSaveOrder() {
+<span class="nc" id="L92">        SaveOrderConfig standard = new SaveOrderConfig();</span>
+<span class="nc" id="L93">        standard.orderType = OrderType.ORIGINAL;</span>
+<span class="nc" id="L94">        return standard;</span>
+    }
+
+    public OrderType getOrderType() {
+<span class="nc" id="L98">        return orderType;</span>
+    }
+
+    public List&lt;SortCriterion&gt; getSortCriteria() {
+<span class="fc" id="L102">        return sortCriteria;</span>
+    }
+
+    @Override
+    public boolean equals(Object o) {
+<span class="pc bpc" id="L107" title="1 of 2 branches missed.">        if (this == o) {</span>
+<span class="nc" id="L108">            return true;</span>
+        }
+<span class="pc bpc" id="L110" title="1 of 2 branches missed.">        if (o instanceof SaveOrderConfig that) {</span>
+<span class="pc bpc" id="L111" title="1 of 2 branches missed.">            return Objects.equals(sortCriteria, that.sortCriteria) &amp;&amp;</span>
+<span class="pc bpc" id="L112" title="1 of 2 branches missed.">                    Objects.equals(orderType, that.orderType);</span>
+        }
+<span class="nc" id="L114">        return false;</span>
+    }
+
+    @Override
+    public int hashCode() {
+<span class="nc" id="L119">        return Objects.hash(orderType, sortCriteria);</span>
+    }
+
+    @Override
+    public String toString() {
+<span class="nc" id="L124">        return &quot;SaveOrderConfig{&quot; + &quot;orderType=&quot; + orderType.toString() +</span>
+                &quot;, sortCriteria=&quot; + sortCriteria +
+                '}';
+    }
+
+    /**
+     * Outputs the current configuration to be consumed later by the constructor
+     */
+    public List&lt;String&gt; getAsStringList() {
+<span class="fc" id="L133">        List&lt;String&gt; res = new ArrayList&lt;&gt;(7);</span>
+<span class="pc bpc" id="L134" title="1 of 2 branches missed.">        if (orderType == OrderType.ORIGINAL) {</span>
+<span class="nc" id="L135">            res.add(OrderType.ORIGINAL.toString());</span>
+        } else {
+<span class="fc" id="L137">            res.add(OrderType.SPECIFIED.toString());</span>
+        }
+
+<span class="fc bfc" id="L140" title="All 2 branches covered.">        for (SortCriterion sortCriterion : sortCriteria) {</span>
+<span class="fc" id="L141">            res.add(sortCriterion.field.getName());</span>
+<span class="fc" id="L142">            res.add(Boolean.toString(sortCriterion.descending));</span>
+<span class="fc" id="L143">        }</span>
+
+<span class="fc" id="L145">        return res;</span>
+    }
+
+    public static class SortCriterion {
+
+        public Field field;
+
+        public boolean descending;
+
+        /**
+         *
+         * @param field The field
+         * @param descending Must be a boolean value as string, e.g. &quot;true&quot;, &quot;false&quot;
+         */
+<span class="fc" id="L159">        public SortCriterion(Field field, String descending) {</span>
+<span class="fc" id="L160">            this.field = field;</span>
+<span class="fc" id="L161">            this.descending = Boolean.parseBoolean(descending);</span>
+<span class="fc" id="L162">        }</span>
+
+<span class="fc" id="L164">        public SortCriterion(Field field, boolean descending) {</span>
+<span class="fc" id="L165">            this.field = field;</span>
+<span class="fc" id="L166">            this.descending = descending;</span>
+<span class="fc" id="L167">        }</span>
+
+<span class="fc" id="L169">        public SortCriterion() {</span>
+
+<span class="fc" id="L171">        }</span>
+
+        @Override
+        public String toString() {
+<span class="nc" id="L175">            return &quot;SortCriterion{&quot; + &quot;field='&quot; + field + '\'' +</span>
+                    &quot;, descending=&quot; + descending +
+                    '}';
+        }
+
+        @Override
+        public boolean equals(Object o) {
+<span class="pc bpc" id="L182" title="1 of 2 branches missed.">            if (this == o) {</span>
+<span class="nc" id="L183">                return true;</span>
+            }
+<span class="pc bpc" id="L185" title="2 of 4 branches missed.">            if ((o == null) || (getClass() != o.getClass())) {</span>
+<span class="nc" id="L186">                return false;</span>
+            }
+<span class="fc" id="L188">            SortCriterion that = (SortCriterion) o;</span>
+<span class="pc bpc" id="L189" title="1 of 2 branches missed.">            return Objects.equals(descending, that.descending) &amp;&amp;</span>
+<span class="pc bpc" id="L190" title="1 of 2 branches missed.">                    Objects.equals(field, that.field);</span>
+        }
+
+        @Override
+        public int hashCode() {
+<span class="nc" id="L195">            return Objects.hash(field, descending);</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

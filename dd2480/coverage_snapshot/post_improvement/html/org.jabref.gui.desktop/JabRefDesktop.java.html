@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JabRefDesktop.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.desktop</a> &gt; <span class="el_source">JabRefDesktop.java</span></div><h1>JabRefDesktop.java</h1><pre class="source lang-java linenums">package org.jabref.gui.desktop;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.regex.Pattern;
+
+import org.jabref.gui.DialogService;
+import org.jabref.gui.Globals;
+import org.jabref.gui.JabRefGUI;
+import org.jabref.gui.desktop.os.DefaultDesktop;
+import org.jabref.gui.desktop.os.Linux;
+import org.jabref.gui.desktop.os.NativeDesktop;
+import org.jabref.gui.desktop.os.OSX;
+import org.jabref.gui.desktop.os.Windows;
+import org.jabref.gui.externalfiletype.ExternalFileType;
+import org.jabref.gui.externalfiletype.ExternalFileTypes;
+import org.jabref.logic.importer.util.IdentifierParser;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.logic.util.OS;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.entry.field.Field;
+import org.jabref.model.entry.field.StandardField;
+import org.jabref.model.entry.identifier.ArXivIdentifier;
+import org.jabref.model.entry.identifier.DOI;
+import org.jabref.model.util.FileHelper;
+import org.jabref.preferences.PreferencesService;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * TODO: Replace by http://docs.oracle.com/javase/7/docs/api/java/awt/Desktop.html
+ * http://stackoverflow.com/questions/18004150/desktop-api-is-not-supported-on-the-current-platform
+ */
+public class JabRefDesktop {
+
+<span class="nc" id="L43">    private static final Logger LOGGER = LoggerFactory.getLogger(JabRefDesktop.class);</span>
+
+<span class="nc" id="L45">    private static final NativeDesktop NATIVE_DESKTOP = getNativeDesktop();</span>
+<span class="nc" id="L46">    private static final Pattern REMOTE_LINK_PATTERN = Pattern.compile(&quot;[a-z]+://.*&quot;);</span>
+
+    private JabRefDesktop() {
+    }
+
+    /**
+     * Open a http/pdf/ps viewer for the given link string.
+     */
+    public static void openExternalViewer(BibDatabaseContext databaseContext,
+                                          PreferencesService preferencesService,
+                                          String initialLink,
+                                          Field initialField)
+            throws IOException {
+<span class="nc" id="L59">        String link = initialLink;</span>
+<span class="nc" id="L60">        Field field = initialField;</span>
+<span class="nc bnc" id="L61" title="All 4 branches missed.">        if (StandardField.PS.equals(field) || StandardField.PDF.equals(field)) {</span>
+            // Find the default directory for this field type:
+<span class="nc" id="L63">            List&lt;Path&gt; directories = databaseContext.getFileDirectories(preferencesService.getFilePreferences());</span>
+
+<span class="nc" id="L65">            Optional&lt;Path&gt; file = FileHelper.find(link, directories);</span>
+
+            // Check that the file exists:
+<span class="nc bnc" id="L68" title="All 4 branches missed.">            if (file.isEmpty() || !Files.exists(file.get())) {</span>
+<span class="nc" id="L69">                throw new IOException(&quot;File not found (&quot; + field + &quot;): '&quot; + link + &quot;'.&quot;);</span>
+            }
+<span class="nc" id="L71">            link = file.get().toAbsolutePath().toString();</span>
+
+            // Use the correct viewer even if pdf and ps are mixed up:
+<span class="nc" id="L74">            String[] split = file.get().getFileName().toString().split(&quot;\\.&quot;);</span>
+<span class="nc bnc" id="L75" title="All 2 branches missed.">            if (split.length &gt;= 2) {</span>
+<span class="nc bnc" id="L76" title="All 2 branches missed.">                if (&quot;pdf&quot;.equalsIgnoreCase(split[split.length - 1])) {</span>
+<span class="nc" id="L77">                    field = StandardField.PDF;</span>
+<span class="nc bnc" id="L78" title="All 4 branches missed.">                } else if (&quot;ps&quot;.equalsIgnoreCase(split[split.length - 1])</span>
+<span class="nc bnc" id="L79" title="All 2 branches missed.">                        || ((split.length &gt;= 3) &amp;&amp; &quot;ps&quot;.equalsIgnoreCase(split[split.length - 2]))) {</span>
+<span class="nc" id="L80">                    field = StandardField.PS;</span>
+                }
+            }
+<span class="nc bnc" id="L83" title="All 2 branches missed.">        } else if (StandardField.DOI.equals(field)) {</span>
+<span class="nc" id="L84">            openDoi(link);</span>
+<span class="nc" id="L85">            return;</span>
+<span class="nc bnc" id="L86" title="All 2 branches missed.">        } else if (StandardField.EPRINT.equals(field)) {</span>
+<span class="nc" id="L87">            link = ArXivIdentifier.parse(link)</span>
+<span class="nc" id="L88">                                  .map(ArXivIdentifier::getExternalURI)</span>
+<span class="nc" id="L89">                                  .filter(Optional::isPresent)</span>
+<span class="nc" id="L90">                                  .map(Optional::get)</span>
+<span class="nc" id="L91">                                  .map(URI::toASCIIString)</span>
+<span class="nc" id="L92">                                  .orElse(link);</span>
+            // should be opened in browser
+<span class="nc" id="L94">            field = StandardField.URL;</span>
+        }
+
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        if (StandardField.URL.equals(field)) {</span>
+<span class="nc" id="L98">            openBrowser(link);</span>
+<span class="nc bnc" id="L99" title="All 2 branches missed.">        } else if (StandardField.PS.equals(field)) {</span>
+            try {
+<span class="nc" id="L101">                NATIVE_DESKTOP.openFile(link, StandardField.PS.getName());</span>
+<span class="nc" id="L102">            } catch (IOException e) {</span>
+<span class="nc" id="L103">                LOGGER.error(&quot;An error occurred on the command: &quot; + link, e);</span>
+<span class="nc" id="L104">            }</span>
+<span class="nc bnc" id="L105" title="All 2 branches missed.">        } else if (StandardField.PDF.equals(field)) {</span>
+            try {
+<span class="nc" id="L107">                NATIVE_DESKTOP.openFile(link, StandardField.PDF.getName());</span>
+<span class="nc" id="L108">            } catch (IOException e) {</span>
+<span class="nc" id="L109">                LOGGER.error(&quot;An error occurred on the command: &quot; + link, e);</span>
+<span class="nc" id="L110">            }</span>
+        } else {
+<span class="nc" id="L112">            LOGGER.info(&quot;Message: currently only PDF, PS and HTML files can be opened by double clicking&quot;);</span>
+        }
+<span class="nc" id="L114">    }</span>
+
+    private static void openDoi(String doi) throws IOException {
+<span class="nc" id="L117">        String link = DOI.parse(doi).map(DOI::getURIAsASCIIString).orElse(doi);</span>
+<span class="nc" id="L118">        openBrowser(link);</span>
+<span class="nc" id="L119">    }</span>
+
+    public static void openCustomDoi(String link, PreferencesService preferences, DialogService dialogService) {
+<span class="nc" id="L122">        IdentifierParser.parse(StandardField.DOI, link)</span>
+<span class="nc" id="L123">                        .map(identifier -&gt; (DOI) identifier)</span>
+<span class="nc" id="L124">                        .flatMap(doi -&gt; doi.getExternalURIWithCustomBase(preferences.getDOIPreferences().getDefaultBaseURI()))</span>
+<span class="nc" id="L125">                        .ifPresent(uri -&gt; {</span>
+                            try {
+<span class="nc" id="L127">                                JabRefDesktop.openBrowser(uri);</span>
+<span class="nc" id="L128">                            } catch (IOException e) {</span>
+<span class="nc" id="L129">                                dialogService.showErrorDialogAndWait(Localization.lang(&quot;Unable to open link.&quot;), e);</span>
+<span class="nc" id="L130">                            }</span>
+<span class="nc" id="L131">                        });</span>
+<span class="nc" id="L132">    }</span>
+
+    /**
+     * Open an external file, attempting to use the correct viewer for it.
+     *
+     * @param databaseContext The database this file belongs to.
+     * @param link            The filename.
+     * @return false if the link couldn't be resolved, true otherwise.
+     */
+    public static boolean openExternalFileAnyFormat(final BibDatabaseContext databaseContext,
+                                                    PreferencesService preferencesService,
+                                                    String link,
+                                                    final Optional&lt;ExternalFileType&gt; type)
+            throws IOException {
+
+<span class="nc bnc" id="L147" title="All 2 branches missed.">        if (REMOTE_LINK_PATTERN.matcher(link.toLowerCase(Locale.ROOT)).matches()) {</span>
+<span class="nc" id="L148">            openExternalFilePlatformIndependent(type, link);</span>
+<span class="nc" id="L149">            return true;</span>
+        }
+
+<span class="nc" id="L152">        Optional&lt;Path&gt; file = FileHelper.find(databaseContext, link, preferencesService.getFilePreferences());</span>
+<span class="nc bnc" id="L153" title="All 4 branches missed.">        if (file.isPresent() &amp;&amp; Files.exists(file.get())) {</span>
+            // Open the file:
+<span class="nc" id="L155">            String filePath = file.get().toString();</span>
+<span class="nc" id="L156">            openExternalFilePlatformIndependent(type, filePath);</span>
+<span class="nc" id="L157">        } else {</span>
+            // No file matched the name, try to open it directly using the given app
+<span class="nc" id="L159">            openExternalFilePlatformIndependent(type, link);</span>
+        }
+<span class="nc" id="L161">        return true;</span>
+    }
+
+    private static void openExternalFilePlatformIndependent(Optional&lt;ExternalFileType&gt; fileType, String filePath)
+            throws IOException {
+<span class="nc bnc" id="L166" title="All 2 branches missed.">        if (fileType.isPresent()) {</span>
+<span class="nc" id="L167">            String application = fileType.get().getOpenWithApplication();</span>
+
+<span class="nc bnc" id="L169" title="All 2 branches missed.">            if (application.isEmpty()) {</span>
+<span class="nc" id="L170">                NATIVE_DESKTOP.openFile(filePath, fileType.get().getExtension());</span>
+            } else {
+<span class="nc" id="L172">                NATIVE_DESKTOP.openFileWithApplication(filePath, application);</span>
+            }
+<span class="nc" id="L174">        } else {</span>
+            // File type is not given and therefore no application specified
+            // Let the OS handle the opening of the file
+<span class="nc" id="L177">            NATIVE_DESKTOP.openFile(filePath, &quot;&quot;);</span>
+        }
+<span class="nc" id="L179">    }</span>
+
+    /**
+     * Opens a file browser of the folder of the given file. If possible, the file is selected
+     *
+     * @param fileLink the location of the file
+     * @throws IOException if the default file browser cannot be opened
+     */
+    public static void openFolderAndSelectFile(Path fileLink, PreferencesService preferencesService) throws IOException {
+<span class="nc bnc" id="L188" title="All 2 branches missed.">        if (fileLink == null) {</span>
+<span class="nc" id="L189">            return;</span>
+        }
+
+<span class="nc" id="L192">        boolean useCustomFileBrowser = preferencesService.getExternalApplicationsPreferences().useCustomFileBrowser();</span>
+<span class="nc bnc" id="L193" title="All 2 branches missed.">        if (!useCustomFileBrowser) {</span>
+<span class="nc" id="L194">            NATIVE_DESKTOP.openFolderAndSelectFile(fileLink);</span>
+        } else {
+<span class="nc" id="L196">            String absolutePath = fileLink.toAbsolutePath().getParent().toString();</span>
+<span class="nc" id="L197">            String command = preferencesService.getExternalApplicationsPreferences().getCustomFileBrowserCommand();</span>
+<span class="nc bnc" id="L198" title="All 2 branches missed.">            if (!command.isEmpty()) {</span>
+<span class="nc" id="L199">                command = command.replaceAll(&quot;\\s+&quot;, &quot; &quot;); // normalize white spaces</span>
+
+                // replace the placeholder if used
+<span class="nc" id="L202">                command = command.replace(&quot;%DIR&quot;, absolutePath);</span>
+<span class="nc" id="L203">                String[] subcommands = command.split(&quot; &quot;);</span>
+
+<span class="nc" id="L205">                LOGGER.info(&quot;Executing command \&quot;&quot; + command + &quot;\&quot;...&quot;);</span>
+
+                try {
+<span class="nc" id="L208">                    new ProcessBuilder(subcommands).start();</span>
+<span class="nc" id="L209">                } catch (IOException exception) {</span>
+<span class="nc" id="L210">                    LOGGER.error(&quot;Open File Browser&quot;, exception);</span>
+<span class="nc" id="L211">                    JabRefGUI.getMainFrame().getDialogService().notify(Localization.lang(&quot;Error occured while executing the command \&quot;%0\&quot;.&quot;, command));</span>
+<span class="nc" id="L212">                }</span>
+            }
+        }
+<span class="nc" id="L215">    }</span>
+
+    /**
+     * Opens the given URL using the system browser
+     *
+     * @param url the URL to open
+     */
+    public static void openBrowser(String url) throws IOException {
+<span class="nc" id="L223">        Optional&lt;ExternalFileType&gt; fileType = ExternalFileTypes.getInstance().getExternalFileTypeByExt(&quot;html&quot;);</span>
+<span class="nc" id="L224">        openExternalFilePlatformIndependent(fileType, url);</span>
+<span class="nc" id="L225">    }</span>
+
+    public static void openBrowser(URI url) throws IOException {
+<span class="nc" id="L228">        openBrowser(url.toASCIIString());</span>
+<span class="nc" id="L229">    }</span>
+
+    /**
+     * Opens the url with the users standard Browser. If that fails a popup will be shown to instruct the user to open the link manually and the link gets copied to the clipboard
+     *
+     * @param url the URL to open
+     */
+    public static void openBrowserShowPopup(String url) {
+        try {
+<span class="nc" id="L238">            openBrowser(url);</span>
+<span class="nc" id="L239">        } catch (IOException exception) {</span>
+<span class="nc" id="L240">            Globals.getClipboardManager().setContent(url);</span>
+<span class="nc" id="L241">            LOGGER.error(&quot;Could not open browser&quot;, exception);</span>
+<span class="nc" id="L242">            String couldNotOpenBrowser = Localization.lang(&quot;Could not open browser.&quot;);</span>
+<span class="nc" id="L243">            String openManually = Localization.lang(&quot;Please open %0 manually.&quot;, url);</span>
+<span class="nc" id="L244">            String copiedToClipboard = Localization.lang(&quot;The link has been copied to the clipboard.&quot;);</span>
+<span class="nc" id="L245">            JabRefGUI.getMainFrame().getDialogService().notify(couldNotOpenBrowser);</span>
+<span class="nc" id="L246">            JabRefGUI.getMainFrame().getDialogService().showErrorDialogAndWait(couldNotOpenBrowser, couldNotOpenBrowser + &quot;\n&quot; + openManually + &quot;\n&quot; + copiedToClipboard);</span>
+<span class="nc" id="L247">        }</span>
+<span class="nc" id="L248">    }</span>
+
+    /**
+     * Opens a new console starting on the given file location
+     * &lt;p&gt;
+     * If no command is specified in {@link Globals}, the default system console will be executed.
+     *
+     * @param file Location the console should be opened at.
+     */
+    public static void openConsole(File file, PreferencesService preferencesService) throws IOException {
+<span class="nc bnc" id="L258" title="All 2 branches missed.">        if (file == null) {</span>
+<span class="nc" id="L259">            return;</span>
+        }
+
+<span class="nc" id="L262">        String absolutePath = file.toPath().toAbsolutePath().getParent().toString();</span>
+
+<span class="nc" id="L264">        boolean useCustomTerminal = preferencesService.getExternalApplicationsPreferences().useCustomTerminal();</span>
+<span class="nc bnc" id="L265" title="All 2 branches missed.">        if (!useCustomTerminal) {</span>
+<span class="nc" id="L266">            NATIVE_DESKTOP.openConsole(absolutePath);</span>
+        } else {
+<span class="nc" id="L268">            String command = preferencesService.getExternalApplicationsPreferences().getCustomTerminalCommand();</span>
+<span class="nc" id="L269">            command = command.trim();</span>
+
+<span class="nc bnc" id="L271" title="All 2 branches missed.">            if (!command.isEmpty()) {</span>
+<span class="nc" id="L272">                command = command.replaceAll(&quot;\\s+&quot;, &quot; &quot;); // normalize white spaces</span>
+<span class="nc" id="L273">                command = command.replace(&quot;%DIR&quot;, absolutePath); // replace the placeholder if used</span>
+
+<span class="nc" id="L275">                String[] subcommands = command.split(&quot; &quot;);</span>
+
+<span class="nc" id="L277">                LOGGER.info(&quot;Executing command \&quot;&quot; + command + &quot;\&quot;...&quot;);</span>
+<span class="nc" id="L278">                JabRefGUI.getMainFrame().getDialogService().notify(Localization.lang(&quot;Executing command \&quot;%0\&quot;...&quot;, command));</span>
+
+                try {
+<span class="nc" id="L281">                    new ProcessBuilder(subcommands).start();</span>
+<span class="nc" id="L282">                } catch (IOException exception) {</span>
+<span class="nc" id="L283">                    LOGGER.error(&quot;Open console&quot;, exception);</span>
+
+<span class="nc" id="L285">                    JabRefGUI.getMainFrame().getDialogService().notify(Localization.lang(&quot;Error occured while executing the command \&quot;%0\&quot;.&quot;, command));</span>
+<span class="nc" id="L286">                }</span>
+            }
+        }
+<span class="nc" id="L289">    }</span>
+
+    // TODO: Move to OS.java
+    public static NativeDesktop getNativeDesktop() {
+<span class="nc bnc" id="L293" title="All 2 branches missed.">        if (OS.WINDOWS) {</span>
+<span class="nc" id="L294">            return new Windows();</span>
+<span class="nc bnc" id="L295" title="All 2 branches missed.">        } else if (OS.OS_X) {</span>
+<span class="nc" id="L296">            return new OSX();</span>
+<span class="nc bnc" id="L297" title="All 2 branches missed.">        } else if (OS.LINUX) {</span>
+<span class="nc" id="L298">            return new Linux();</span>
+        }
+<span class="nc" id="L300">        return new DefaultDesktop();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

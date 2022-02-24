@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EntryChangeViewModel.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.collab</a> &gt; <span class="el_source">EntryChangeViewModel.java</span></div><h1>EntryChangeViewModel.java</h1><pre class="source lang-java linenums">package org.jabref.gui.collab;
+
+import javafx.geometry.Insets;
+import javafx.scene.Node;
+import javafx.scene.control.Label;
+import javafx.scene.layout.VBox;
+
+import org.jabref.gui.mergeentries.MergeEntries;
+import org.jabref.gui.mergeentries.MergeEntries.DefaultRadioButtonSelectionMode;
+import org.jabref.gui.undo.NamedCompound;
+import org.jabref.gui.undo.UndoableInsertEntries;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.entry.BibEntry;
+
+class EntryChangeViewModel extends DatabaseChangeViewModel {
+
+    private final BibEntry oldEntry;
+    private final BibEntry newEntry;
+    private MergeEntries mergePanel;
+
+    public EntryChangeViewModel(BibEntry entry, BibEntry newEntry) {
+<span class="nc" id="L23">        super();</span>
+
+<span class="nc" id="L25">        this.oldEntry = entry;</span>
+<span class="nc" id="L26">        this.newEntry = newEntry;</span>
+
+<span class="nc" id="L28">        name = entry.getCitationKey()</span>
+<span class="nc" id="L29">                    .map(key -&gt; Localization.lang(&quot;Modified entry&quot;) + &quot;: '&quot; + key + '\'')</span>
+<span class="nc" id="L30">                    .orElse(Localization.lang(&quot;Modified entry&quot;));</span>
+<span class="nc" id="L31">    }</span>
+
+    /**
+     * We override this here to select the radio buttons accordingly
+     */
+    @Override
+    public void setAccepted(boolean accepted) {
+<span class="nc" id="L38">        super.setAccepted(accepted);</span>
+<span class="nc bnc" id="L39" title="All 2 branches missed.">        if (accepted) {</span>
+<span class="nc" id="L40">            mergePanel.selectAllRightRadioButtons();</span>
+        } else {
+<span class="nc" id="L42">            mergePanel.selectAllLeftRadioButtons();</span>
+        }
+<span class="nc" id="L44">    }</span>
+
+    @Override
+    public void makeChange(BibDatabaseContext database, NamedCompound undoEdit) {
+<span class="nc" id="L48">        this.description(); // Init dialog to prevent NPE</span>
+<span class="nc" id="L49">        database.getDatabase().removeEntry(oldEntry);</span>
+<span class="nc" id="L50">        BibEntry mergedEntry = mergePanel.getMergeEntry();</span>
+<span class="nc" id="L51">        mergedEntry.setId(oldEntry.getId()); // Keep ID</span>
+<span class="nc" id="L52">        database.getDatabase().insertEntry(mergedEntry);</span>
+<span class="nc" id="L53">        undoEdit.addEdit(new UndoableInsertEntries(database.getDatabase(), oldEntry));</span>
+<span class="nc" id="L54">        undoEdit.addEdit(new UndoableInsertEntries(database.getDatabase(), mergedEntry));</span>
+<span class="nc" id="L55">    }</span>
+
+    @Override
+    public Node description() {
+<span class="nc" id="L59">        mergePanel = new MergeEntries(oldEntry, newEntry, Localization.lang(&quot;In JabRef&quot;), Localization.lang(&quot;On disk&quot;), DefaultRadioButtonSelectionMode.LEFT);</span>
+<span class="nc" id="L60">        VBox container = new VBox(10);</span>
+<span class="nc" id="L61">        Label header = new Label(name);</span>
+<span class="nc" id="L62">        header.getStyleClass().add(&quot;sectionHeader&quot;);</span>
+<span class="nc" id="L63">        container.getChildren().add(header);</span>
+<span class="nc" id="L64">        container.getChildren().add(mergePanel);</span>
+<span class="nc" id="L65">        VBox.setMargin(mergePanel, new Insets(5, 5, 5, 5));</span>
+<span class="nc" id="L66">        return container;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ImportHandler.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.externalfiles</a> &gt; <span class="el_source">ImportHandler.java</span></div><h1>ImportHandler.java</h1><pre class="source lang-java linenums">package org.jabref.gui.externalfiles;
+
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+
+import javax.swing.undo.CompoundEdit;
+import javax.swing.undo.UndoManager;
+
+import org.jabref.gui.StateManager;
+import org.jabref.gui.externalfiletype.ExternalFileTypes;
+import org.jabref.gui.undo.UndoableInsertEntries;
+import org.jabref.gui.util.BackgroundTask;
+import org.jabref.gui.util.DefaultTaskExecutor;
+import org.jabref.logic.citationkeypattern.CitationKeyGenerator;
+import org.jabref.logic.externalfiles.ExternalFilesContentImporter;
+import org.jabref.logic.importer.ImportCleanup;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.logic.util.UpdateField;
+import org.jabref.logic.util.io.FileUtil;
+import org.jabref.model.FieldChange;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.field.StandardField;
+import org.jabref.model.groups.GroupEntryChanger;
+import org.jabref.model.groups.GroupTreeNode;
+import org.jabref.model.util.FileUpdateMonitor;
+import org.jabref.preferences.PreferencesService;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class ImportHandler {
+
+<span class="nc" id="L38">    private static final Logger LOGGER = LoggerFactory.getLogger(ImportHandler.class);</span>
+    private final BibDatabaseContext bibdatabase;
+    private final PreferencesService preferencesService;
+    private final FileUpdateMonitor fileUpdateMonitor;
+    private final ExternalFilesEntryLinker linker;
+    private final ExternalFilesContentImporter contentImporter;
+    private final UndoManager undoManager;
+    private final StateManager stateManager;
+
+    public ImportHandler(BibDatabaseContext database,
+                         ExternalFileTypes externalFileTypes,
+                         PreferencesService preferencesService,
+                         FileUpdateMonitor fileupdateMonitor,
+                         UndoManager undoManager,
+<span class="nc" id="L52">                         StateManager stateManager) {</span>
+
+<span class="nc" id="L54">        this.bibdatabase = database;</span>
+<span class="nc" id="L55">        this.preferencesService = preferencesService;</span>
+<span class="nc" id="L56">        this.fileUpdateMonitor = fileupdateMonitor;</span>
+<span class="nc" id="L57">        this.stateManager = stateManager;</span>
+
+<span class="nc" id="L59">        this.linker = new ExternalFilesEntryLinker(externalFileTypes, preferencesService.getFilePreferences(), database);</span>
+<span class="nc" id="L60">        this.contentImporter = new ExternalFilesContentImporter(</span>
+<span class="nc" id="L61">                preferencesService.getGeneralPreferences(),</span>
+<span class="nc" id="L62">                preferencesService.getImporterPreferences(),</span>
+<span class="nc" id="L63">                preferencesService.getImportFormatPreferences());</span>
+<span class="nc" id="L64">        this.undoManager = undoManager;</span>
+<span class="nc" id="L65">    }</span>
+
+    public ExternalFilesEntryLinker getLinker() {
+<span class="nc" id="L68">        return linker;</span>
+    }
+
+    public BackgroundTask&lt;List&lt;ImportFilesResultItemViewModel&gt;&gt; importFilesInBackground(List&lt;Path&gt; files) {
+<span class="nc" id="L72">        return new BackgroundTask&lt;&gt;() {</span>
+            private int counter;
+            private List&lt;BibEntry&gt; entriesToAdd;
+<span class="nc" id="L75">            private final List&lt;ImportFilesResultItemViewModel&gt; results = new ArrayList&lt;&gt;();</span>
+
+            @Override
+            protected List&lt;ImportFilesResultItemViewModel&gt; call() {
+<span class="nc" id="L79">                counter = 1;</span>
+<span class="nc" id="L80">                CompoundEdit ce = new CompoundEdit();</span>
+<span class="nc bnc" id="L81" title="All 2 branches missed.">                for (Path file: files) {</span>
+<span class="nc" id="L82">                    entriesToAdd = Collections.emptyList();</span>
+
+<span class="nc bnc" id="L84" title="All 2 branches missed.">                    if (isCanceled()) {</span>
+<span class="nc" id="L85">                        break;</span>
+                    }
+
+<span class="nc" id="L88">                    DefaultTaskExecutor.runInJavaFXThread(() -&gt; {</span>
+<span class="nc" id="L89">                        updateMessage(Localization.lang(&quot;Processing file %0&quot;, file.getFileName()));</span>
+<span class="nc" id="L90">                        updateProgress(counter, files.size() - 1);</span>
+<span class="nc" id="L91">                    });</span>
+
+                    try {
+<span class="nc bnc" id="L94" title="All 2 branches missed.">                        if (FileUtil.isPDFFile(file)) {</span>
+<span class="nc" id="L95">                            var pdfImporterResult = contentImporter.importPDFContent(file);</span>
+<span class="nc" id="L96">                            List&lt;BibEntry&gt; pdfEntriesInFile = pdfImporterResult.getDatabase().getEntries();</span>
+
+<span class="nc bnc" id="L98" title="All 2 branches missed.">                            if (pdfImporterResult.hasWarnings()) {</span>
+<span class="nc" id="L99">                                addResultToList(file, false, Localization.lang(&quot;Error reading PDF content: %0&quot;, pdfImporterResult.getErrorMessage()));</span>
+                            }
+
+<span class="nc bnc" id="L102" title="All 2 branches missed.">                            if (!pdfEntriesInFile.isEmpty()) {</span>
+<span class="nc" id="L103">                                entriesToAdd = pdfEntriesInFile;</span>
+<span class="nc" id="L104">                                addResultToList(file, true, Localization.lang(&quot;Importing using extracted PDF data&quot;));</span>
+                            } else {
+<span class="nc" id="L106">                                entriesToAdd = Collections.singletonList(createEmptyEntryWithLink(file));</span>
+<span class="nc" id="L107">                                addResultToList(file, false, Localization.lang(&quot;No metadata found. Creating empty entry with file link&quot;));</span>
+                            }
+<span class="nc bnc" id="L109" title="All 2 branches missed.">                        } else if (FileUtil.isBibFile(file)) {</span>
+<span class="nc" id="L110">                            var bibtexParserResult = contentImporter.importFromBibFile(file, fileUpdateMonitor);</span>
+<span class="nc bnc" id="L111" title="All 2 branches missed.">                            if (bibtexParserResult.hasWarnings()) {</span>
+<span class="nc" id="L112">                                addResultToList(file, false, bibtexParserResult.getErrorMessage());</span>
+                            }
+
+<span class="nc" id="L115">                            entriesToAdd = bibtexParserResult.getDatabaseContext().getEntries();</span>
+<span class="nc" id="L116">                            addResultToList(file, false, Localization.lang(&quot;Importing bib entry&quot;));</span>
+<span class="nc" id="L117">                        } else {</span>
+<span class="nc" id="L118">                            entriesToAdd = Collections.singletonList(createEmptyEntryWithLink(file));</span>
+<span class="nc" id="L119">                            addResultToList(file, false, Localization.lang(&quot;No BibTeX data found. Creating empty entry with file link&quot;));</span>
+                        }
+<span class="nc" id="L121">                    } catch (IOException ex) {</span>
+<span class="nc" id="L122">                        LOGGER.error(&quot;Error importing&quot;, ex);</span>
+<span class="nc" id="L123">                        addResultToList(file, false, Localization.lang(&quot;Error from import: %0&quot;, ex.getLocalizedMessage()));</span>
+
+<span class="nc" id="L125">                        DefaultTaskExecutor.runInJavaFXThread(() -&gt; updateMessage(Localization.lang(&quot;Error&quot;)));</span>
+<span class="nc" id="L126">                    }</span>
+
+                    // We need to run the actual import on the FX Thread, otherwise we will get some deadlocks with the UIThreadList
+<span class="nc" id="L129">                    DefaultTaskExecutor.runInJavaFXThread(() -&gt; importEntries(entriesToAdd));</span>
+
+<span class="nc" id="L131">                    ce.addEdit(new UndoableInsertEntries(bibdatabase.getDatabase(), entriesToAdd));</span>
+<span class="nc" id="L132">                    ce.end();</span>
+<span class="nc" id="L133">                    undoManager.addEdit(ce);</span>
+
+<span class="nc" id="L135">                    counter++;</span>
+<span class="nc" id="L136">                }</span>
+<span class="nc" id="L137">                return results;</span>
+            }
+
+            private void addResultToList(Path newFile, boolean success, String logMessage) {
+<span class="nc" id="L141">                var result = new ImportFilesResultItemViewModel(newFile, success, logMessage);</span>
+<span class="nc" id="L142">                results.add(result);</span>
+<span class="nc" id="L143">            }</span>
+        };
+    }
+
+    private BibEntry createEmptyEntryWithLink(Path file) {
+<span class="nc" id="L148">        BibEntry entry = new BibEntry();</span>
+<span class="nc" id="L149">        entry.setField(StandardField.TITLE, file.getFileName().toString());</span>
+<span class="nc" id="L150">        linker.addFilesToEntry(entry, Collections.singletonList(file));</span>
+<span class="nc" id="L151">        return entry;</span>
+    }
+
+    public void importEntries(List&lt;BibEntry&gt; entries) {
+<span class="nc" id="L155">        ImportCleanup cleanup = new ImportCleanup(bibdatabase.getMode());</span>
+<span class="nc" id="L156">        cleanup.doPostCleanup(entries);</span>
+<span class="nc" id="L157">        bibdatabase.getDatabase().insertEntries(entries);</span>
+
+        // Set owner/timestamp
+<span class="nc" id="L160">        UpdateField.setAutomaticFields(entries,</span>
+<span class="nc" id="L161">                preferencesService.getOwnerPreferences(),</span>
+<span class="nc" id="L162">                preferencesService.getTimestampPreferences());</span>
+
+        // Generate citation keys
+<span class="nc bnc" id="L165" title="All 2 branches missed.">        if (preferencesService.getImporterPreferences().isGenerateNewKeyOnImport()) {</span>
+<span class="nc" id="L166">            generateKeys(entries);</span>
+        }
+
+        // Add to group
+<span class="nc" id="L170">        addToGroups(entries, stateManager.getSelectedGroup(bibdatabase));</span>
+<span class="nc" id="L171">    }</span>
+
+    private void addToGroups(List&lt;BibEntry&gt; entries, Collection&lt;GroupTreeNode&gt; groups) {
+<span class="nc bnc" id="L174" title="All 2 branches missed.">        for (GroupTreeNode node : groups) {</span>
+<span class="nc bnc" id="L175" title="All 2 branches missed.">            if (node.getGroup() instanceof GroupEntryChanger entryChanger) {</span>
+<span class="nc" id="L176">                List&lt;FieldChange&gt; undo = entryChanger.add(entries);</span>
+                // TODO: Add undo
+                // if (!undo.isEmpty()) {
+                //    ce.addEdit(UndoableChangeEntriesOfGroup.getUndoableEdit(new GroupTreeNodeViewModel(node),
+                //            undo));
+                // }
+            }
+<span class="nc" id="L183">        }</span>
+<span class="nc" id="L184">    }</span>
+
+    /**
+     * Generate keys for given entries.
+     *
+     * @param entries entries to generate keys for
+     */
+    private void generateKeys(List&lt;BibEntry&gt; entries) {
+<span class="nc" id="L192">        CitationKeyGenerator keyGenerator = new CitationKeyGenerator(</span>
+<span class="nc" id="L193">                bibdatabase.getMetaData().getCiteKeyPattern(preferencesService.getCitationKeyPatternPreferences()</span>
+<span class="nc" id="L194">                                                                              .getKeyPattern()),</span>
+<span class="nc" id="L195">                bibdatabase.getDatabase(),</span>
+<span class="nc" id="L196">                preferencesService.getCitationKeyPatternPreferences());</span>
+
+<span class="nc bnc" id="L198" title="All 2 branches missed.">        for (BibEntry entry : entries) {</span>
+<span class="nc" id="L199">            keyGenerator.generateAndSetKey(entry);</span>
+<span class="nc" id="L200">        }</span>
+<span class="nc" id="L201">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

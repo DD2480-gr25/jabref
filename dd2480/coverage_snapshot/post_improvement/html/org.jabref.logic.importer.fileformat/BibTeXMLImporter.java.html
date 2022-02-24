@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BibTeXMLImporter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.importer.fileformat</a> &gt; <span class="el_source">BibTeXMLImporter.java</span></div><h1>BibTeXMLImporter.java</h1><pre class="source lang-java linenums">package org.jabref.logic.importer.fileformat;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.regex.Pattern;
+
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBElement;
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.Unmarshaller;
+import javax.xml.datatype.XMLGregorianCalendar;
+
+import org.jabref.logic.importer.Importer;
+import org.jabref.logic.importer.ParserResult;
+import org.jabref.logic.importer.fileformat.bibtexml.Entry;
+import org.jabref.logic.importer.fileformat.bibtexml.File;
+import org.jabref.logic.importer.fileformat.bibtexml.Inbook;
+import org.jabref.logic.importer.fileformat.bibtexml.Incollection;
+import org.jabref.logic.util.StandardFileType;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.Month;
+import org.jabref.model.entry.field.Field;
+import org.jabref.model.entry.field.FieldFactory;
+import org.jabref.model.entry.field.StandardField;
+import org.jabref.model.entry.types.StandardEntryType;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Importer for the BibTeXML format.
+ * &lt;p&gt;
+ * check here for details on the format
+ * http://bibtexml.sourceforge.net/
+ */
+<span class="fc" id="L46">public class BibTeXMLImporter extends Importer {</span>
+
+<span class="fc" id="L48">    private static final Logger LOGGER = LoggerFactory.getLogger(BibTeXMLImporter.class);</span>
+
+<span class="fc" id="L50">    private static final Pattern START_PATTERN = Pattern.compile(&quot;&lt;(bibtex:)?file .*&quot;);</span>
+
+<span class="fc" id="L52">    private static final List&lt;String&gt; IGNORED_METHODS = Arrays.asList(&quot;getClass&quot;, &quot;getAnnotate&quot;, &quot;getContents&quot;,</span>
+            &quot;getPrice&quot;, &quot;getSize&quot;, &quot;getChapter&quot;);
+
+    @Override
+    public String getName() {
+<span class="fc" id="L57">        return &quot;BibTeXML&quot;;</span>
+    }
+
+    @Override
+    public StandardFileType getFileType() {
+<span class="fc" id="L62">        return StandardFileType.BIBTEXML;</span>
+    }
+
+    @Override
+    public String getDescription() {
+<span class="fc" id="L67">        return &quot;Importer for the BibTeXML format.&quot;;</span>
+    }
+
+    @Override
+    public boolean isRecognizedFormat(BufferedReader reader) throws IOException {
+        // Our strategy is to look for the &quot;&lt;bibtex:file *&quot; line.
+        String str;
+<span class="fc bfc" id="L74" title="All 2 branches covered.">        while ((str = reader.readLine()) != null) {</span>
+<span class="fc bfc" id="L75" title="All 2 branches covered.">            if (START_PATTERN.matcher(str).find()) {</span>
+<span class="fc" id="L76">                return true;</span>
+            }
+        }
+<span class="fc" id="L79">        return false;</span>
+    }
+
+    @Override
+    public ParserResult importDatabase(BufferedReader reader) throws IOException {
+<span class="fc" id="L84">        Objects.requireNonNull(reader);</span>
+
+<span class="fc" id="L86">        List&lt;BibEntry&gt; bibItems = new ArrayList&lt;&gt;();</span>
+
+        try {
+<span class="fc" id="L89">            JAXBContext context = JAXBContext.newInstance(&quot;org.jabref.logic.importer.fileformat.bibtexml&quot;);</span>
+<span class="fc" id="L90">            Unmarshaller unmarshaller = context.createUnmarshaller();</span>
+<span class="fc" id="L91">            File file = (File) unmarshaller.unmarshal(reader);</span>
+
+<span class="fc" id="L93">            List&lt;Entry&gt; entries = file.getEntry();</span>
+<span class="fc" id="L94">            Map&lt;Field, String&gt; fields = new HashMap&lt;&gt;();</span>
+
+<span class="fc bfc" id="L96" title="All 2 branches covered.">            for (Entry entry : entries) {</span>
+<span class="fc" id="L97">                BibEntry bibEntry = new BibEntry();</span>
+<span class="fc bfc" id="L98" title="All 2 branches covered.">                if (entry.getArticle() != null) {</span>
+<span class="fc" id="L99">                    bibEntry.setType(StandardEntryType.Article);</span>
+<span class="fc" id="L100">                    parse(entry.getArticle(), fields);</span>
+<span class="fc bfc" id="L101" title="All 2 branches covered.">                } else if (entry.getBook() != null) {</span>
+<span class="fc" id="L102">                    bibEntry.setType(StandardEntryType.Book);</span>
+<span class="fc" id="L103">                    parse(entry.getBook(), fields);</span>
+<span class="fc bfc" id="L104" title="All 2 branches covered.">                } else if (entry.getBooklet() != null) {</span>
+<span class="fc" id="L105">                    bibEntry.setType(StandardEntryType.Booklet);</span>
+<span class="fc" id="L106">                    parse(entry.getBooklet(), fields);</span>
+<span class="fc bfc" id="L107" title="All 2 branches covered.">                } else if (entry.getConference() != null) {</span>
+<span class="fc" id="L108">                    bibEntry.setType(StandardEntryType.Conference);</span>
+<span class="fc" id="L109">                    parse(entry.getConference(), fields);</span>
+<span class="fc bfc" id="L110" title="All 2 branches covered.">                } else if (entry.getInbook() != null) {</span>
+<span class="fc" id="L111">                    bibEntry.setType(StandardEntryType.InBook);</span>
+<span class="fc" id="L112">                    parseInbook(entry.getInbook(), fields);</span>
+<span class="fc bfc" id="L113" title="All 2 branches covered.">                } else if (entry.getIncollection() != null) {</span>
+<span class="fc" id="L114">                    bibEntry.setType(StandardEntryType.InCollection);</span>
+<span class="fc" id="L115">                    Incollection incollection = entry.getIncollection();</span>
+<span class="fc bfc" id="L116" title="All 2 branches covered.">                    if (incollection.getChapter() != null) {</span>
+<span class="fc" id="L117">                        fields.put(StandardField.CHAPTER, String.valueOf(incollection.getChapter()));</span>
+                    }
+<span class="fc" id="L119">                    parse(incollection, fields);</span>
+<span class="fc bfc" id="L120" title="All 2 branches covered.">                } else if (entry.getInproceedings() != null) {</span>
+<span class="fc" id="L121">                    bibEntry.setType(StandardEntryType.InProceedings);</span>
+<span class="fc" id="L122">                    parse(entry.getInproceedings(), fields);</span>
+<span class="fc bfc" id="L123" title="All 2 branches covered.">                } else if (entry.getManual() != null) {</span>
+<span class="fc" id="L124">                    bibEntry.setType(StandardEntryType.Manual);</span>
+<span class="fc" id="L125">                    parse(entry.getManual(), fields);</span>
+<span class="fc bfc" id="L126" title="All 2 branches covered.">                } else if (entry.getMastersthesis() != null) {</span>
+<span class="fc" id="L127">                    bibEntry.setType(StandardEntryType.MastersThesis);</span>
+<span class="fc" id="L128">                    parse(entry.getMastersthesis(), fields);</span>
+<span class="fc bfc" id="L129" title="All 2 branches covered.">                } else if (entry.getMisc() != null) {</span>
+<span class="fc" id="L130">                    bibEntry.setType(StandardEntryType.Misc);</span>
+<span class="fc" id="L131">                    parse(entry.getMisc(), fields);</span>
+<span class="fc bfc" id="L132" title="All 2 branches covered.">                } else if (entry.getPhdthesis() != null) {</span>
+<span class="fc" id="L133">                    bibEntry.setType(StandardEntryType.PhdThesis);</span>
+<span class="fc" id="L134">                    parse(entry.getPhdthesis(), fields);</span>
+<span class="fc bfc" id="L135" title="All 2 branches covered.">                } else if (entry.getProceedings() != null) {</span>
+<span class="fc" id="L136">                    bibEntry.setType(StandardEntryType.Proceedings);</span>
+<span class="fc" id="L137">                    parse(entry.getProceedings(), fields);</span>
+<span class="fc bfc" id="L138" title="All 2 branches covered.">                } else if (entry.getTechreport() != null) {</span>
+<span class="fc" id="L139">                    bibEntry.setType(StandardEntryType.TechReport);</span>
+<span class="fc" id="L140">                    parse(entry.getTechreport(), fields);</span>
+<span class="fc bfc" id="L141" title="All 2 branches covered.">                } else if (entry.getUnpublished() != null) {</span>
+<span class="fc" id="L142">                    bibEntry.setType(StandardEntryType.Unpublished);</span>
+<span class="fc" id="L143">                    parse(entry.getUnpublished(), fields);</span>
+                }
+
+<span class="fc bfc" id="L146" title="All 2 branches covered.">                if (entry.getId() != null) {</span>
+<span class="fc" id="L147">                    bibEntry.setCitationKey(entry.getId());</span>
+                }
+<span class="fc" id="L149">                bibEntry.setField(fields);</span>
+<span class="fc" id="L150">                bibItems.add(bibEntry);</span>
+<span class="fc" id="L151">            }</span>
+<span class="nc" id="L152">        } catch (JAXBException e) {</span>
+<span class="nc" id="L153">            LOGGER.error(&quot;Error with XML parser configuration&quot;, e);</span>
+<span class="nc" id="L154">            return ParserResult.fromError(e);</span>
+<span class="fc" id="L155">        }</span>
+<span class="fc" id="L156">        return new ParserResult(bibItems);</span>
+    }
+
+    /**
+     * We use a generic method and not work on the real classes, because they all have the same behaviour. They call all get methods
+     * that are needed and use the return value. So this will prevent writing similar methods for every type.
+     * &lt;p&gt;
+     * In this method, all &lt;Code&gt;get&lt;/Code&gt; methods that entryType has will be used and their value will be put to fields,
+     * if it is not null. So for example if entryType has the method &lt;Code&gt;getAbstract&lt;/Code&gt;, then
+     * &quot;abstract&quot; will be put as key to fields and the value of &lt;Code&gt;getAbstract&lt;/Code&gt; will be put as value to fields.
+     * Some &lt;Code&gt;get&lt;/Code&gt; methods shouldn't be mapped to fields, so &lt;Code&gt;getClass&lt;/Code&gt; for example will be skipped.
+     *
+     * @param entryType This can be all possible BibTeX types. It contains all fields of the entry and their values.
+     * @param fields    A map where the name and the value of all fields that the entry contains will be put.
+     */
+    private &lt;T&gt; void parse(T entryType, Map&lt;Field, String&gt; fields) {
+<span class="fc" id="L172">        Method[] declaredMethods = entryType.getClass().getDeclaredMethods();</span>
+<span class="fc bfc" id="L173" title="All 2 branches covered.">        for (Method method : declaredMethods) {</span>
+            try {
+<span class="fc bfc" id="L175" title="All 2 branches covered.">                if (method.getName().equals(&quot;getYear&quot;)) {</span>
+<span class="fc" id="L176">                    putYear(fields, (XMLGregorianCalendar) method.invoke(entryType));</span>
+<span class="fc" id="L177">                    continue;</span>
+<span class="fc bfc" id="L178" title="All 2 branches covered.">                } else if (method.getName().equals(&quot;getNumber&quot;)) {</span>
+<span class="fc" id="L179">                    putNumber(fields, (BigInteger) method.invoke(entryType));</span>
+<span class="fc" id="L180">                    continue;</span>
+<span class="fc bfc" id="L181" title="All 2 branches covered.">                } else if (method.getName().equals(&quot;getMonth&quot;)) {</span>
+<span class="fc" id="L182">                    putMonth(fields, Month.parse((String) method.invoke(entryType)));</span>
+<span class="fc" id="L183">                    continue;</span>
+<span class="fc bfc" id="L184" title="All 2 branches covered.">                } else if (isMethodToIgnore(method.getName())) {</span>
+<span class="fc" id="L185">                    continue;</span>
+<span class="fc bfc" id="L186" title="All 2 branches covered.">                } else if (method.getName().startsWith(&quot;get&quot;)) {</span>
+<span class="fc" id="L187">                    putIfValueNotNull(fields, FieldFactory.parseField(method.getName().replace(&quot;get&quot;, &quot;&quot;)), (String) method.invoke(entryType));</span>
+                }
+<span class="nc" id="L189">            } catch (IllegalArgumentException | InvocationTargetException | IllegalAccessException e) {</span>
+<span class="nc" id="L190">                LOGGER.error(&quot;Could not invoke method&quot;, e);</span>
+<span class="fc" id="L191">            }</span>
+        }
+<span class="fc" id="L193">    }</span>
+
+    /**
+     * Returns whether the value of the given method name should be mapped or whether the method can be ignored.
+     *
+     * @param methodName The name of the method as String
+     * @return true if the method can be ignored, else false
+     */
+    private boolean isMethodToIgnore(String methodName) {
+<span class="fc" id="L202">        return IGNORED_METHODS.contains(methodName);</span>
+    }
+
+    /**
+     * Inbook needs a special Treatment, because &lt;Code&gt;inbook.getContent()&lt;/Code&gt; returns a list of &lt;Code&gt;JAXBElements&lt;/Code&gt;.
+     * The other types have just &lt;Code&gt;get&lt;/Code&gt; methods, which return the values as Strings.
+     */
+    private void parseInbook(Inbook inbook, Map&lt;Field, String&gt; fields) {
+<span class="fc" id="L210">        List&lt;JAXBElement&lt;?&gt;&gt; content = inbook.getContent();</span>
+<span class="fc bfc" id="L211" title="All 2 branches covered.">        for (JAXBElement&lt;?&gt; element : content) {</span>
+<span class="fc" id="L212">            Field field = FieldFactory.parseField(element.getName().getLocalPart());</span>
+<span class="fc" id="L213">            Object elementValue = element.getValue();</span>
+<span class="fc bfc" id="L214" title="All 2 branches covered.">            if (elementValue instanceof String) {</span>
+<span class="fc" id="L215">                String value = (String) elementValue;</span>
+<span class="fc bfc" id="L216" title="All 2 branches covered.">                if (StandardField.MONTH.equals(field)) {</span>
+<span class="fc" id="L217">                    putMonth(fields, Month.parse(value));</span>
+                } else {
+<span class="fc" id="L219">                    putIfValueNotNull(fields, field, value);</span>
+                }
+<span class="fc bfc" id="L221" title="All 2 branches covered.">            } else if (elementValue instanceof BigInteger) {</span>
+<span class="fc" id="L222">                BigInteger value = (BigInteger) elementValue;</span>
+<span class="fc bfc" id="L223" title="All 2 branches covered.">                if (StandardField.NUMBER.equals(field)) {</span>
+<span class="fc" id="L224">                    fields.put(StandardField.NUMBER, String.valueOf(value));</span>
+<span class="pc bpc" id="L225" title="1 of 2 branches missed.">                } else if (StandardField.CHAPTER.equals(field)) {</span>
+<span class="fc" id="L226">                    fields.put(StandardField.CHAPTER, String.valueOf(value));</span>
+                }
+<span class="pc bpc" id="L228" title="1 of 2 branches missed.">            } else if (elementValue instanceof XMLGregorianCalendar) {</span>
+<span class="fc" id="L229">                XMLGregorianCalendar value = (XMLGregorianCalendar) elementValue;</span>
+<span class="pc bpc" id="L230" title="1 of 2 branches missed.">                if (StandardField.YEAR.equals(field)) {</span>
+<span class="fc" id="L231">                    putYear(fields, value);</span>
+                } else {
+<span class="nc" id="L233">                    LOGGER.info(&quot;Unexpected field was found&quot;);</span>
+                }
+<span class="fc" id="L235">            } else {</span>
+<span class="nc" id="L236">                LOGGER.info(&quot;Unexpected field was found&quot;);</span>
+            }
+<span class="fc" id="L238">        }</span>
+<span class="fc" id="L239">    }</span>
+
+    private void putYear(Map&lt;Field, String&gt; fields, XMLGregorianCalendar year) {
+<span class="fc bfc" id="L242" title="All 2 branches covered.">        if (year != null) {</span>
+<span class="fc" id="L243">            fields.put(StandardField.YEAR, String.valueOf(year));</span>
+        }
+<span class="fc" id="L245">    }</span>
+
+    private void putNumber(Map&lt;Field, String&gt; fields, BigInteger number) {
+<span class="fc bfc" id="L248" title="All 2 branches covered.">        if (number != null) {</span>
+<span class="fc" id="L249">            fields.put(StandardField.NUMBER, String.valueOf(number));</span>
+        }
+<span class="fc" id="L251">    }</span>
+
+    private void putMonth(Map&lt;Field, String&gt; fields, Optional&lt;Month&gt; month) {
+<span class="fc bfc" id="L254" title="All 2 branches covered.">        if (month.isPresent()) {</span>
+<span class="fc" id="L255">            fields.put(StandardField.MONTH, month.get().getJabRefFormat());</span>
+        }
+<span class="fc" id="L257">    }</span>
+
+    private void putIfValueNotNull(Map&lt;Field, String&gt; fields, Field field, String value) {
+<span class="fc bfc" id="L260" title="All 2 branches covered.">        if (value != null) {</span>
+<span class="fc" id="L261">            fields.put(field, value);</span>
+        }
+<span class="fc" id="L263">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

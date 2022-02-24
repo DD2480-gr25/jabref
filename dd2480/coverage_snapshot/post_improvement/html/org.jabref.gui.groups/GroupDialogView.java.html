@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GroupDialogView.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.groups</a> &gt; <span class="el_source">GroupDialogView.java</span></div><h1>GroupDialogView.java</h1><pre class="source lang-java linenums">package org.jabref.gui.groups;
+
+import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.ServiceLoader;
+
+import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
+import javafx.event.ActionEvent;
+import javafx.fxml.FXML;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ColorPicker;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.RadioButton;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.Border;
+import javafx.scene.layout.BorderStroke;
+import javafx.scene.layout.BorderStrokeStyle;
+import javafx.scene.layout.CornerRadii;
+import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+
+import org.jabref.gui.DialogService;
+import org.jabref.gui.icon.IconTheme;
+import org.jabref.gui.icon.JabrefIconProvider;
+import org.jabref.gui.util.BaseDialog;
+import org.jabref.gui.util.IconValidationDecorator;
+import org.jabref.gui.util.ViewModelListCellFactory;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.groups.AbstractGroup;
+import org.jabref.model.groups.GroupHierarchyType;
+import org.jabref.model.search.rules.SearchRules;
+import org.jabref.model.search.rules.SearchRules.SearchFlags;
+import org.jabref.preferences.PreferencesService;
+
+import com.airhacks.afterburner.views.ViewLoader;
+import de.saxsys.mvvmfx.utils.validation.visualization.ControlsFxVisualizer;
+import org.controlsfx.control.GridCell;
+import org.controlsfx.control.GridView;
+import org.controlsfx.control.PopOver;
+import org.controlsfx.control.textfield.CustomTextField;
+import org.kordamp.ikonli.Ikon;
+import org.kordamp.ikonli.IkonProvider;
+import org.kordamp.ikonli.javafx.FontIcon;
+
+public class GroupDialogView extends BaseDialog&lt;AbstractGroup&gt; {
+
+    // Basic Settings
+    @FXML private TextField nameField;
+    @FXML private TextField descriptionField;
+    @FXML private TextField iconField;
+    @FXML private Button iconPickerButton;
+    @FXML private ColorPicker colorField;
+    @FXML private ComboBox&lt;GroupHierarchyType&gt; hierarchicalContextCombo;
+
+    // Type
+    @FXML private RadioButton explicitRadioButton;
+    @FXML private RadioButton keywordsRadioButton;
+    @FXML private RadioButton searchRadioButton;
+    @FXML private RadioButton autoRadioButton;
+    @FXML private RadioButton texRadioButton;
+
+    // Option Groups
+    @FXML private TextField keywordGroupSearchTerm;
+    @FXML private TextField keywordGroupSearchField;
+    @FXML private CheckBox keywordGroupCaseSensitive;
+    @FXML private CheckBox keywordGroupRegex;
+
+    @FXML private TextField searchGroupSearchTerm;
+    @FXML private CheckBox searchGroupCaseSensitive;
+    @FXML private CheckBox searchGroupRegex;
+
+    @FXML private RadioButton autoGroupKeywordsOption;
+    @FXML private TextField autoGroupKeywordsField;
+    @FXML private TextField autoGroupKeywordsDeliminator;
+    @FXML private TextField autoGroupKeywordsHierarchicalDeliminator;
+    @FXML private RadioButton autoGroupPersonsOption;
+    @FXML private TextField autoGroupPersonsField;
+
+    @FXML private TextField texGroupFilePath;
+
+<span class="nc" id="L89">    private final EnumMap&lt;GroupHierarchyType, String&gt; hierarchyText = new EnumMap&lt;&gt;(GroupHierarchyType.class);</span>
+<span class="nc" id="L90">    private final EnumMap&lt;GroupHierarchyType, String&gt; hierarchyToolTip = new EnumMap&lt;&gt;(GroupHierarchyType.class);</span>
+
+<span class="nc" id="L92">    private final ControlsFxVisualizer validationVisualizer = new ControlsFxVisualizer();</span>
+    private final GroupDialogViewModel viewModel;
+
+    public GroupDialogView(DialogService dialogService,
+                           BibDatabaseContext currentDatabase,
+                           PreferencesService preferencesService,
+                           AbstractGroup editedGroup,
+<span class="nc" id="L99">                           GroupDialogHeader groupDialogHeader) {</span>
+<span class="nc" id="L100">        viewModel = new GroupDialogViewModel(dialogService, currentDatabase, preferencesService, editedGroup, groupDialogHeader);</span>
+
+<span class="nc" id="L102">        ViewLoader.view(this)</span>
+<span class="nc" id="L103">                  .load()</span>
+<span class="nc" id="L104">                  .setAsDialogPane(this);</span>
+
+<span class="nc bnc" id="L106" title="All 2 branches missed.">        if (editedGroup == null) {</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">            if (groupDialogHeader == GroupDialogHeader.GROUP) {</span>
+<span class="nc" id="L108">                this.setTitle(Localization.lang(&quot;Add group&quot;));</span>
+<span class="nc bnc" id="L109" title="All 2 branches missed.">            } else if (groupDialogHeader == GroupDialogHeader.SUBGROUP) {</span>
+<span class="nc" id="L110">                this.setTitle(Localization.lang(&quot;Add subgroup&quot;));</span>
+            }
+        } else {
+<span class="nc" id="L113">            this.setTitle(Localization.lang(&quot;Edit group&quot;) + &quot; &quot; + editedGroup.getName());</span>
+        }
+
+<span class="nc" id="L116">        setResultConverter(viewModel::resultConverter);</span>
+<span class="nc" id="L117">        getDialogPane().getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);</span>
+
+<span class="nc" id="L119">        final Button confirmDialogButton = (Button) getDialogPane().lookupButton(ButtonType.OK);</span>
+<span class="nc" id="L120">        confirmDialogButton.disableProperty().bind(viewModel.validationStatus().validProperty().not());</span>
+        // handle validation before closing dialog and calling resultConverter
+<span class="nc" id="L122">        confirmDialogButton.addEventFilter(ActionEvent.ACTION, viewModel::validationHandler);</span>
+<span class="nc" id="L123">    }</span>
+
+    @FXML
+    public void initialize() {
+<span class="nc" id="L127">        hierarchyText.put(GroupHierarchyType.INCLUDING, Localization.lang(&quot;Union&quot;));</span>
+<span class="nc" id="L128">        hierarchyToolTip.put(GroupHierarchyType.INCLUDING, Localization.lang(&quot;Include subgroups: When selected, view entries contained in this group or its subgroups&quot;));</span>
+<span class="nc" id="L129">        hierarchyText.put(GroupHierarchyType.REFINING, Localization.lang(&quot;Intersection&quot;));</span>
+<span class="nc" id="L130">        hierarchyToolTip.put(GroupHierarchyType.REFINING, Localization.lang(&quot;Refine supergroup: When selected, view entries contained in both this group and its supergroup&quot;));</span>
+<span class="nc" id="L131">        hierarchyText.put(GroupHierarchyType.INDEPENDENT, Localization.lang(&quot;Independent&quot;));</span>
+<span class="nc" id="L132">        hierarchyToolTip.put(GroupHierarchyType.INDEPENDENT, Localization.lang(&quot;Independent group: When selected, view only this group's entries&quot;));</span>
+
+<span class="nc" id="L134">        nameField.textProperty().bindBidirectional(viewModel.nameProperty());</span>
+<span class="nc" id="L135">        descriptionField.textProperty().bindBidirectional(viewModel.descriptionProperty());</span>
+<span class="nc" id="L136">        iconField.textProperty().bindBidirectional(viewModel.iconProperty());</span>
+<span class="nc" id="L137">        colorField.valueProperty().bindBidirectional(viewModel.colorFieldProperty());</span>
+<span class="nc" id="L138">        hierarchicalContextCombo.itemsProperty().bind(viewModel.groupHierarchyListProperty());</span>
+<span class="nc" id="L139">        new ViewModelListCellFactory&lt;GroupHierarchyType&gt;()</span>
+<span class="nc" id="L140">                .withText(hierarchyText::get)</span>
+<span class="nc" id="L141">                .withStringTooltip(hierarchyToolTip::get)</span>
+<span class="nc" id="L142">                .install(hierarchicalContextCombo);</span>
+<span class="nc" id="L143">        hierarchicalContextCombo.valueProperty().bindBidirectional(viewModel.groupHierarchySelectedProperty());</span>
+
+<span class="nc" id="L145">        explicitRadioButton.selectedProperty().bindBidirectional(viewModel.typeExplicitProperty());</span>
+<span class="nc" id="L146">        keywordsRadioButton.selectedProperty().bindBidirectional(viewModel.typeKeywordsProperty());</span>
+<span class="nc" id="L147">        searchRadioButton.selectedProperty().bindBidirectional(viewModel.typeSearchProperty());</span>
+<span class="nc" id="L148">        autoRadioButton.selectedProperty().bindBidirectional(viewModel.typeAutoProperty());</span>
+<span class="nc" id="L149">        texRadioButton.selectedProperty().bindBidirectional(viewModel.typeTexProperty());</span>
+
+<span class="nc" id="L151">        keywordGroupSearchTerm.textProperty().bindBidirectional(viewModel.keywordGroupSearchTermProperty());</span>
+<span class="nc" id="L152">        keywordGroupSearchField.textProperty().bindBidirectional(viewModel.keywordGroupSearchFieldProperty());</span>
+<span class="nc" id="L153">        keywordGroupCaseSensitive.selectedProperty().bindBidirectional(viewModel.keywordGroupCaseSensitiveProperty());</span>
+<span class="nc" id="L154">        keywordGroupRegex.selectedProperty().bindBidirectional(viewModel.keywordGroupRegexProperty());</span>
+
+<span class="nc" id="L156">        searchGroupSearchTerm.textProperty().bindBidirectional(viewModel.searchGroupSearchTermProperty());</span>
+<span class="nc" id="L157">        searchGroupCaseSensitive.selectedProperty().addListener((observable, oldValue, newValue) -&gt; {</span>
+<span class="nc" id="L158">            EnumSet&lt;SearchFlags&gt; searchFlags = viewModel.searchFlagsProperty().get();</span>
+<span class="nc bnc" id="L159" title="All 2 branches missed.">            if (newValue) {</span>
+<span class="nc" id="L160">                searchFlags.add(SearchRules.SearchFlags.CASE_SENSITIVE);</span>
+            } else {
+<span class="nc" id="L162">                searchFlags.remove(SearchRules.SearchFlags.CASE_SENSITIVE);</span>
+            }
+<span class="nc" id="L164">            viewModel.searchFlagsProperty().set(searchFlags);</span>
+<span class="nc" id="L165">        });</span>
+<span class="nc" id="L166">        searchGroupRegex.selectedProperty().addListener((observable, oldValue, newValue) -&gt; {</span>
+<span class="nc" id="L167">            EnumSet&lt;SearchFlags&gt; searchFlags = viewModel.searchFlagsProperty().get();</span>
+<span class="nc bnc" id="L168" title="All 2 branches missed.">            if (newValue) {</span>
+<span class="nc" id="L169">                searchFlags.add(SearchRules.SearchFlags.REGULAR_EXPRESSION);</span>
+            } else {
+<span class="nc" id="L171">                searchFlags.remove(SearchRules.SearchFlags.REGULAR_EXPRESSION);</span>
+            }
+<span class="nc" id="L173">            viewModel.searchFlagsProperty().set(searchFlags);</span>
+<span class="nc" id="L174">        });</span>
+
+<span class="nc" id="L176">        autoGroupKeywordsOption.selectedProperty().bindBidirectional(viewModel.autoGroupKeywordsOptionProperty());</span>
+<span class="nc" id="L177">        autoGroupKeywordsField.textProperty().bindBidirectional(viewModel.autoGroupKeywordsFieldProperty());</span>
+<span class="nc" id="L178">        autoGroupKeywordsDeliminator.textProperty().bindBidirectional(viewModel.autoGroupKeywordsDeliminatorProperty());</span>
+<span class="nc" id="L179">        autoGroupKeywordsHierarchicalDeliminator.textProperty().bindBidirectional(viewModel.autoGroupKeywordsHierarchicalDeliminatorProperty());</span>
+<span class="nc" id="L180">        autoGroupPersonsOption.selectedProperty().bindBidirectional(viewModel.autoGroupPersonsOptionProperty());</span>
+<span class="nc" id="L181">        autoGroupPersonsField.textProperty().bindBidirectional(viewModel.autoGroupPersonsFieldProperty());</span>
+
+<span class="nc" id="L183">        texGroupFilePath.textProperty().bindBidirectional(viewModel.texGroupFilePathProperty());</span>
+
+<span class="nc" id="L185">        validationVisualizer.setDecoration(new IconValidationDecorator());</span>
+<span class="nc" id="L186">        Platform.runLater(() -&gt; {</span>
+<span class="nc" id="L187">            validationVisualizer.initVisualization(viewModel.nameValidationStatus(), nameField);</span>
+<span class="nc" id="L188">            validationVisualizer.initVisualization(viewModel.nameContainsDelimiterValidationStatus(), nameField, false);</span>
+<span class="nc" id="L189">            validationVisualizer.initVisualization(viewModel.sameNameValidationStatus(), nameField);</span>
+<span class="nc" id="L190">            validationVisualizer.initVisualization(viewModel.searchRegexValidationStatus(), searchGroupSearchTerm);</span>
+<span class="nc" id="L191">            validationVisualizer.initVisualization(viewModel.searchSearchTermEmptyValidationStatus(), searchGroupSearchTerm);</span>
+<span class="nc" id="L192">            validationVisualizer.initVisualization(viewModel.keywordRegexValidationStatus(), keywordGroupSearchTerm);</span>
+<span class="nc" id="L193">            validationVisualizer.initVisualization(viewModel.keywordSearchTermEmptyValidationStatus(), keywordGroupSearchTerm);</span>
+<span class="nc" id="L194">            validationVisualizer.initVisualization(viewModel.keywordFieldEmptyValidationStatus(), keywordGroupSearchField);</span>
+<span class="nc" id="L195">            validationVisualizer.initVisualization(viewModel.texGroupFilePathValidatonStatus(), texGroupFilePath);</span>
+<span class="nc" id="L196">            nameField.requestFocus();</span>
+<span class="nc" id="L197">        });</span>
+<span class="nc" id="L198">    }</span>
+
+    @FXML
+    private void texGroupBrowse() {
+<span class="nc" id="L202">        viewModel.texGroupBrowse();</span>
+<span class="nc" id="L203">    }</span>
+
+    @FXML
+    private void openHelp() {
+<span class="nc" id="L207">        viewModel.openHelpPage();</span>
+<span class="nc" id="L208">    }</span>
+
+    @FXML
+    private void openIconPicker() {
+<span class="nc" id="L212">        ObservableList&lt;Ikon&gt; ikonList = FXCollections.observableArrayList();</span>
+<span class="nc" id="L213">        FilteredList&lt;Ikon&gt; filteredList = new FilteredList&lt;&gt;(ikonList);</span>
+
+<span class="nc bnc" id="L215" title="All 2 branches missed.">        for (IkonProvider provider : ServiceLoader.load(IkonProvider.class.getModule().getLayer(), IkonProvider.class)) {</span>
+<span class="nc bnc" id="L216" title="All 2 branches missed.">            if (provider.getClass() != JabrefIconProvider.class) {</span>
+<span class="nc" id="L217">                ikonList.addAll(EnumSet.allOf(provider.getIkon()));</span>
+            }
+<span class="nc" id="L219">        }</span>
+
+<span class="nc" id="L221">        CustomTextField searchBox = new CustomTextField();</span>
+<span class="nc" id="L222">        searchBox.setPromptText(Localization.lang(&quot;Search&quot;) + &quot;...&quot;);</span>
+<span class="nc" id="L223">        searchBox.setLeft(IconTheme.JabRefIcons.SEARCH.getGraphicNode());</span>
+<span class="nc" id="L224">        searchBox.textProperty().addListener((obs, oldValue, newValue) -&gt;</span>
+<span class="nc bnc" id="L225" title="All 2 branches missed.">                filteredList.setPredicate(ikon -&gt; newValue.isEmpty() || ikon.getDescription().toLowerCase()</span>
+<span class="nc bnc" id="L226" title="All 2 branches missed.">                                                                            .contains(newValue.toLowerCase())));</span>
+
+<span class="nc" id="L228">        GridView&lt;Ikon&gt; ikonGridView = new GridView&lt;&gt;(FXCollections.observableArrayList());</span>
+<span class="nc" id="L229">        ikonGridView.setCellFactory(gridView -&gt; new IkonliCell());</span>
+<span class="nc" id="L230">        ikonGridView.setPrefWidth(520);</span>
+<span class="nc" id="L231">        ikonGridView.setPrefHeight(400);</span>
+<span class="nc" id="L232">        ikonGridView.setHorizontalCellSpacing(4);</span>
+<span class="nc" id="L233">        ikonGridView.setVerticalCellSpacing(4);</span>
+
+<span class="nc" id="L235">        VBox vBox = new VBox(10, searchBox, ikonGridView);</span>
+<span class="nc" id="L236">        vBox.setPadding(new Insets(10));</span>
+
+        // Necessary because of a bug in controlsfx GridView
+        // https://github.com/controlsfx/controlsfx/issues/1400
+<span class="nc" id="L240">        Platform.runLater(() -&gt; {</span>
+<span class="nc" id="L241">            ikonGridView.setItems(filteredList);</span>
+<span class="nc" id="L242">        });</span>
+
+<span class="nc" id="L244">        PopOver popOver = new PopOver(vBox);</span>
+<span class="nc" id="L245">        popOver.setDetachable(false);</span>
+<span class="nc" id="L246">        popOver.setArrowSize(0);</span>
+<span class="nc" id="L247">        popOver.setCornerRadius(0);</span>
+<span class="nc" id="L248">        popOver.setTitle(&quot;Icon picker&quot;);</span>
+<span class="nc" id="L249">        popOver.show(iconPickerButton);</span>
+
+<span class="nc" id="L251">    }</span>
+
+<span class="nc" id="L253">    public class IkonliCell extends GridCell&lt;Ikon&gt; {</span>
+        @Override
+        protected void updateItem(Ikon ikon, boolean empty) {
+<span class="nc" id="L256">            super.updateItem(ikon, empty);</span>
+<span class="nc bnc" id="L257" title="All 4 branches missed.">            if (empty || (ikon == null)) {</span>
+<span class="nc" id="L258">                setText(null);</span>
+<span class="nc" id="L259">                setGraphic(null);</span>
+            } else {
+<span class="nc" id="L261">                FontIcon fontIcon = FontIcon.of(ikon);</span>
+<span class="nc" id="L262">                fontIcon.getStyleClass().setAll(&quot;font-icon&quot;);</span>
+<span class="nc" id="L263">                fontIcon.setIconSize(22);</span>
+<span class="nc" id="L264">                setGraphic(fontIcon);</span>
+<span class="nc" id="L265">                setAlignment(Pos.BASELINE_CENTER);</span>
+<span class="nc" id="L266">                setPadding(new Insets(1));</span>
+<span class="nc" id="L267">                setBorder(new Border(new BorderStroke(Color.BLACK, BorderStrokeStyle.SOLID, CornerRadii.EMPTY, BorderStroke.THIN)));</span>
+
+<span class="nc" id="L269">                setOnMouseClicked(event -&gt; {</span>
+<span class="nc" id="L270">                    iconField.textProperty().setValue(String.valueOf(fontIcon.getIconCode()));</span>
+<span class="nc" id="L271">                    PopOver stage = (PopOver) this.getGridView().getParent().getScene().getWindow();</span>
+<span class="nc" id="L272">                    stage.hide();</span>
+<span class="nc" id="L273">                });</span>
+            }
+<span class="nc" id="L275">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

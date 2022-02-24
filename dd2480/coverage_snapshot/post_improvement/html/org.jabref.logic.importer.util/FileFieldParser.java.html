@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FileFieldParser.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.importer.util</a> &gt; <span class="el_source">FileFieldParser.java</span></div><h1>FileFieldParser.java</h1><pre class="source lang-java linenums">package org.jabref.logic.importer.util;
+
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.jabref.model.entry.LinkedFile;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+<span class="nc" id="L15">public class FileFieldParser {</span>
+<span class="fc" id="L16">    private static final Logger LOGGER = LoggerFactory.getLogger(FileFieldParser.class);</span>
+
+    public static List&lt;LinkedFile&gt; parse(String value) {
+<span class="fc" id="L19">        List&lt;LinkedFile&gt; files = new ArrayList&lt;&gt;();</span>
+
+<span class="fc bfc" id="L21" title="All 4 branches covered.">        if ((value == null) || value.trim().isEmpty()) {</span>
+<span class="fc" id="L22">            return files;</span>
+        }
+
+<span class="fc bfc" id="L25" title="All 2 branches covered.">        if (LinkedFile.isOnlineLink(value.trim())) {</span>
+            // needs to be modifiable
+            try {
+<span class="fc" id="L28">                return List.of(new LinkedFile(new URL(value), &quot;&quot;));</span>
+<span class="nc" id="L29">            } catch (MalformedURLException e) {</span>
+<span class="nc" id="L30">                LOGGER.error(&quot;invalid url&quot;, e);</span>
+<span class="nc" id="L31">                return files;</span>
+            }
+        }
+
+<span class="fc" id="L35">        List&lt;String&gt; linkedFileData = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L36">        StringBuilder sb = new StringBuilder();</span>
+<span class="fc" id="L37">        boolean inXmlChar = false;</span>
+<span class="fc" id="L38">        boolean escaped = false;</span>
+
+<span class="fc bfc" id="L40" title="All 2 branches covered.">        for (int i = 0; i &lt; value.length(); i++) {</span>
+<span class="fc" id="L41">            char c = value.charAt(i);</span>
+<span class="fc bfc" id="L42" title="All 4 branches covered.">            if (!escaped &amp;&amp; (c == '\\')) {</span>
+<span class="fc" id="L43">                escaped = true;</span>
+<span class="fc" id="L44">                continue;</span>
+<span class="pc bpc" id="L45" title="1 of 6 branches missed.">            } else if (!escaped &amp;&amp; (c == '&amp;') &amp;&amp; !inXmlChar) {</span>
+                // Check if we are entering an XML special character construct such
+                // as &quot;&amp;#44;&quot;, because we need to know in order to ignore the semicolon.
+<span class="fc" id="L48">                sb.append(c);</span>
+<span class="pc bpc" id="L49" title="2 of 4 branches missed.">                if ((value.length() &gt; (i + 1)) &amp;&amp; (value.charAt(i + 1) == '#')) {</span>
+<span class="fc" id="L50">                    inXmlChar = true;</span>
+                }
+<span class="pc bpc" id="L52" title="1 of 6 branches missed.">            } else if (!escaped &amp;&amp; inXmlChar &amp;&amp; (c == ';')) {</span>
+                // Check if we are exiting an XML special character construct:
+<span class="nc" id="L54">                sb.append(c);</span>
+<span class="nc" id="L55">                inXmlChar = false;</span>
+<span class="fc bfc" id="L56" title="All 4 branches covered.">            } else if (!escaped &amp;&amp; (c == ':')) {</span>
+                // We are in the next LinkedFile data element
+<span class="fc" id="L58">                linkedFileData.add(sb.toString());</span>
+<span class="fc" id="L59">                sb = new StringBuilder();</span>
+<span class="pc bpc" id="L60" title="1 of 6 branches missed.">            } else if (!escaped &amp;&amp; (c == ';') &amp;&amp; !inXmlChar) {</span>
+<span class="fc" id="L61">                linkedFileData.add(sb.toString());</span>
+<span class="fc" id="L62">                files.add(convert(linkedFileData));</span>
+
+                // next iteration
+<span class="fc" id="L65">                sb = new StringBuilder();</span>
+            } else {
+<span class="fc" id="L67">                sb.append(c);</span>
+            }
+<span class="fc" id="L69">            escaped = false;</span>
+        }
+<span class="fc bfc" id="L71" title="All 2 branches covered.">        if (sb.length() &gt; 0) {</span>
+<span class="fc" id="L72">            linkedFileData.add(sb.toString());</span>
+        }
+<span class="pc bpc" id="L74" title="1 of 2 branches missed.">        if (!linkedFileData.isEmpty()) {</span>
+<span class="fc" id="L75">            files.add(convert(linkedFileData));</span>
+        }
+<span class="fc" id="L77">        return files;</span>
+    }
+
+    /**
+     * Converts the given textual representation of a LinkedFile object
+     *
+     * SIDE EFFECT: The given entry list is cleared upon completion
+     *
+     * @param entry the list of elements in the linked file textual representation
+     * @return a LinkedFile object
+     */
+    static LinkedFile convert(List&lt;String&gt; entry) {
+        // ensure list has at least 3 fields
+<span class="fc bfc" id="L90" title="All 2 branches covered.">        while (entry.size() &lt; 3) {</span>
+<span class="fc" id="L91">            entry.add(&quot;&quot;);</span>
+        }
+
+<span class="fc" id="L94">        LinkedFile field = null;</span>
+<span class="fc bfc" id="L95" title="All 2 branches covered.">        if (LinkedFile.isOnlineLink(entry.get(1))) {</span>
+            try {
+<span class="fc" id="L97">                field = new LinkedFile(entry.get(0), new URL(entry.get(1)), entry.get(2));</span>
+<span class="nc" id="L98">            } catch (MalformedURLException ignored) {</span>
+                // in case the URL is malformed, store it nevertheless
+<span class="nc" id="L100">                field = new LinkedFile(entry.get(0), entry.get(1), entry.get(2));</span>
+<span class="fc" id="L101">            }</span>
+        }
+
+<span class="fc bfc" id="L104" title="All 2 branches covered.">        if (field == null) {</span>
+<span class="fc" id="L105">            String pathStr = entry.get(1);</span>
+<span class="fc bfc" id="L106" title="All 2 branches covered.">            if (pathStr.contains(&quot;//&quot;)) {</span>
+                // In case the path contains //, we assume it is a malformed URL, not a malformed path.
+                // On linux, the double slash would be converted to a single slash.
+<span class="fc" id="L109">                field = new LinkedFile(entry.get(0), pathStr, entry.get(2));</span>
+            } else {
+                try {
+                    // there is no Path.isValidPath(String) method
+<span class="fc" id="L113">                    Path path = Path.of(pathStr);</span>
+<span class="fc" id="L114">                    field = new LinkedFile(entry.get(0), path, entry.get(2));</span>
+<span class="nc" id="L115">                } catch (InvalidPathException e) {</span>
+<span class="nc" id="L116">                    field = new LinkedFile(entry.get(0), pathStr, entry.get(2));</span>
+<span class="fc" id="L117">                }</span>
+            }
+        }
+
+        // link is the only mandatory field
+<span class="fc bfc" id="L122" title="All 6 branches covered.">        if (field.getDescription().isEmpty() &amp;&amp; field.getLink().isEmpty() &amp;&amp; !field.getFileType().isEmpty()) {</span>
+<span class="fc" id="L123">            field = new LinkedFile(&quot;&quot;, Path.of(field.getFileType()), &quot;&quot;);</span>
+<span class="pc bpc" id="L124" title="1 of 6 branches missed.">        } else if (!field.getDescription().isEmpty() &amp;&amp; field.getLink().isEmpty() &amp;&amp; field.getFileType().isEmpty()) {</span>
+<span class="fc" id="L125">            field = new LinkedFile(&quot;&quot;, Path.of(field.getDescription()), &quot;&quot;);</span>
+        }
+<span class="fc" id="L127">        entry.clear();</span>
+<span class="fc" id="L128">        return field;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

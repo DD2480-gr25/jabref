@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ScienceDirect.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.importer.fetcher</a> &gt; <span class="el_source">ScienceDirect.java</span></div><h1>ScienceDirect.java</h1><pre class="source lang-java linenums">package org.jabref.logic.importer.fetcher;
+
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.jabref.logic.importer.FulltextFetcher;
+import org.jabref.logic.net.URLDownload;
+import org.jabref.logic.util.BuildInfo;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.field.StandardField;
+import org.jabref.model.entry.identifier.DOI;
+
+import kong.unirest.HttpResponse;
+import kong.unirest.JsonNode;
+import kong.unirest.Unirest;
+import kong.unirest.UnirestException;
+import kong.unirest.json.JSONArray;
+import kong.unirest.json.JSONException;
+import kong.unirest.json.JSONObject;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Node;
+import org.jsoup.select.Elements;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * FulltextFetcher implementation that attempts to find a PDF URL at &lt;a href=&quot;https://www.sciencedirect.com/&quot;&gt;ScienceDirect&lt;/a&gt;.
+ * See &lt;a href=&quot;https://dev.elsevier.com/&quot;&gt;https://dev.elsevier.com/&lt;/a&gt;.
+ */
+<span class="fc" id="L35">public class ScienceDirect implements FulltextFetcher {</span>
+<span class="fc" id="L36">    private static final Logger LOGGER = LoggerFactory.getLogger(ScienceDirect.class);</span>
+
+    private static final String API_URL = &quot;https://api.elsevier.com/content/article/doi/&quot;;
+<span class="fc" id="L39">    private static final String API_KEY = new BuildInfo().scienceDirectApiKey;</span>
+
+    @Override
+    public Optional&lt;URL&gt; findFullText(BibEntry entry) throws IOException {
+<span class="fc" id="L43">        Objects.requireNonNull(entry);</span>
+
+<span class="fc" id="L45">        Optional&lt;DOI&gt; doi = entry.getField(StandardField.DOI).flatMap(DOI::parse);</span>
+<span class="fc bfc" id="L46" title="All 2 branches covered.">        if (doi.isEmpty()) {</span>
+            // Full text fetching works only if a DOI is present
+<span class="fc" id="L48">            return Optional.empty();</span>
+        }
+
+<span class="fc" id="L51">        String urlFromDoi = getUrlByDoi(doi.get().getDOI());</span>
+<span class="fc bfc" id="L52" title="All 2 branches covered.">        if (urlFromDoi.isEmpty()) {</span>
+<span class="fc" id="L53">            return Optional.empty();</span>
+        }
+        // Scrape the web page as desktop client (not as mobile client!)
+<span class="fc" id="L56">        Document html = Jsoup.connect(urlFromDoi)</span>
+<span class="fc" id="L57">                             .userAgent(URLDownload.USER_AGENT)</span>
+<span class="fc" id="L58">                             .referrer(&quot;https://www.google.com&quot;)</span>
+<span class="fc" id="L59">                             .ignoreHttpErrors(true)</span>
+<span class="fc" id="L60">                             .get();</span>
+
+        // Retrieve PDF link from meta data (most recent)
+<span class="fc" id="L63">        Elements metaLinks = html.getElementsByAttributeValue(&quot;name&quot;, &quot;citation_pdf_url&quot;);</span>
+<span class="pc bpc" id="L64" title="1 of 2 branches missed.">        if (!metaLinks.isEmpty()) {</span>
+<span class="nc" id="L65">            String link = metaLinks.first().attr(&quot;content&quot;);</span>
+<span class="nc" id="L66">            return Optional.of(new URL(link));</span>
+        }
+
+        // We use the ScienceDirect web page which contains the article (presented using HTML).
+        // This page contains the link to the PDF in some JavaScript code embedded in the web page.
+        // Example page: https://www.sciencedirect.com/science/article/pii/S1674775515001079
+
+<span class="fc" id="L73">        Optional&lt;JSONObject&gt; pdfDownloadOptional = html</span>
+<span class="fc" id="L74">                .getElementsByAttributeValue(&quot;type&quot;, &quot;application/json&quot;)</span>
+<span class="fc" id="L75">                .stream()</span>
+<span class="fc" id="L76">                .flatMap(element -&gt; element.getElementsByTag(&quot;script&quot;).stream())</span>
+                // The first DOM child of the script element is the script itself (represented as HTML text)
+<span class="fc" id="L78">                .map(element -&gt; element.childNode(0))</span>
+<span class="fc" id="L79">                .map(Node::toString)</span>
+<span class="fc" id="L80">                .map(JSONObject::new)</span>
+<span class="fc" id="L81">                .filter(json -&gt; json.has(&quot;article&quot;))</span>
+<span class="fc" id="L82">                .map(json -&gt; json.getJSONObject(&quot;article&quot;))</span>
+<span class="fc" id="L83">                .filter(json -&gt; json.has(&quot;pdfDownload&quot;))</span>
+<span class="fc" id="L84">                .map(json -&gt; json.getJSONObject(&quot;pdfDownload&quot;))</span>
+<span class="fc" id="L85">                .findAny();</span>
+
+<span class="pc bpc" id="L87" title="1 of 2 branches missed.">        if (pdfDownloadOptional.isEmpty()) {</span>
+<span class="nc" id="L88">            LOGGER.debug(&quot;No 'pdfDownload' key found in JSON information&quot;);</span>
+<span class="nc" id="L89">            return Optional.empty();</span>
+        }
+
+<span class="fc" id="L92">        JSONObject pdfDownload = pdfDownloadOptional.get();</span>
+
+        String fullLinkToPdf;
+<span class="pc bpc" id="L95" title="1 of 2 branches missed.">        if (pdfDownload.has(&quot;linkToPdf&quot;)) {</span>
+<span class="nc" id="L96">            String linkToPdf = pdfDownload.getString(&quot;linkToPdf&quot;);</span>
+<span class="nc" id="L97">            URL url = new URL(urlFromDoi);</span>
+<span class="nc" id="L98">            fullLinkToPdf = String.format(&quot;%s://%s%s&quot;, url.getProtocol(), url.getAuthority(), linkToPdf);</span>
+<span class="pc bpc" id="L99" title="1 of 2 branches missed.">        } else if (pdfDownload.has(&quot;urlMetadata&quot;)) {</span>
+<span class="fc" id="L100">            JSONObject urlMetadata = pdfDownload.getJSONObject(&quot;urlMetadata&quot;);</span>
+<span class="fc" id="L101">            JSONObject queryParamsObject = urlMetadata.getJSONObject(&quot;queryParams&quot;);</span>
+<span class="fc" id="L102">            String queryParameters = queryParamsObject.keySet().stream()</span>
+<span class="fc" id="L103">                                                      .map(key -&gt; String.format(&quot;%s=%s&quot;, key, queryParamsObject.getString(key)))</span>
+<span class="fc" id="L104">                                                      .collect(Collectors.joining(&quot;&amp;&quot;));</span>
+<span class="fc" id="L105">            fullLinkToPdf = String.format(&quot;https://www.sciencedirect.com/%s/%s%s?%s&quot;,</span>
+<span class="fc" id="L106">                    urlMetadata.getString(&quot;path&quot;),</span>
+<span class="fc" id="L107">                    urlMetadata.getString(&quot;pii&quot;),</span>
+<span class="fc" id="L108">                    urlMetadata.getString(&quot;pdfExtension&quot;),</span>
+                    queryParameters);
+<span class="fc" id="L110">        } else {</span>
+<span class="nc" id="L111">            LOGGER.debug(&quot;No suitable data in JSON information&quot;);</span>
+<span class="nc" id="L112">            return Optional.empty();</span>
+        }
+
+<span class="fc" id="L115">        LOGGER.info(&quot;Fulltext PDF found at ScienceDirect at {}.&quot;, fullLinkToPdf);</span>
+        try {
+<span class="fc" id="L117">            return Optional.of(new URL(fullLinkToPdf));</span>
+<span class="nc" id="L118">        } catch (MalformedURLException e) {</span>
+<span class="nc" id="L119">            LOGGER.error(&quot;malformed URL&quot;, e);</span>
+<span class="nc" id="L120">            return Optional.empty();</span>
+        }
+    }
+
+    @Override
+    public TrustLevel getTrustLevel() {
+<span class="nc" id="L126">        return TrustLevel.PUBLISHER;</span>
+    }
+
+    private String getUrlByDoi(String doi) throws UnirestException {
+<span class="fc" id="L130">        String sciLink = &quot;&quot;;</span>
+        try {
+<span class="fc" id="L132">            String request = API_URL + doi;</span>
+<span class="fc" id="L133">            HttpResponse&lt;JsonNode&gt; jsonResponse = Unirest.get(request)</span>
+<span class="fc" id="L134">                                                         .header(&quot;X-ELS-APIKey&quot;, API_KEY)</span>
+<span class="fc" id="L135">                                                         .queryString(&quot;httpAccept&quot;, &quot;application/json&quot;)</span>
+<span class="fc" id="L136">                                                         .asJson();</span>
+
+<span class="fc" id="L138">            JSONObject json = jsonResponse.getBody().getObject();</span>
+<span class="fc" id="L139">            JSONArray links = json.getJSONObject(&quot;full-text-retrieval-response&quot;)</span>
+<span class="fc" id="L140">                                  .getJSONObject(&quot;coredata&quot;)</span>
+<span class="fc" id="L141">                                  .getJSONArray(&quot;link&quot;);</span>
+
+<span class="fc bfc" id="L143" title="All 2 branches covered.">            for (int i = 0; i &lt; links.length(); i++) {</span>
+<span class="fc" id="L144">                JSONObject link = links.getJSONObject(i);</span>
+<span class="fc bfc" id="L145" title="All 2 branches covered.">                if (link.getString(&quot;@rel&quot;).equals(&quot;scidir&quot;)) {</span>
+<span class="fc" id="L146">                    sciLink = link.getString(&quot;@href&quot;);</span>
+                }
+            }
+<span class="fc" id="L149">            return sciLink;</span>
+<span class="fc" id="L150">        } catch (JSONException e) {</span>
+<span class="fc" id="L151">            LOGGER.debug(&quot;No ScienceDirect link found in API request&quot;, e);</span>
+<span class="fc" id="L152">            return sciLink;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>
