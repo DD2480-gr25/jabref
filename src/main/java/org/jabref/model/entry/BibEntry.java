@@ -162,14 +162,15 @@ public class BibEntry implements Cloneable {
             }
         }
 
-        if (((sourceEntry == StandardEntryType.MvBook) && (targetEntry == StandardEntryType.Book)) ||
-                ((sourceEntry == StandardEntryType.MvBook) && (targetEntry == StandardEntryType.InBook)) ||
-                ((sourceEntry == StandardEntryType.MvBook) && (targetEntry == StandardEntryType.BookInBook)) ||
-                ((sourceEntry == StandardEntryType.MvBook) && (targetEntry == StandardEntryType.SuppBook)) ||
-                ((sourceEntry == StandardEntryType.MvCollection) && (targetEntry == StandardEntryType.Collection)) ||
-                ((sourceEntry == StandardEntryType.MvCollection) && (targetEntry == StandardEntryType.InCollection)) ||
-                ((sourceEntry == StandardEntryType.MvCollection) && (targetEntry == StandardEntryType.SuppCollection)) ||
-                ((sourceEntry == StandardEntryType.MvProceedings) && (targetEntry == StandardEntryType.Proceedings)) ||
+        if (sourceEntry == StandardEntryType.MvBook) {
+            return processMvBook(targetField, targetEntry);
+        }
+
+        if (sourceEntry == StandardEntryType.MvCollection) {
+            return processMvCollection(targetField, targetEntry);
+        }
+
+        if (((sourceEntry == StandardEntryType.MvProceedings) && (targetEntry == StandardEntryType.Proceedings)) ||
                 ((sourceEntry == StandardEntryType.MvProceedings) && (targetEntry == StandardEntryType.InProceedings)) ||
                 ((sourceEntry == StandardEntryType.MvReference) && (targetEntry == StandardEntryType.Reference)) ||
                 ((sourceEntry == StandardEntryType.MvReference) && (targetEntry == StandardEntryType.InReference))) {
@@ -190,6 +191,27 @@ public class BibEntry implements Cloneable {
                 return getSourceFieldPeriodical(targetField, targetEntry);
         }
 
+        //// 3. Fallback to inherit the field with the same name.
+        return Optional.ofNullable(targetField);
+    }
+
+    private Optional<Field> processMvBook(Field targetField, EntryType targetEntry) {
+        if ((targetEntry == StandardEntryType.Book) ||
+                (targetEntry == StandardEntryType.InBook) ||
+                (targetEntry == StandardEntryType.BookInBook)||
+                (targetEntry == StandardEntryType.SuppBook)) {
+            return getSourceFieldMv(targetField);
+        }
+        //// 3. Fallback to inherit the field with the same name.
+        return Optional.ofNullable(targetField);
+    }
+
+    private Optional<Field> processMvCollection(Field targetField, EntryType targetEntry) {
+        if ((targetEntry == StandardEntryType.Collection) ||
+                (targetEntry == StandardEntryType.InCollection) ||
+                (targetEntry == StandardEntryType.SuppCollection)) {
+            return getSourceFieldMv(targetField);
+        }
         //// 3. Fallback to inherit the field with the same name.
         return Optional.ofNullable(targetField);
     }
