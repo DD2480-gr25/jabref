@@ -263,3 +263,10 @@ The following test cases i.e. test files were added:
 3. `RisImporterTest11`: Tests parsing of previously untested RIS tags RN, C2, and TA
 4. `RisImporterTest12`: Tests parsing of previously untested RIS tags SE and NV
 5. `RisImporterTestUnmappedTags`: Tests RIS tags with no direct bibtext-mapping namely RP, AV, CN, OP, RI
+
+
+### RTFChars::transformSpecialCharacter
+This function is used for converting special unicode characters to their base character counterpart. Example: é -> e.
+This is done using if-statements. I identified two main ways to reduce the number of branches in this method:
+1. Set up a lookup table (HashMap?) that stores all special character codes and their base character counterparts
+2. Split the function into two methods; one for lower case letters and one for upper case, just like in RTFCharsTest (the unit test class).
