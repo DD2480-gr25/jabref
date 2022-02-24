@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SaveOrderConfigPanelViewModel.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.commonfxcontrols</a> &gt; <span class="el_source">SaveOrderConfigPanelViewModel.java</span></div><h1>SaveOrderConfigPanelViewModel.java</h1><pre class="source lang-java linenums">package org.jabref.gui.commonfxcontrols;
+
+import java.util.Collections;
+
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ListProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleListProperty;
+import javafx.collections.FXCollections;
+
+import org.jabref.model.entry.field.Field;
+import org.jabref.model.metadata.SaveOrderConfig;
+
+public class SaveOrderConfigPanelViewModel {
+
+<span class="fc" id="L16">    private final BooleanProperty saveInOriginalProperty = new SimpleBooleanProperty();</span>
+<span class="fc" id="L17">    private final BooleanProperty saveInTableOrderProperty = new SimpleBooleanProperty();</span>
+<span class="fc" id="L18">    private final BooleanProperty saveInSpecifiedOrderProperty = new SimpleBooleanProperty();</span>
+
+<span class="fc" id="L20">    private final ListProperty&lt;Field&gt; sortableFieldsProperty = new SimpleListProperty&lt;&gt;(FXCollections.observableArrayList());</span>
+<span class="fc" id="L21">    private final ListProperty&lt;SortCriterionViewModel&gt; selectedSortCriteriaProperty = new SimpleListProperty&lt;&gt;(FXCollections.observableArrayList());</span>
+
+<span class="fc" id="L23">    public SaveOrderConfigPanelViewModel() {</span>
+<span class="fc" id="L24">    }</span>
+
+    public void addCriterion() {
+<span class="fc" id="L27">        selectedSortCriteriaProperty.add(new SortCriterionViewModel(new SaveOrderConfig.SortCriterion()));</span>
+<span class="fc" id="L28">    }</span>
+
+    public void removeCriterion(SortCriterionViewModel sortCriterionViewModel) {
+<span class="fc" id="L31">        selectedSortCriteriaProperty.remove(sortCriterionViewModel);</span>
+<span class="fc" id="L32">    }</span>
+
+    public void moveCriterionUp(SortCriterionViewModel sortCriterionViewModel) {
+<span class="pc bpc" id="L35" title="1 of 2 branches missed.">        if (selectedSortCriteriaProperty.contains(sortCriterionViewModel)) {</span>
+<span class="fc" id="L36">            int index = selectedSortCriteriaProperty.indexOf(sortCriterionViewModel);</span>
+<span class="fc bfc" id="L37" title="All 2 branches covered.">            if (index &gt; 0) {</span>
+<span class="fc" id="L38">                Collections.swap(selectedSortCriteriaProperty, index - 1, index);</span>
+            }
+        }
+<span class="fc" id="L41">    }</span>
+
+    public void moveCriterionDown(SortCriterionViewModel sortCriterionViewModel) {
+<span class="pc bpc" id="L44" title="1 of 2 branches missed.">        if (selectedSortCriteriaProperty.contains(sortCriterionViewModel)) {</span>
+<span class="fc" id="L45">            int index = selectedSortCriteriaProperty.indexOf(sortCriterionViewModel);</span>
+<span class="pc bpc" id="L46" title="1 of 4 branches missed.">            if (index &gt;= 0 &amp;&amp; index &lt; selectedSortCriteriaProperty.size() - 1) {</span>
+<span class="fc" id="L47">                Collections.swap(selectedSortCriteriaProperty, index + 1, index);</span>
+            }
+        }
+<span class="fc" id="L50">    }</span>
+
+    public BooleanProperty saveInOriginalProperty() {
+<span class="nc" id="L53">        return saveInOriginalProperty;</span>
+    }
+
+    public BooleanProperty saveInTableOrderProperty() {
+<span class="nc" id="L57">        return saveInTableOrderProperty;</span>
+    }
+
+    public BooleanProperty saveInSpecifiedOrderProperty() {
+<span class="nc" id="L61">        return saveInSpecifiedOrderProperty;</span>
+    }
+
+    public ListProperty&lt;Field&gt; sortableFieldsProperty() {
+<span class="nc" id="L65">        return sortableFieldsProperty;</span>
+    }
+
+    public ListProperty&lt;SortCriterionViewModel&gt; sortCriteriaProperty() {
+<span class="fc" id="L69">        return selectedSortCriteriaProperty;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

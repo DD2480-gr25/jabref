@@ -1,0 +1,335 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LinkedFilesEditor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.fieldeditors</a> &gt; <span class="el_source">LinkedFilesEditor.java</span></div><h1>LinkedFilesEditor.java</h1><pre class="source lang-java linenums">package org.jabref.gui.fieldeditors;
+
+import java.util.Optional;
+
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.ObservableList;
+import javafx.css.PseudoClass;
+import javafx.fxml.FXML;
+import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.control.Button;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.ListView;
+import javafx.scene.control.ProgressBar;
+import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.Tooltip;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.DragEvent;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.input.TransferMode;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.text.Text;
+
+import org.jabref.gui.DialogService;
+import org.jabref.gui.DragAndDropDataFormats;
+import org.jabref.gui.Globals;
+import org.jabref.gui.actions.ActionFactory;
+import org.jabref.gui.actions.SimpleCommand;
+import org.jabref.gui.actions.StandardActions;
+import org.jabref.gui.autocompleter.SuggestionProvider;
+import org.jabref.gui.copyfiles.CopySingleFileAction;
+import org.jabref.gui.icon.IconTheme;
+import org.jabref.gui.importer.GrobidOptInDialogHelper;
+import org.jabref.gui.keyboard.KeyBinding;
+import org.jabref.gui.util.BindingsHelper;
+import org.jabref.gui.util.TaskExecutor;
+import org.jabref.gui.util.ViewModelListCellFactory;
+import org.jabref.gui.util.uithreadaware.UiThreadObservableList;
+import org.jabref.logic.integrity.FieldCheckers;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.LinkedFile;
+import org.jabref.model.entry.field.Field;
+import org.jabref.preferences.PreferencesService;
+
+import com.airhacks.afterburner.views.ViewLoader;
+import com.tobiasdiez.easybind.EasyBind;
+import com.tobiasdiez.easybind.optional.ObservableOptionalValue;
+
+public class LinkedFilesEditor extends HBox implements FieldEditorFX {
+
+    @FXML private final LinkedFilesEditorViewModel viewModel;
+    @FXML private ListView&lt;LinkedFileViewModel&gt; listView;
+
+    private final DialogService dialogService;
+    private final BibDatabaseContext databaseContext;
+    private final UiThreadObservableList&lt;LinkedFileViewModel&gt; decoratedModelList;
+    private final PreferencesService preferencesService;
+
+<span class="nc" id="L66">    private ObservableOptionalValue&lt;BibEntry&gt; bibEntry = EasyBind.wrapNullable(new SimpleObjectProperty&lt;&gt;());</span>
+
+    public LinkedFilesEditor(Field field,
+                             DialogService dialogService,
+                             BibDatabaseContext databaseContext,
+                             TaskExecutor taskExecutor,
+                             SuggestionProvider&lt;?&gt; suggestionProvider,
+                             FieldCheckers fieldCheckers,
+<span class="nc" id="L74">                             PreferencesService preferences) {</span>
+<span class="nc" id="L75">        this.viewModel = new LinkedFilesEditorViewModel(field, suggestionProvider, dialogService, databaseContext, taskExecutor, fieldCheckers, preferences);</span>
+<span class="nc" id="L76">        this.dialogService = dialogService;</span>
+<span class="nc" id="L77">        this.databaseContext = databaseContext;</span>
+<span class="nc" id="L78">        this.preferencesService = preferences;</span>
+
+<span class="nc" id="L80">        ViewLoader.view(this)</span>
+<span class="nc" id="L81">                  .root(this)</span>
+<span class="nc" id="L82">                  .load();</span>
+
+<span class="nc" id="L84">        ViewModelListCellFactory&lt;LinkedFileViewModel&gt; cellFactory = new ViewModelListCellFactory&lt;LinkedFileViewModel&gt;()</span>
+<span class="nc" id="L85">                .withStringTooltip(LinkedFileViewModel::getDescription)</span>
+<span class="nc" id="L86">                .withGraphic(this::createFileDisplay)</span>
+<span class="nc" id="L87">                .withContextMenu(this::createContextMenuForFile)</span>
+<span class="nc" id="L88">                .withOnMouseClickedEvent(this::handleItemMouseClick)</span>
+<span class="nc" id="L89">                .setOnDragDetected(this::handleOnDragDetected)</span>
+<span class="nc" id="L90">                .setOnDragDropped(this::handleOnDragDropped)</span>
+<span class="nc" id="L91">                .setOnDragOver(this::handleOnDragOver)</span>
+<span class="nc" id="L92">                .withValidation(LinkedFileViewModel::fileExistsValidationStatus);</span>
+
+<span class="nc" id="L94">        listView.setCellFactory(cellFactory);</span>
+
+<span class="nc" id="L96">        decoratedModelList = new UiThreadObservableList&lt;&gt;(viewModel.filesProperty());</span>
+<span class="nc" id="L97">        Bindings.bindContentBidirectional(listView.itemsProperty().get(), decoratedModelList);</span>
+<span class="nc" id="L98">        setUpKeyBindings();</span>
+<span class="nc" id="L99">    }</span>
+
+    private void handleOnDragOver(LinkedFileViewModel originalItem, DragEvent event) {
+<span class="nc bnc" id="L102" title="All 4 branches missed.">        if ((event.getGestureSource() != originalItem) &amp;&amp; event.getDragboard().hasContent(DragAndDropDataFormats.LINKED_FILE)) {</span>
+<span class="nc" id="L103">            event.acceptTransferModes(TransferMode.MOVE);</span>
+        }
+<span class="nc" id="L105">    }</span>
+
+    private void handleOnDragDetected(@SuppressWarnings(&quot;unused&quot;) LinkedFileViewModel linkedFile, MouseEvent event) {
+<span class="nc" id="L108">        LinkedFile selectedItem = listView.getSelectionModel().getSelectedItem().getFile();</span>
+<span class="nc bnc" id="L109" title="All 2 branches missed.">        if (selectedItem != null) {</span>
+<span class="nc" id="L110">            ClipboardContent content = new ClipboardContent();</span>
+<span class="nc" id="L111">            Dragboard dragboard = listView.startDragAndDrop(TransferMode.MOVE);</span>
+            // We have to use the model class here, as the content of the dragboard must be serializable
+<span class="nc" id="L113">            content.put(DragAndDropDataFormats.LINKED_FILE, selectedItem);</span>
+<span class="nc" id="L114">            dragboard.setContent(content);</span>
+        }
+<span class="nc" id="L116">        event.consume();</span>
+<span class="nc" id="L117">    }</span>
+
+    private void handleOnDragDropped(LinkedFileViewModel originalItem, DragEvent event) {
+<span class="nc" id="L120">        Dragboard dragboard = event.getDragboard();</span>
+<span class="nc" id="L121">        boolean success = false;</span>
+
+<span class="nc" id="L123">        ObservableList&lt;LinkedFileViewModel&gt; items = listView.itemsProperty().get();</span>
+
+<span class="nc bnc" id="L125" title="All 2 branches missed.">        if (dragboard.hasContent(DragAndDropDataFormats.LINKED_FILE)) {</span>
+
+<span class="nc" id="L127">            LinkedFile linkedFile = (LinkedFile) dragboard.getContent(DragAndDropDataFormats.LINKED_FILE);</span>
+<span class="nc" id="L128">            LinkedFileViewModel transferedItem = null;</span>
+<span class="nc" id="L129">            int draggedIdx = 0;</span>
+<span class="nc bnc" id="L130" title="All 2 branches missed.">            for (int i = 0; i &lt; items.size(); i++) {</span>
+<span class="nc bnc" id="L131" title="All 2 branches missed.">                if (items.get(i).getFile().equals(linkedFile)) {</span>
+<span class="nc" id="L132">                    draggedIdx = i;</span>
+<span class="nc" id="L133">                    transferedItem = items.get(i);</span>
+<span class="nc" id="L134">                    break;</span>
+                }
+            }
+<span class="nc" id="L137">            int thisIdx = items.indexOf(originalItem);</span>
+<span class="nc" id="L138">            items.set(draggedIdx, originalItem);</span>
+<span class="nc" id="L139">            items.set(thisIdx, transferedItem);</span>
+<span class="nc" id="L140">            success = true;</span>
+        }
+
+<span class="nc" id="L143">        event.setDropCompleted(success);</span>
+<span class="nc" id="L144">        event.consume();</span>
+<span class="nc" id="L145">    }</span>
+
+    private Node createFileDisplay(LinkedFileViewModel linkedFile) {
+<span class="nc" id="L148">        PseudoClass opacity = PseudoClass.getPseudoClass(&quot;opacity&quot;);</span>
+
+<span class="nc" id="L150">        Node icon = linkedFile.getTypeIcon().getGraphicNode();</span>
+<span class="nc" id="L151">        icon.setOnMouseClicked(event -&gt; linkedFile.open());</span>
+
+<span class="nc" id="L153">        Text link = new Text();</span>
+<span class="nc" id="L154">        link.textProperty().bind(linkedFile.linkProperty());</span>
+<span class="nc" id="L155">        link.getStyleClass().setAll(&quot;file-row-text&quot;);</span>
+<span class="nc" id="L156">        EasyBind.subscribe(linkedFile.isAutomaticallyFoundProperty(), found -&gt; link.pseudoClassStateChanged(opacity, found));</span>
+
+<span class="nc" id="L158">        Text desc = new Text();</span>
+<span class="nc" id="L159">        desc.textProperty().bind(linkedFile.descriptionProperty());</span>
+<span class="nc" id="L160">        desc.getStyleClass().setAll(&quot;file-row-text&quot;);</span>
+
+<span class="nc" id="L162">        ProgressBar progressIndicator = new ProgressBar();</span>
+<span class="nc" id="L163">        progressIndicator.progressProperty().bind(linkedFile.downloadProgressProperty());</span>
+<span class="nc" id="L164">        progressIndicator.visibleProperty().bind(linkedFile.downloadOngoingProperty());</span>
+
+<span class="nc" id="L166">        HBox info = new HBox(8);</span>
+<span class="nc" id="L167">        HBox.setHgrow(info, Priority.ALWAYS);</span>
+<span class="nc" id="L168">        info.setStyle(&quot;-fx-padding: 0.5em 0 0.5em 0;&quot;); // To align with buttons below which also have 0.5em padding</span>
+<span class="nc" id="L169">        info.getChildren().setAll(icon, link, desc, progressIndicator);</span>
+
+<span class="nc" id="L171">        Button acceptAutoLinkedFile = IconTheme.JabRefIcons.AUTO_LINKED_FILE.asButton();</span>
+<span class="nc" id="L172">        acceptAutoLinkedFile.setTooltip(new Tooltip(Localization.lang(&quot;This file was found automatically. Do you want to link it to this entry?&quot;)));</span>
+<span class="nc" id="L173">        acceptAutoLinkedFile.visibleProperty().bind(linkedFile.isAutomaticallyFoundProperty());</span>
+<span class="nc" id="L174">        acceptAutoLinkedFile.managedProperty().bind(linkedFile.isAutomaticallyFoundProperty());</span>
+<span class="nc" id="L175">        acceptAutoLinkedFile.setOnAction(event -&gt; linkedFile.acceptAsLinked());</span>
+<span class="nc" id="L176">        acceptAutoLinkedFile.getStyleClass().setAll(&quot;icon-button&quot;);</span>
+
+<span class="nc" id="L178">        Button writeMetadataToPdf = IconTheme.JabRefIcons.IMPORT.asButton();</span>
+<span class="nc" id="L179">        writeMetadataToPdf.setTooltip(new Tooltip(Localization.lang(&quot;Write BibTeXEntry metadata to PDF.&quot;)));</span>
+<span class="nc" id="L180">        writeMetadataToPdf.visibleProperty().bind(linkedFile.isOfflinePdfProperty());</span>
+<span class="nc" id="L181">        writeMetadataToPdf.setOnAction(event -&gt; linkedFile.writeMetadataToPdf());</span>
+<span class="nc" id="L182">        writeMetadataToPdf.getStyleClass().setAll(&quot;icon-button&quot;);</span>
+
+<span class="nc" id="L184">        Button parsePdfMetadata = IconTheme.JabRefIcons.FILE_SEARCH.asButton();</span>
+<span class="nc" id="L185">        parsePdfMetadata.setTooltip(new Tooltip(Localization.lang(&quot;Parse Metadata from PDF.&quot;)));</span>
+<span class="nc" id="L186">        parsePdfMetadata.visibleProperty().bind(linkedFile.isOfflinePdfProperty());</span>
+<span class="nc" id="L187">        parsePdfMetadata.setOnAction(event -&gt; {</span>
+<span class="nc" id="L188">            GrobidOptInDialogHelper.showAndWaitIfUserIsUndecided(dialogService, preferencesService.getImporterPreferences());</span>
+<span class="nc" id="L189">            linkedFile.parsePdfMetadataAndShowMergeDialog();</span>
+<span class="nc" id="L190">        });</span>
+<span class="nc" id="L191">        parsePdfMetadata.getStyleClass().setAll(&quot;icon-button&quot;);</span>
+
+<span class="nc" id="L193">        HBox container = new HBox(10);</span>
+<span class="nc" id="L194">        container.setPrefHeight(Double.NEGATIVE_INFINITY);</span>
+
+<span class="nc" id="L196">        container.getChildren().addAll(acceptAutoLinkedFile, info, writeMetadataToPdf, parsePdfMetadata);</span>
+
+<span class="nc" id="L198">        return container;</span>
+    }
+
+    private void setUpKeyBindings() {
+<span class="nc" id="L202">        listView.addEventFilter(KeyEvent.KEY_PRESSED, event -&gt; {</span>
+<span class="nc" id="L203">            Optional&lt;KeyBinding&gt; keyBinding = Globals.getKeyPrefs().mapToKeyBinding(event);</span>
+<span class="nc bnc" id="L204" title="All 2 branches missed.">            if (keyBinding.isPresent()) {</span>
+<span class="nc bnc" id="L205" title="All 2 branches missed.">                switch (keyBinding.get()) {</span>
+                    case DELETE_ENTRY:
+<span class="nc" id="L207">                        LinkedFileViewModel selectedItem = listView.getSelectionModel().getSelectedItem();</span>
+<span class="nc bnc" id="L208" title="All 2 branches missed.">                        if (selectedItem != null) {</span>
+<span class="nc" id="L209">                            viewModel.deleteFile(selectedItem);</span>
+                        }
+<span class="nc" id="L211">                        event.consume();</span>
+<span class="nc" id="L212">                        break;</span>
+                    default:
+                        // Pass other keys to children
+                }
+            }
+<span class="nc" id="L217">        });</span>
+<span class="nc" id="L218">    }</span>
+
+    public LinkedFilesEditorViewModel getViewModel() {
+<span class="nc" id="L221">        return viewModel;</span>
+    }
+
+    @Override
+    public void bindToEntry(BibEntry entry) {
+<span class="nc" id="L226">        bibEntry = EasyBind.wrapNullable(new SimpleObjectProperty&lt;&gt;(entry));</span>
+<span class="nc" id="L227">        viewModel.bindToEntry(entry);</span>
+<span class="nc" id="L228">    }</span>
+
+    @Override
+    public Parent getNode() {
+<span class="nc" id="L232">        return this;</span>
+    }
+
+    @FXML
+    private void addNewFile() {
+<span class="nc" id="L237">        viewModel.addNewFile();</span>
+<span class="nc" id="L238">    }</span>
+
+    @FXML
+    private void fetchFulltext() {
+<span class="nc" id="L242">        viewModel.fetchFulltext();</span>
+<span class="nc" id="L243">    }</span>
+
+    @FXML
+    private void addFromURL() {
+<span class="nc" id="L247">        viewModel.addFromURL();</span>
+<span class="nc" id="L248">    }</span>
+
+    private void handleItemMouseClick(LinkedFileViewModel linkedFile, MouseEvent event) {
+
+<span class="nc bnc" id="L252" title="All 4 branches missed.">        if (event.getButton().equals(MouseButton.PRIMARY) &amp;&amp; (event.getClickCount() == 2)) {</span>
+            // Double click -&gt; open
+<span class="nc" id="L254">            linkedFile.open();</span>
+        }
+<span class="nc" id="L256">    }</span>
+
+    @Override
+    public double getWeight() {
+<span class="nc" id="L260">        return 2;</span>
+    }
+
+    private ContextMenu createContextMenuForFile(LinkedFileViewModel linkedFile) {
+<span class="nc" id="L264">        ContextMenu menu = new ContextMenu();</span>
+<span class="nc" id="L265">        ActionFactory factory = new ActionFactory(Globals.getKeyPrefs());</span>
+
+<span class="nc" id="L267">        menu.getItems().addAll(</span>
+<span class="nc" id="L268">                factory.createMenuItem(StandardActions.EDIT_FILE_LINK, new ContextAction(StandardActions.EDIT_FILE_LINK, linkedFile, preferencesService)),</span>
+                new SeparatorMenuItem(),
+<span class="nc" id="L270">                factory.createMenuItem(StandardActions.OPEN_FILE, new ContextAction(StandardActions.OPEN_FILE, linkedFile, preferencesService)),</span>
+<span class="nc" id="L271">                factory.createMenuItem(StandardActions.OPEN_FOLDER, new ContextAction(StandardActions.OPEN_FOLDER, linkedFile, preferencesService)),</span>
+                new SeparatorMenuItem(),
+<span class="nc" id="L273">                factory.createMenuItem(StandardActions.DOWNLOAD_FILE, new ContextAction(StandardActions.DOWNLOAD_FILE, linkedFile, preferencesService)),</span>
+<span class="nc" id="L274">                factory.createMenuItem(StandardActions.RENAME_FILE_TO_PATTERN, new ContextAction(StandardActions.RENAME_FILE_TO_PATTERN, linkedFile, preferencesService)),</span>
+<span class="nc" id="L275">                factory.createMenuItem(StandardActions.RENAME_FILE_TO_NAME, new ContextAction(StandardActions.RENAME_FILE_TO_NAME, linkedFile, preferencesService)),</span>
+<span class="nc" id="L276">                factory.createMenuItem(StandardActions.MOVE_FILE_TO_FOLDER, new ContextAction(StandardActions.MOVE_FILE_TO_FOLDER, linkedFile, preferencesService)),</span>
+<span class="nc" id="L277">                factory.createMenuItem(StandardActions.MOVE_FILE_TO_FOLDER_AND_RENAME, new ContextAction(StandardActions.MOVE_FILE_TO_FOLDER_AND_RENAME, linkedFile, preferencesService)),</span>
+<span class="nc" id="L278">                factory.createMenuItem(StandardActions.COPY_FILE_TO_FOLDER, new CopySingleFileAction(linkedFile.getFile(), dialogService, databaseContext, preferencesService.getFilePreferences())),</span>
+<span class="nc" id="L279">                factory.createMenuItem(StandardActions.REMOVE_LINK, new ContextAction(StandardActions.REMOVE_LINK, linkedFile, preferencesService)),</span>
+<span class="nc" id="L280">                factory.createMenuItem(StandardActions.DELETE_FILE, new ContextAction(StandardActions.DELETE_FILE, linkedFile, preferencesService))</span>
+        );
+
+<span class="nc" id="L283">        return menu;</span>
+    }
+
+    private class ContextAction extends SimpleCommand {
+
+        private final StandardActions command;
+        private final LinkedFileViewModel linkedFile;
+
+<span class="nc" id="L291">        public ContextAction(StandardActions command, LinkedFileViewModel linkedFile, PreferencesService preferencesService) {</span>
+<span class="nc" id="L292">            this.command = command;</span>
+<span class="nc" id="L293">            this.linkedFile = linkedFile;</span>
+
+<span class="nc" id="L295">            this.executable.bind(</span>
+<span class="nc bnc" id="L296" title="All 5 branches missed.">                    switch (command) {</span>
+<span class="nc" id="L297">                        case RENAME_FILE_TO_PATTERN -&gt; Bindings.createBooleanBinding(</span>
+<span class="nc bnc" id="L298" title="All 2 branches missed.">                                () -&gt; !linkedFile.getFile().isOnlineLink()</span>
+<span class="nc bnc" id="L299" title="All 2 branches missed.">                                        &amp;&amp; linkedFile.getFile().findIn(databaseContext, preferencesService.getFilePreferences()).isPresent()</span>
+<span class="nc bnc" id="L300" title="All 2 branches missed.">                                        &amp;&amp; !linkedFile.isGeneratedNameSameAsOriginal(),</span>
+<span class="nc" id="L301">                                linkedFile.getFile().linkProperty(), bibEntry.getValue().map(BibEntry::getFieldsObservable).orElse(null));</span>
+<span class="nc" id="L302">                        case MOVE_FILE_TO_FOLDER, MOVE_FILE_TO_FOLDER_AND_RENAME -&gt; Bindings.createBooleanBinding(</span>
+<span class="nc bnc" id="L303" title="All 2 branches missed.">                                () -&gt; !linkedFile.getFile().isOnlineLink()</span>
+<span class="nc bnc" id="L304" title="All 2 branches missed.">                                        &amp;&amp; linkedFile.getFile().findIn(databaseContext, preferencesService.getFilePreferences()).isPresent()</span>
+<span class="nc bnc" id="L305" title="All 2 branches missed.">                                        &amp;&amp; !linkedFile.isGeneratedPathSameAsOriginal(),</span>
+<span class="nc" id="L306">                                linkedFile.getFile().linkProperty(), bibEntry.getValue().map(BibEntry::getFieldsObservable).orElse(null));</span>
+<span class="nc" id="L307">                        case DOWNLOAD_FILE -&gt; Bindings.createBooleanBinding(</span>
+<span class="nc" id="L308">                                () -&gt; linkedFile.getFile().isOnlineLink(),</span>
+<span class="nc" id="L309">                                linkedFile.getFile().linkProperty(), bibEntry.getValue().map(BibEntry::getFieldsObservable).orElse(null));</span>
+<span class="nc" id="L310">                        case OPEN_FILE, OPEN_FOLDER, RENAME_FILE_TO_NAME, DELETE_FILE -&gt; Bindings.createBooleanBinding(</span>
+<span class="nc bnc" id="L311" title="All 2 branches missed.">                                () -&gt; !linkedFile.getFile().isOnlineLink()</span>
+<span class="nc bnc" id="L312" title="All 2 branches missed.">                                        &amp;&amp; linkedFile.getFile().findIn(databaseContext, preferencesService.getFilePreferences()).isPresent(),</span>
+<span class="nc" id="L313">                                linkedFile.getFile().linkProperty(), bibEntry.getValue().map(BibEntry::getFieldsObservable).orElse(null));</span>
+<span class="nc" id="L314">                        default -&gt; BindingsHelper.constantOf(true);</span>
+                    });
+<span class="nc" id="L316">        }</span>
+
+        @Override
+        public void execute() {
+<span class="nc bnc" id="L320" title="All 11 branches missed.">            switch (command) {</span>
+<span class="nc" id="L321">                case EDIT_FILE_LINK -&gt; linkedFile.edit();</span>
+<span class="nc" id="L322">                case OPEN_FILE -&gt; linkedFile.open();</span>
+<span class="nc" id="L323">                case OPEN_FOLDER -&gt; linkedFile.openFolder();</span>
+<span class="nc" id="L324">                case DOWNLOAD_FILE -&gt; linkedFile.download();</span>
+<span class="nc" id="L325">                case RENAME_FILE_TO_PATTERN -&gt; linkedFile.renameToSuggestion();</span>
+<span class="nc" id="L326">                case RENAME_FILE_TO_NAME -&gt; linkedFile.askForNameAndRename();</span>
+<span class="nc" id="L327">                case MOVE_FILE_TO_FOLDER -&gt; linkedFile.moveToDefaultDirectory();</span>
+<span class="nc" id="L328">                case MOVE_FILE_TO_FOLDER_AND_RENAME -&gt; linkedFile.moveToDefaultDirectoryAndRename();</span>
+<span class="nc" id="L329">                case DELETE_FILE -&gt; viewModel.deleteFile(linkedFile);</span>
+<span class="nc" id="L330">                case REMOVE_LINK -&gt; viewModel.removeFileLink(linkedFile);</span>
+            }
+<span class="nc" id="L332">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

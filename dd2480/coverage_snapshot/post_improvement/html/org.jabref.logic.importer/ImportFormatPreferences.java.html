@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ImportFormatPreferences.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.importer</a> &gt; <span class="el_source">ImportFormatPreferences.java</span></div><h1>ImportFormatPreferences.java</h1><pre class="source lang-java linenums">package org.jabref.logic.importer;
+
+import java.util.Set;
+
+import org.jabref.logic.bibtex.FieldContentFormatterPreferences;
+import org.jabref.logic.citationkeypattern.CitationKeyPatternPreferences;
+import org.jabref.logic.importer.fileformat.CustomImporter;
+import org.jabref.logic.preferences.DOIPreferences;
+import org.jabref.logic.xmp.XmpPreferences;
+
+public class ImportFormatPreferences {
+
+    private final Set&lt;CustomImporter&gt; customImportList;
+    private final Character keywordSeparator;
+    private final CitationKeyPatternPreferences citationKeyPatternPreferences;
+    private final FieldContentFormatterPreferences fieldContentFormatterPreferences;
+    private final XmpPreferences xmpPreferences;
+    private final DOIPreferences doiPreferences;
+
+    public ImportFormatPreferences(Set&lt;CustomImporter&gt; customImportList,
+                                   Character keywordSeparator,
+                                   CitationKeyPatternPreferences citationKeyPatternPreferences,
+                                   FieldContentFormatterPreferences fieldContentFormatterPreferences,
+                                   XmpPreferences xmpPreferences,
+<span class="nc" id="L25">                                   DOIPreferences doiPreferences) {</span>
+<span class="nc" id="L26">        this.customImportList = customImportList;</span>
+<span class="nc" id="L27">        this.keywordSeparator = keywordSeparator;</span>
+<span class="nc" id="L28">        this.citationKeyPatternPreferences = citationKeyPatternPreferences;</span>
+<span class="nc" id="L29">        this.fieldContentFormatterPreferences = fieldContentFormatterPreferences;</span>
+<span class="nc" id="L30">        this.xmpPreferences = xmpPreferences;</span>
+<span class="nc" id="L31">        this.doiPreferences = doiPreferences;</span>
+<span class="nc" id="L32">    }</span>
+
+    public DOIPreferences getDoiPreferences() {
+<span class="nc" id="L35">        return doiPreferences;</span>
+    }
+
+    /**
+     * @deprecated importer should not know about the other custom importers
+     */
+    @Deprecated
+    public Set&lt;CustomImporter&gt; getCustomImportList() {
+<span class="nc" id="L43">        return customImportList;</span>
+    }
+
+    public Character getKeywordSeparator() {
+<span class="nc" id="L47">        return keywordSeparator;</span>
+    }
+
+    public CitationKeyPatternPreferences getCitationKeyPatternPreferences() {
+<span class="nc" id="L51">        return citationKeyPatternPreferences;</span>
+    }
+
+    public FieldContentFormatterPreferences getFieldContentFormatterPreferences() {
+<span class="nc" id="L55">        return fieldContentFormatterPreferences;</span>
+    }
+
+    public XmpPreferences getXmpPreferences() {
+<span class="nc" id="L59">        return xmpPreferences;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

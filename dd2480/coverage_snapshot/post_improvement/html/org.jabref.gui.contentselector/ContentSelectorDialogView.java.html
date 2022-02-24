@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ContentSelectorDialogView.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.contentselector</a> &gt; <span class="el_source">ContentSelectorDialogView.java</span></div><h1>ContentSelectorDialogView.java</h1><pre class="source lang-java linenums">package org.jabref.gui.contentselector;
+
+import java.util.Optional;
+import java.util.function.Supplier;
+
+import javax.inject.Inject;
+
+import javafx.beans.property.ListProperty;
+import javafx.fxml.FXML;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ListView;
+import javafx.scene.control.SelectionModel;
+
+import org.jabref.gui.DialogService;
+import org.jabref.gui.LibraryTab;
+import org.jabref.gui.theme.ThemeManager;
+import org.jabref.gui.util.BaseDialog;
+import org.jabref.gui.util.ControlHelper;
+import org.jabref.gui.util.ViewModelListCellFactory;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.model.entry.field.Field;
+
+import com.airhacks.afterburner.views.ViewLoader;
+import com.tobiasdiez.easybind.EasyBind;
+
+public class ContentSelectorDialogView extends BaseDialog&lt;Void&gt; {
+
+    @FXML private Button addFieldNameButton;
+    @FXML private Button removeFieldNameButton;
+    @FXML private Button addKeywordButton;
+    @FXML private Button removeKeywordButton;
+    @FXML private ListView&lt;Field&gt; fieldsListView;
+    @FXML private ListView&lt;String&gt; keywordsListView;
+    @FXML private ButtonType saveButton;
+
+    @Inject private DialogService dialogService;
+    @Inject private ThemeManager themeManager;
+
+    private final LibraryTab libraryTab;
+    private ContentSelectorDialogViewModel viewModel;
+
+<span class="nc" id="L43">    public ContentSelectorDialogView(LibraryTab libraryTab) {</span>
+<span class="nc" id="L44">        this.setTitle(Localization.lang(&quot;Manage content selectors&quot;));</span>
+<span class="nc" id="L45">        this.getDialogPane().setPrefSize(375, 475);</span>
+
+<span class="nc" id="L47">        this.libraryTab = libraryTab;</span>
+
+<span class="nc" id="L49">        ViewLoader.view(this)</span>
+<span class="nc" id="L50">                  .load()</span>
+<span class="nc" id="L51">                  .setAsDialogPane(this);</span>
+
+<span class="nc" id="L53">        ControlHelper.setAction(saveButton, getDialogPane(), event -&gt; saveChangesAndClose());</span>
+
+<span class="nc" id="L55">        themeManager.updateFontStyle(getDialogPane().getScene());</span>
+<span class="nc" id="L56">    }</span>
+
+    @FXML
+    public void initialize() {
+<span class="nc" id="L60">        viewModel = new ContentSelectorDialogViewModel(libraryTab, dialogService);</span>
+
+<span class="nc" id="L62">        initFieldNameComponents();</span>
+<span class="nc" id="L63">        initKeywordsComponents();</span>
+<span class="nc" id="L64">    }</span>
+
+    private void initFieldNameComponents() {
+<span class="nc" id="L67">        initListView(fieldsListView, viewModel::getFieldNamesBackingList);</span>
+<span class="nc" id="L68">        viewModel.selectedFieldProperty().bind(fieldsListView.getSelectionModel().selectedItemProperty());</span>
+<span class="nc" id="L69">        new ViewModelListCellFactory&lt;Field&gt;()</span>
+<span class="nc" id="L70">                .withText(Field::getDisplayName)</span>
+<span class="nc" id="L71">                .install(fieldsListView);</span>
+<span class="nc" id="L72">        removeFieldNameButton.disableProperty().bind(viewModel.isNoFieldNameSelected());</span>
+<span class="nc" id="L73">        EasyBind.subscribe(viewModel.selectedFieldProperty(), viewModel::populateKeywords);</span>
+<span class="nc" id="L74">    }</span>
+
+    private void initKeywordsComponents() {
+<span class="nc" id="L77">        initListView(keywordsListView, viewModel::getKeywordsBackingList);</span>
+<span class="nc" id="L78">        viewModel.selectedKeywordProperty().bind(keywordsListView.getSelectionModel().selectedItemProperty());</span>
+<span class="nc" id="L79">        addKeywordButton.disableProperty().bind(viewModel.isFieldNameListEmpty());</span>
+<span class="nc" id="L80">        removeKeywordButton.disableProperty().bind(viewModel.isNoKeywordSelected());</span>
+<span class="nc" id="L81">    }</span>
+
+    @FXML
+    private void addNewFieldName() {
+<span class="nc" id="L85">        viewModel.showInputFieldNameDialog();</span>
+<span class="nc" id="L86">    }</span>
+
+    @FXML
+    private void removeFieldName() {
+<span class="nc" id="L90">        getSelectedField().ifPresent(viewModel::showRemoveFieldNameConfirmationDialog);</span>
+<span class="nc" id="L91">    }</span>
+
+    @FXML
+    private void addNewKeyword() {
+<span class="nc" id="L95">        getSelectedField().ifPresent(viewModel::showInputKeywordDialog);</span>
+<span class="nc" id="L96">    }</span>
+
+    @FXML
+    private void removeKeyword() {
+<span class="nc" id="L100">        Optional&lt;Field&gt; fieldName = getSelectedField();</span>
+<span class="nc" id="L101">        Optional&lt;String&gt; keywordToRemove = getSelectedKeyword();</span>
+<span class="nc bnc" id="L102" title="All 4 branches missed.">        if (fieldName.isPresent() &amp;&amp; keywordToRemove.isPresent()) {</span>
+<span class="nc" id="L103">            viewModel.showRemoveKeywordConfirmationDialog(fieldName.get(), keywordToRemove.get());</span>
+        }
+<span class="nc" id="L105">    }</span>
+
+    private &lt;T&gt; void initListView(ListView&lt;T&gt; listViewToInit, Supplier&lt;ListProperty&lt;T&gt;&gt; backingList) {
+<span class="nc" id="L108">        listViewToInit.itemsProperty().bind(backingList.get());</span>
+<span class="nc" id="L109">        listViewToInit.getSelectionModel().selectFirst();</span>
+<span class="nc" id="L110">    }</span>
+
+    private Optional&lt;Field&gt; getSelectedField() {
+<span class="nc" id="L113">        return Optional.of(fieldsListView.getSelectionModel()).map(SelectionModel::getSelectedItem);</span>
+    }
+
+    private Optional&lt;String&gt; getSelectedKeyword() {
+<span class="nc" id="L117">        return Optional.of(keywordsListView.getSelectionModel()).map(SelectionModel::getSelectedItem);</span>
+    }
+
+    private void saveChangesAndClose() {
+<span class="nc" id="L121">        viewModel.saveChanges();</span>
+<span class="nc" id="L122">        close();</span>
+<span class="nc" id="L123">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Windows.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.desktop.os</a> &gt; <span class="el_source">Windows.java</span></div><h1>Windows.java</h1><pre class="source lang-java linenums">package org.jabref.gui.desktop.os;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Optional;
+
+import org.jabref.gui.externalfiletype.ExternalFileType;
+import org.jabref.gui.externalfiletype.ExternalFileTypes;
+
+<span class="nc" id="L12">public class Windows implements NativeDesktop {</span>
+    private static final String DEFAULT_EXECUTABLE_EXTENSION = &quot;.exe&quot;;
+
+    @Override
+    public void openFile(String filePath, String fileType) throws IOException {
+<span class="nc" id="L17">        Optional&lt;ExternalFileType&gt; type = ExternalFileTypes.getInstance().getExternalFileTypeByExt(fileType);</span>
+
+<span class="nc bnc" id="L19" title="All 4 branches missed.">        if (type.isPresent() &amp;&amp; !type.get().getOpenWithApplication().isEmpty()) {</span>
+<span class="nc" id="L20">            openFileWithApplication(filePath, type.get().getOpenWithApplication());</span>
+        } else {
+            // quote String so explorer handles URL query strings correctly
+<span class="nc" id="L23">            String quotePath = &quot;\&quot;&quot; + filePath + &quot;\&quot;&quot;;</span>
+<span class="nc" id="L24">            new ProcessBuilder(&quot;explorer.exe&quot;, quotePath).start();</span>
+        }
+<span class="nc" id="L26">    }</span>
+
+    @Override
+    public String detectProgramPath(String programName, String directoryName) {
+<span class="nc" id="L30">        String progFiles = System.getenv(&quot;ProgramFiles(x86)&quot;);</span>
+        String programPath;
+<span class="nc bnc" id="L32" title="All 2 branches missed.">        if (progFiles != null) {</span>
+<span class="nc" id="L33">            programPath = getProgramPath(programName, directoryName, progFiles);</span>
+<span class="nc bnc" id="L34" title="All 2 branches missed.">            if (programPath != null) {</span>
+<span class="nc" id="L35">                return programPath;</span>
+            }
+        }
+
+<span class="nc" id="L39">        progFiles = System.getenv(&quot;ProgramFiles&quot;);</span>
+<span class="nc" id="L40">        programPath = getProgramPath(programName, directoryName, progFiles);</span>
+<span class="nc bnc" id="L41" title="All 2 branches missed.">        if (programPath != null) {</span>
+<span class="nc" id="L42">            return programPath;</span>
+        }
+
+<span class="nc" id="L45">        return &quot;&quot;;</span>
+    }
+
+    private String getProgramPath(String programName, String directoryName, String progFiles) {
+        Path programPath;
+<span class="nc bnc" id="L50" title="All 4 branches missed.">        if ((directoryName != null) &amp;&amp; !directoryName.isEmpty()) {</span>
+<span class="nc" id="L51">            programPath = Path.of(progFiles, directoryName, programName + DEFAULT_EXECUTABLE_EXTENSION);</span>
+        } else {
+<span class="nc" id="L53">            programPath = Path.of(progFiles, programName + DEFAULT_EXECUTABLE_EXTENSION);</span>
+        }
+<span class="nc bnc" id="L55" title="All 2 branches missed.">        if (Files.exists(programPath)) {</span>
+<span class="nc" id="L56">            return programPath.toString();</span>
+        }
+<span class="nc" id="L58">        return null;</span>
+    }
+
+    @Override
+    public Path getApplicationDirectory() {
+<span class="nc" id="L63">        String programDir = System.getenv(&quot;ProgramFiles&quot;);</span>
+
+<span class="nc bnc" id="L65" title="All 2 branches missed.">        if (programDir != null) {</span>
+<span class="nc" id="L66">            return Path.of(programDir);</span>
+        }
+<span class="nc" id="L68">        return getUserDirectory();</span>
+    }
+
+    @Override
+    public void openFileWithApplication(String filePath, String application) throws IOException {
+<span class="nc" id="L73">        new ProcessBuilder(Path.of(application).toString(), Path.of(filePath).toString()).start();</span>
+<span class="nc" id="L74">    }</span>
+
+    @Override
+    public void openFolderAndSelectFile(Path filePath) throws IOException {
+<span class="nc" id="L78">        new ProcessBuilder(&quot;explorer.exe&quot;, &quot;/select,&quot;, filePath.toString()).start();</span>
+<span class="nc" id="L79">    }</span>
+
+    @Override
+    public void openConsole(String absolutePath) throws IOException {
+<span class="nc" id="L83">        ProcessBuilder process = new ProcessBuilder(&quot;cmd.exe&quot;, &quot;/c&quot;, &quot;start&quot;);</span>
+<span class="nc" id="L84">        process.directory(new File(absolutePath));</span>
+<span class="nc" id="L85">        process.start();</span>
+<span class="nc" id="L86">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

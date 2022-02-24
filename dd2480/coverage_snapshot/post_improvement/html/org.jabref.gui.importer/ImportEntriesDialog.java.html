@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ImportEntriesDialog.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.importer</a> &gt; <span class="el_source">ImportEntriesDialog.java</span></div><h1>ImportEntriesDialog.java</h1><pre class="source lang-java linenums">package org.jabref.gui.importer;
+
+import java.util.EnumSet;
+
+import javax.inject.Inject;
+import javax.swing.undo.UndoManager;
+
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
+import javafx.css.PseudoClass;
+import javafx.fxml.FXML;
+import javafx.scene.Node;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.Tooltip;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
+
+import org.jabref.gui.DialogService;
+import org.jabref.gui.Globals;
+import org.jabref.gui.StateManager;
+import org.jabref.gui.icon.IconTheme;
+import org.jabref.gui.util.BackgroundTask;
+import org.jabref.gui.util.BaseDialog;
+import org.jabref.gui.util.NoSelectionModel;
+import org.jabref.gui.util.TaskExecutor;
+import org.jabref.gui.util.TextFlowLimited;
+import org.jabref.gui.util.ViewModelListCellFactory;
+import org.jabref.logic.importer.ParserResult;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.BibEntryTypesManager;
+import org.jabref.model.entry.field.StandardField;
+import org.jabref.model.entry.types.EntryType;
+import org.jabref.model.entry.types.StandardEntryType;
+import org.jabref.model.util.FileUpdateMonitor;
+import org.jabref.preferences.PreferencesService;
+
+import com.airhacks.afterburner.views.ViewLoader;
+import com.tobiasdiez.easybind.EasyBind;
+import org.controlsfx.control.CheckListView;
+
+public class ImportEntriesDialog extends BaseDialog&lt;Boolean&gt; {
+
+    public CheckListView&lt;BibEntry&gt; entriesListView;
+    public ButtonType importButton;
+    public Label totalItems;
+    public Label selectedItems;
+    public CheckBox downloadLinkedOnlineFiles;
+    private final BackgroundTask&lt;ParserResult&gt; task;
+    private ImportEntriesViewModel viewModel;
+    @Inject private TaskExecutor taskExecutor;
+    @Inject private DialogService dialogService;
+    @Inject private UndoManager undoManager;
+    @Inject private PreferencesService preferences;
+    @Inject private StateManager stateManager;
+    @Inject private BibEntryTypesManager entryTypesManager;
+    @Inject private FileUpdateMonitor fileUpdateMonitor;
+    private final BibDatabaseContext database;
+
+    /**
+     * Imports the given entries into the given database. The entries are provided using the BackgroundTask
+     *
+     * @param database the database to import into
+     * @param task     the task executed for parsing the selected files(s).
+     */
+<span class="nc" id="L73">    public ImportEntriesDialog(BibDatabaseContext database, BackgroundTask&lt;ParserResult&gt; task) {</span>
+<span class="nc" id="L74">        this.database = database;</span>
+<span class="nc" id="L75">        this.task = task;</span>
+<span class="nc" id="L76">        ViewLoader.view(this)</span>
+<span class="nc" id="L77">                  .load()</span>
+<span class="nc" id="L78">                  .setAsDialogPane(this);</span>
+
+<span class="nc" id="L80">        BooleanBinding booleanBind = Bindings.isEmpty(entriesListView.getCheckModel().getCheckedItems());</span>
+<span class="nc" id="L81">        Button btn = (Button) this.getDialogPane().lookupButton(importButton);</span>
+<span class="nc" id="L82">        btn.disableProperty().bind(booleanBind);</span>
+
+<span class="nc" id="L84">        downloadLinkedOnlineFiles.setSelected(preferences.getFilePreferences().shouldDownloadLinkedFiles());</span>
+
+<span class="nc" id="L86">        setResultConverter(button -&gt; {</span>
+<span class="nc bnc" id="L87" title="All 2 branches missed.">            if (button == importButton) {</span>
+<span class="nc" id="L88">                viewModel.importEntries(entriesListView.getCheckModel().getCheckedItems(), downloadLinkedOnlineFiles.isSelected());</span>
+            } else {
+<span class="nc" id="L90">                dialogService.notify(Localization.lang(&quot;Import canceled&quot;));</span>
+            }
+
+<span class="nc" id="L93">            return false;</span>
+        });
+<span class="nc" id="L95">    }</span>
+
+    @FXML
+    private void initialize() {
+<span class="nc" id="L99">        viewModel = new ImportEntriesViewModel(task, taskExecutor, database, dialogService, undoManager, preferences, stateManager, entryTypesManager, fileUpdateMonitor);</span>
+<span class="nc" id="L100">        Label placeholder = new Label();</span>
+<span class="nc" id="L101">        placeholder.textProperty().bind(viewModel.messageProperty());</span>
+<span class="nc" id="L102">        entriesListView.setPlaceholder(placeholder);</span>
+<span class="nc" id="L103">        entriesListView.setItems(viewModel.getEntries());</span>
+
+<span class="nc" id="L105">        PseudoClass entrySelected = PseudoClass.getPseudoClass(&quot;entry-selected&quot;);</span>
+<span class="nc" id="L106">        new ViewModelListCellFactory&lt;BibEntry&gt;()</span>
+<span class="nc" id="L107">                .withGraphic(entry -&gt; {</span>
+<span class="nc" id="L108">                    ToggleButton addToggle = IconTheme.JabRefIcons.ADD.asToggleButton();</span>
+<span class="nc" id="L109">                    EasyBind.subscribe(addToggle.selectedProperty(), selected -&gt; {</span>
+<span class="nc bnc" id="L110" title="All 2 branches missed.">                        if (selected) {</span>
+<span class="nc" id="L111">                            addToggle.setGraphic(IconTheme.JabRefIcons.ADD_FILLED.withColor(IconTheme.SELECTED_COLOR).getGraphicNode());</span>
+                        } else {
+<span class="nc" id="L113">                            addToggle.setGraphic(IconTheme.JabRefIcons.ADD.getGraphicNode());</span>
+                        }
+<span class="nc" id="L115">                    });</span>
+<span class="nc" id="L116">                    addToggle.getStyleClass().add(&quot;addEntryButton&quot;);</span>
+<span class="nc" id="L117">                    addToggle.selectedProperty().bindBidirectional(entriesListView.getItemBooleanProperty(entry));</span>
+<span class="nc" id="L118">                    HBox separator = new HBox();</span>
+<span class="nc" id="L119">                    HBox.setHgrow(separator, Priority.SOMETIMES);</span>
+<span class="nc" id="L120">                    Node entryNode = getEntryNode(entry);</span>
+<span class="nc" id="L121">                    HBox.setHgrow(entryNode, Priority.ALWAYS);</span>
+<span class="nc" id="L122">                    HBox container = new HBox(entryNode, separator, addToggle);</span>
+<span class="nc" id="L123">                    container.getStyleClass().add(&quot;entry-container&quot;);</span>
+
+<span class="nc" id="L125">                    BackgroundTask.wrap(() -&gt; viewModel.hasDuplicate(entry)).onSuccess(duplicateFound -&gt; {</span>
+<span class="nc bnc" id="L126" title="All 2 branches missed.">                        if (duplicateFound) {</span>
+<span class="nc" id="L127">                            Button duplicateButton = IconTheme.JabRefIcons.DUPLICATE.asButton();</span>
+<span class="nc" id="L128">                            duplicateButton.setTooltip(new Tooltip(Localization.lang(&quot;Possible duplicate of existing entry. Click to resolve.&quot;)));</span>
+<span class="nc" id="L129">                            duplicateButton.setOnAction(event -&gt; viewModel.resolveDuplicate(entry));</span>
+<span class="nc" id="L130">                            container.getChildren().add(1, duplicateButton);</span>
+                        }
+<span class="nc" id="L132">                    }).executeWith(Globals.TASK_EXECUTOR);</span>
+
+                    /*
+                    inserted the if-statement here, since a Platform.runLater() call did not work.
+                    also tried to move it to the end of the initialize method, but it did not select the entry.
+                    */
+<span class="nc bnc" id="L138" title="All 2 branches missed.">                    if (entriesListView.getItems().size() == 1) {</span>
+<span class="nc" id="L139">                        selectAllNewEntries();</span>
+                    }
+
+<span class="nc" id="L142">                    return container;</span>
+                })
+<span class="nc" id="L144">                .withOnMouseClickedEvent((entry, event) -&gt; entriesListView.getCheckModel().toggleCheckState(entry))</span>
+<span class="nc" id="L145">                .withPseudoClass(entrySelected, entriesListView::getItemBooleanProperty)</span>
+<span class="nc" id="L146">                .install(entriesListView);</span>
+
+<span class="nc" id="L148">        selectedItems.textProperty().bind(Bindings.size(entriesListView.getCheckModel().getCheckedItems()).asString());</span>
+<span class="nc" id="L149">        totalItems.textProperty().bind(Bindings.size(entriesListView.getItems()).asString());</span>
+<span class="nc" id="L150">        entriesListView.setSelectionModel(new NoSelectionModel&lt;&gt;());</span>
+<span class="nc" id="L151">    }</span>
+
+    private Node getEntryNode(BibEntry entry) {
+<span class="nc" id="L154">        Node entryType = getIcon(entry.getType()).getGraphicNode();</span>
+<span class="nc" id="L155">        entryType.getStyleClass().add(&quot;type&quot;);</span>
+<span class="nc" id="L156">        Label authors = new Label(entry.getFieldOrAliasLatexFree(StandardField.AUTHOR).orElse(&quot;&quot;));</span>
+<span class="nc" id="L157">        authors.getStyleClass().add(&quot;authors&quot;);</span>
+<span class="nc" id="L158">        Label title = new Label(entry.getFieldOrAliasLatexFree(StandardField.TITLE).orElse(&quot;&quot;));</span>
+<span class="nc" id="L159">        title.getStyleClass().add(&quot;title&quot;);</span>
+<span class="nc" id="L160">        Label year = new Label(entry.getFieldOrAliasLatexFree(StandardField.YEAR).orElse(&quot;&quot;));</span>
+<span class="nc" id="L161">        year.getStyleClass().add(&quot;year&quot;);</span>
+<span class="nc" id="L162">        Label journal = new Label(entry.getFieldOrAliasLatexFree(StandardField.JOURNAL).orElse(&quot;&quot;));</span>
+<span class="nc" id="L163">        journal.getStyleClass().add(&quot;journal&quot;);</span>
+
+<span class="nc" id="L165">        VBox entryContainer = new VBox(</span>
+                new HBox(10, entryType, title),
+                new HBox(5, year, journal),
+                authors
+        );
+<span class="nc" id="L170">        entry.getFieldOrAliasLatexFree(StandardField.ABSTRACT).ifPresent(summaryText -&gt; {</span>
+<span class="nc" id="L171">            TextFlowLimited summary = new TextFlowLimited(new Text(summaryText));</span>
+<span class="nc" id="L172">            summary.getStyleClass().add(&quot;summary&quot;);</span>
+<span class="nc" id="L173">            entryContainer.getChildren().add(summary);</span>
+<span class="nc" id="L174">        });</span>
+
+<span class="nc" id="L176">        entryContainer.getStyleClass().add(&quot;bibEntry&quot;);</span>
+<span class="nc" id="L177">        return entryContainer;</span>
+    }
+
+    private IconTheme.JabRefIcons getIcon(EntryType type) {
+<span class="nc" id="L181">        EnumSet&lt;StandardEntryType&gt; crossRefTypes = EnumSet.of(StandardEntryType.InBook, StandardEntryType.InProceedings, StandardEntryType.InCollection);</span>
+<span class="nc bnc" id="L182" title="All 2 branches missed.">        if (type == StandardEntryType.Book) {</span>
+<span class="nc" id="L183">            return IconTheme.JabRefIcons.BOOK;</span>
+<span class="nc bnc" id="L184" title="All 2 branches missed.">        } else if (crossRefTypes.contains(type)) {</span>
+<span class="nc" id="L185">            return IconTheme.JabRefIcons.OPEN_LINK;</span>
+        }
+<span class="nc" id="L187">        return IconTheme.JabRefIcons.ARTICLE;</span>
+    }
+
+    public void unselectAll() {
+<span class="nc" id="L191">        entriesListView.getCheckModel().clearChecks();</span>
+<span class="nc" id="L192">    }</span>
+
+    public void selectAllNewEntries() {
+<span class="nc" id="L195">        unselectAll();</span>
+<span class="nc bnc" id="L196" title="All 2 branches missed.">        for (BibEntry entry : entriesListView.getItems()) {</span>
+<span class="nc bnc" id="L197" title="All 2 branches missed.">            if (!viewModel.hasDuplicate(entry)) {</span>
+<span class="nc" id="L198">                entriesListView.getCheckModel().check(entry);</span>
+            }
+<span class="nc" id="L200">        }</span>
+<span class="nc" id="L201">    }</span>
+
+    public void selectAllEntries() {
+<span class="nc" id="L204">        unselectAll();</span>
+<span class="nc" id="L205">        entriesListView.getCheckModel().checkAll();</span>
+<span class="nc" id="L206">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

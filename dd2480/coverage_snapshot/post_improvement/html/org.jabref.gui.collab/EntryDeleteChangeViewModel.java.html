@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EntryDeleteChangeViewModel.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.collab</a> &gt; <span class="el_source">EntryDeleteChangeViewModel.java</span></div><h1>EntryDeleteChangeViewModel.java</h1><pre class="source lang-java linenums">package org.jabref.gui.collab;
+
+import javafx.scene.Node;
+
+import org.jabref.gui.Globals;
+import org.jabref.gui.JabRefGUI;
+import org.jabref.gui.preview.PreviewViewer;
+import org.jabref.gui.undo.NamedCompound;
+import org.jabref.gui.undo.UndoableRemoveEntries;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.entry.BibEntry;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+class EntryDeleteChangeViewModel extends DatabaseChangeViewModel {
+
+<span class="nc" id="L19">    private static final Logger LOGGER = LoggerFactory.getLogger(EntryDeleteChangeViewModel.class);</span>
+    private final BibEntry entry;
+
+    public EntryDeleteChangeViewModel(BibEntry entry) {
+<span class="nc" id="L23">        super(Localization.lang(&quot;Deleted entry&quot;));</span>
+
+<span class="nc" id="L25">        this.name = entry.getCitationKey()</span>
+<span class="nc" id="L26">                         .map(key -&gt; Localization.lang(&quot;Deleted entry&quot;) + &quot;: '&quot; + key + '\'')</span>
+<span class="nc" id="L27">                         .orElse(Localization.lang(&quot;Deleted entry&quot;));</span>
+<span class="nc" id="L28">        this.entry = entry;</span>
+<span class="nc" id="L29">    }</span>
+
+    @Override
+    public void makeChange(BibDatabaseContext database, NamedCompound undoEdit) {
+<span class="nc" id="L33">        database.getDatabase().removeEntry(entry);</span>
+<span class="nc" id="L34">        undoEdit.addEdit(new UndoableRemoveEntries(database.getDatabase(), entry));</span>
+<span class="nc" id="L35">    }</span>
+
+    @Override
+    public Node description() {
+<span class="nc" id="L39">        PreviewViewer previewViewer = new PreviewViewer(new BibDatabaseContext(), JabRefGUI.getMainFrame().getDialogService(), Globals.stateManager, Globals.getThemeManager());</span>
+<span class="nc" id="L40">        previewViewer.setEntry(entry);</span>
+<span class="nc" id="L41">        return previewViewer;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

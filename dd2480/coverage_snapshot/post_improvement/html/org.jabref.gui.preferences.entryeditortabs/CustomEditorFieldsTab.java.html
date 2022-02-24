@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CustomEditorFieldsTab.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.preferences.entryeditortabs</a> &gt; <span class="el_source">CustomEditorFieldsTab.java</span></div><h1>CustomEditorFieldsTab.java</h1><pre class="source lang-java linenums">package org.jabref.gui.preferences.entryeditortabs;
+
+import javafx.fxml.FXML;
+import javafx.scene.control.Button;
+import javafx.scene.control.TextArea;
+
+import org.jabref.gui.Globals;
+import org.jabref.gui.actions.ActionFactory;
+import org.jabref.gui.actions.StandardActions;
+import org.jabref.gui.help.HelpAction;
+import org.jabref.gui.preferences.AbstractPreferenceTabView;
+import org.jabref.gui.preferences.PreferencesTab;
+import org.jabref.logic.help.HelpFile;
+import org.jabref.logic.l10n.Localization;
+
+import com.airhacks.afterburner.views.ViewLoader;
+
+public class CustomEditorFieldsTab extends AbstractPreferenceTabView&lt;CustomEditorFieldsTabViewModel&gt; implements PreferencesTab {
+
+    @FXML private Button generalFieldsHelp;
+    @FXML private TextArea fieldsTextArea;
+
+<span class="nc" id="L23">    public CustomEditorFieldsTab() {</span>
+<span class="nc" id="L24">        ViewLoader.view(this)</span>
+<span class="nc" id="L25">                  .root(this)</span>
+<span class="nc" id="L26">                  .load();</span>
+<span class="nc" id="L27">    }</span>
+
+    @Override
+    public String getTabName() {
+<span class="nc" id="L31">        return Localization.lang(&quot;Custom editor tabs&quot;);</span>
+    }
+
+    public void initialize() {
+<span class="nc" id="L35">        viewModel = new CustomEditorFieldsTabViewModel(dialogService, preferencesService);</span>
+
+<span class="nc" id="L37">        fieldsTextArea.textProperty().bindBidirectional(viewModel.fieldsProperty());</span>
+
+<span class="nc" id="L39">        ActionFactory actionFactory = new ActionFactory(Globals.getKeyPrefs());</span>
+<span class="nc" id="L40">        actionFactory.configureIconButton(StandardActions.HELP, new HelpAction(HelpFile.GENERAL_FIELDS), generalFieldsHelp);</span>
+<span class="nc" id="L41">    }</span>
+
+    @FXML
+    void resetToDefaults() {
+<span class="nc" id="L45">        viewModel.resetToDefaults();</span>
+<span class="nc" id="L46">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>
