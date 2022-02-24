@@ -280,3 +280,8 @@ There are many opportunities to split up the code into smaller functions. We wou
 6. Remove redundant `else if` for tag "DB" on line 253
 7. Extract the month parsing logic
 8. Extract multi-predicate `else if` statements with methods  
+
+## Task 3 - Refactoring Implementation
+
+### RisImporter::importDatabase
+By applying the refactoring plan, we have managed to reduce CCN from 110 down to 71 which constitutes a 35% reduction
