@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RebuildFulltextSearchIndexAction.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.search</a> &gt; <span class="el_source">RebuildFulltextSearchIndexAction.java</span></div><h1>RebuildFulltextSearchIndexAction.java</h1><pre class="source lang-java linenums">package org.jabref.gui.search;
+
+import java.io.IOException;
+
+import org.jabref.gui.DialogService;
+import org.jabref.gui.Globals;
+import org.jabref.gui.LibraryTab;
+import org.jabref.gui.StateManager;
+import org.jabref.gui.actions.SimpleCommand;
+import org.jabref.gui.util.BackgroundTask;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.logic.pdf.search.indexing.PdfIndexer;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.preferences.FilePreferences;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import static org.jabref.gui.actions.ActionHelper.needsDatabase;
+
+public class RebuildFulltextSearchIndexAction extends SimpleCommand {
+
+<span class="nc" id="L23">    private static final Logger LOGGER = LoggerFactory.getLogger(LibraryTab.class);</span>
+
+    private final StateManager stateManager;
+    private final GetCurrentLibraryTab currentLibraryTab;
+    private final DialogService dialogService;
+    private final FilePreferences filePreferences;
+
+    private BibDatabaseContext databaseContext;
+
+<span class="nc" id="L32">    private boolean shouldContinue = true;</span>
+
+<span class="nc" id="L34">    public RebuildFulltextSearchIndexAction(StateManager stateManager, GetCurrentLibraryTab currentLibraryTab, DialogService dialogService, FilePreferences filePreferences) {</span>
+<span class="nc" id="L35">        this.stateManager = stateManager;</span>
+<span class="nc" id="L36">        this.currentLibraryTab = currentLibraryTab;</span>
+<span class="nc" id="L37">        this.dialogService = dialogService;</span>
+<span class="nc" id="L38">        this.filePreferences = filePreferences;</span>
+
+<span class="nc" id="L40">        this.executable.bind(needsDatabase(stateManager));</span>
+<span class="nc" id="L41">    }</span>
+
+    @Override
+    public void execute() {
+<span class="nc" id="L45">        init();</span>
+<span class="nc" id="L46">        BackgroundTask.wrap(this::rebuildIndex)</span>
+<span class="nc" id="L47">                      .executeWith(Globals.TASK_EXECUTOR);</span>
+<span class="nc" id="L48">    }</span>
+
+    public void init() {
+<span class="nc bnc" id="L51" title="All 2 branches missed.">        if (stateManager.getActiveDatabase().isEmpty()) {</span>
+<span class="nc" id="L52">            return;</span>
+        }
+
+<span class="nc" id="L55">        databaseContext = stateManager.getActiveDatabase().get();</span>
+<span class="nc" id="L56">        boolean confirm = dialogService.showConfirmationDialogAndWait(</span>
+<span class="nc" id="L57">                Localization.lang(&quot;Rebuild fulltext search index&quot;),</span>
+<span class="nc" id="L58">                Localization.lang(&quot;Rebuild fulltext search index for current library?&quot;));</span>
+<span class="nc bnc" id="L59" title="All 2 branches missed.">        if (!confirm) {</span>
+<span class="nc" id="L60">            shouldContinue = false;</span>
+<span class="nc" id="L61">            return;</span>
+        }
+<span class="nc" id="L63">        dialogService.notify(Localization.lang(&quot;Rebuilding fulltext search index...&quot;));</span>
+<span class="nc" id="L64">    }</span>
+
+    private void rebuildIndex() {
+<span class="nc bnc" id="L67" title="All 4 branches missed.">        if (!shouldContinue || stateManager.getActiveDatabase().isEmpty()) {</span>
+<span class="nc" id="L68">            return;</span>
+        }
+        try {
+<span class="nc" id="L71">            currentLibraryTab.get().getIndexingTaskManager().createIndex(PdfIndexer.of(databaseContext, filePreferences));</span>
+<span class="nc" id="L72">            currentLibraryTab.get().getIndexingTaskManager().addToIndex(PdfIndexer.of(databaseContext, filePreferences), databaseContext);</span>
+<span class="nc" id="L73">        } catch (IOException e) {</span>
+<span class="nc" id="L74">            dialogService.notify(Localization.lang(&quot;Failed to access fulltext search index&quot;));</span>
+<span class="nc" id="L75">            LOGGER.error(&quot;Failed to access fulltext search index&quot;, e);</span>
+<span class="nc" id="L76">        }</span>
+<span class="nc" id="L77">    }</span>
+
+    public interface GetCurrentLibraryTab {
+        LibraryTab get();
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

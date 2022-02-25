@@ -1,0 +1,1255 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VM.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.bst</a> &gt; <span class="el_source">VM.java</span></div><h1>VM.java</h1><pre class="source lang-java linenums">package org.jabref.logic.bst;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Stack;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.jabref.logic.bibtex.FieldContentFormatterPreferences;
+import org.jabref.logic.bibtex.FieldWriter;
+import org.jabref.logic.bibtex.FieldWriterPreferences;
+import org.jabref.logic.bibtex.InvalidFieldValueException;
+import org.jabref.model.database.BibDatabase;
+import org.jabref.model.entry.AuthorList;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.Month;
+import org.jabref.model.entry.field.Field;
+import org.jabref.model.entry.field.FieldFactory;
+import org.jabref.model.entry.field.StandardField;
+
+import org.antlr.runtime.ANTLRFileStream;
+import org.antlr.runtime.ANTLRStringStream;
+import org.antlr.runtime.CharStream;
+import org.antlr.runtime.CommonTokenStream;
+import org.antlr.runtime.RecognitionException;
+import org.antlr.runtime.tree.CommonTree;
+import org.antlr.runtime.tree.Tree;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * A BibTeX Virtual machine that can execute .bst files.
+ * &lt;p&gt;
+ * Documentation can be found in the original bibtex distribution:
+ * &lt;p&gt;
+ * https://www.ctan.org/pkg/bibtex
+ */
+public class VM implements Warn {
+
+<span class="fc" id="L48">    public static final Integer FALSE = 0;</span>
+
+<span class="fc" id="L50">    public static final Integer TRUE = 1;</span>
+
+<span class="fc" id="L52">    private static final Pattern ADD_PERIOD_PATTERN = Pattern.compile(&quot;([^\\.\\?\\!\\}\\s])(\\}|\\s)*$&quot;);</span>
+
+<span class="fc" id="L54">    private static final Logger LOGGER = LoggerFactory.getLogger(VM.class);</span>
+
+    private List&lt;BstEntry&gt; entries;
+
+<span class="fc" id="L58">    private Map&lt;String, String&gt; strings = new HashMap&lt;&gt;();</span>
+
+<span class="fc" id="L60">    private Map&lt;String, Integer&gt; integers = new HashMap&lt;&gt;();</span>
+
+<span class="fc" id="L62">    private Map&lt;String, BstFunction&gt; functions = new HashMap&lt;&gt;();</span>
+
+<span class="fc" id="L64">    private Stack&lt;Object&gt; stack = new Stack&lt;&gt;();</span>
+
+    private final Map&lt;String, BstFunction&gt; buildInFunctions;
+
+    private File file;
+
+    private final CommonTree tree;
+
+    private StringBuilder bbl;
+
+<span class="fc" id="L74">    private String preamble = &quot;&quot;;</span>
+
+    public static class Identifier {
+
+        public final String name;
+
+<span class="fc" id="L80">        public Identifier(String name) {</span>
+<span class="fc" id="L81">            this.name = name;</span>
+<span class="fc" id="L82">        }</span>
+
+        public String getName() {
+<span class="fc" id="L85">            return name;</span>
+        }
+    }
+
+    public static class Variable {
+
+        public final String name;
+
+<span class="nc" id="L93">        public Variable(String name) {</span>
+<span class="nc" id="L94">            this.name = name;</span>
+<span class="nc" id="L95">        }</span>
+
+        public String getName() {
+<span class="nc" id="L98">            return name;</span>
+        }
+    }
+
+    @FunctionalInterface
+    public interface BstFunction {
+        void execute(BstEntry context);
+    }
+
+    public VM(File f) throws RecognitionException, IOException {
+<span class="fc" id="L108">        this(new ANTLRFileStream(f.getPath()));</span>
+<span class="fc" id="L109">        this.file = f;</span>
+<span class="fc" id="L110">    }</span>
+
+    public VM(String s) throws RecognitionException {
+<span class="fc" id="L113">        this(new ANTLRStringStream(s));</span>
+<span class="fc" id="L114">    }</span>
+
+    private VM(CharStream bst) throws RecognitionException {
+<span class="fc" id="L117">        this(VM.charStream2CommonTree(bst));</span>
+<span class="fc" id="L118">    }</span>
+
+<span class="fc" id="L120">    private VM(CommonTree tree) {</span>
+<span class="fc" id="L121">        this.tree = tree;</span>
+
+<span class="fc" id="L123">        this.buildInFunctions = new HashMap&lt;&gt;(37);</span>
+
+        /*
+         * Pops the top two (integer) literals, compares them, and pushes
+         * the integer 1 if the second is greater than the first, 0
+         * otherwise.
+         */
+<span class="fc" id="L130">        buildInFunctions.put(&quot;&gt;&quot;, context -&gt; {</span>
+<span class="pc bpc" id="L131" title="1 of 2 branches missed.">            if (stack.size() &lt; 2) {</span>
+<span class="nc" id="L132">                throw new VMException(&quot;Not enough operands on stack for operation &gt;&quot;);</span>
+            }
+<span class="fc" id="L134">            Object o2 = stack.pop();</span>
+<span class="fc" id="L135">            Object o1 = stack.pop();</span>
+
+<span class="pc bpc" id="L137" title="2 of 4 branches missed.">            if (!((o1 instanceof Integer) &amp;&amp; (o2 instanceof Integer))) {</span>
+<span class="nc" id="L138">                throw new VMException(&quot;Can only compare two integers with &gt;&quot;);</span>
+            }
+
+<span class="fc bfc" id="L141" title="All 2 branches covered.">            stack.push(((Integer) o1).compareTo((Integer) o2) &gt; 0 ? VM.TRUE : VM.FALSE);</span>
+<span class="fc" id="L142">        });</span>
+
+        /* Analogous to &gt;. */
+<span class="fc" id="L145">        buildInFunctions.put(&quot;&lt;&quot;, context -&gt; {</span>
+<span class="pc bpc" id="L146" title="1 of 2 branches missed.">            if (stack.size() &lt; 2) {</span>
+<span class="nc" id="L147">                throw new VMException(&quot;Not enough operands on stack for operation &lt;&quot;);</span>
+            }
+<span class="fc" id="L149">            Object o2 = stack.pop();</span>
+<span class="fc" id="L150">            Object o1 = stack.pop();</span>
+
+<span class="pc bpc" id="L152" title="2 of 4 branches missed.">            if (!((o1 instanceof Integer) &amp;&amp; (o2 instanceof Integer))) {</span>
+<span class="nc" id="L153">                throw new VMException(&quot;Can only compare two integers with &lt;&quot;);</span>
+            }
+
+<span class="fc bfc" id="L156" title="All 2 branches covered.">            stack.push(((Integer) o1).compareTo((Integer) o2) &lt; 0 ? VM.TRUE : VM.FALSE);</span>
+<span class="fc" id="L157">        });</span>
+
+        /*
+         * Pops the top two (both integer or both string) literals, compares
+         * them, and pushes the integer 1 if they're equal, 0 otherwise.
+         */
+<span class="fc" id="L163">        buildInFunctions.put(&quot;=&quot;, context -&gt; {</span>
+<span class="pc bpc" id="L164" title="1 of 2 branches missed.">            if (stack.size() &lt; 2) {</span>
+<span class="nc" id="L165">                throw new VMException(&quot;Not enough operands on stack for operation =&quot;);</span>
+            }
+<span class="fc" id="L167">            Object o1 = stack.pop();</span>
+<span class="fc" id="L168">            Object o2 = stack.pop();</span>
+
+<span class="pc bpc" id="L170" title="1 of 6 branches missed.">            if ((o1 == null) ^ (o2 == null)) {</span>
+<span class="fc" id="L171">                stack.push(VM.FALSE);</span>
+<span class="fc" id="L172">                return;</span>
+            }
+
+<span class="pc bpc" id="L175" title="3 of 4 branches missed.">            if ((o1 == null) &amp;&amp; (o2 == null)) {</span>
+<span class="nc" id="L176">                stack.push(VM.TRUE);</span>
+<span class="nc" id="L177">                return;</span>
+            }
+
+<span class="fc bfc" id="L180" title="All 2 branches covered.">            stack.push(o1.equals(o2) ? VM.TRUE : VM.FALSE);</span>
+<span class="fc" id="L181">        });</span>
+
+        /* Pops the top two (integer) literals and pushes their sum. */
+<span class="fc" id="L184">        buildInFunctions.put(&quot;+&quot;, context -&gt; {</span>
+<span class="pc bpc" id="L185" title="1 of 2 branches missed.">            if (stack.size() &lt; 2) {</span>
+<span class="nc" id="L186">                throw new VMException(&quot;Not enough operands on stack for operation +&quot;);</span>
+            }
+<span class="fc" id="L188">            Object o2 = stack.pop();</span>
+<span class="fc" id="L189">            Object o1 = stack.pop();</span>
+
+<span class="pc bpc" id="L191" title="1 of 4 branches missed.">            if (!((o1 instanceof Integer) &amp;&amp; (o2 instanceof Integer))) {</span>
+<span class="fc" id="L192">                throw new VMException(&quot;Can only compare two integers with +&quot;);</span>
+            }
+
+<span class="fc" id="L195">            stack.push((Integer) o1 + (Integer) o2);</span>
+<span class="fc" id="L196">        });</span>
+
+        /*
+         * Pops the top two (integer) literals and pushes their difference
+         * (the first subtracted from the second).
+         */
+<span class="fc" id="L202">        buildInFunctions.put(&quot;-&quot;, context -&gt; {</span>
+<span class="pc bpc" id="L203" title="1 of 2 branches missed.">            if (stack.size() &lt; 2) {</span>
+<span class="nc" id="L204">                throw new VMException(&quot;Not enough operands on stack for operation -&quot;);</span>
+            }
+<span class="fc" id="L206">            Object o2 = stack.pop();</span>
+<span class="fc" id="L207">            Object o1 = stack.pop();</span>
+
+<span class="pc bpc" id="L209" title="2 of 4 branches missed.">            if (!((o1 instanceof Integer) &amp;&amp; (o2 instanceof Integer))) {</span>
+<span class="nc" id="L210">                throw new VMException(&quot;Can only subtract two integers with -&quot;);</span>
+            }
+
+<span class="fc" id="L213">            stack.push((Integer) o1 - (Integer) o2);</span>
+<span class="fc" id="L214">        });</span>
+
+        /*
+         * Pops the top two (string) literals, concatenates them (in reverse
+         * order, that is, the order in which pushed), and pushes the
+         * resulting string.
+         */
+<span class="fc" id="L221">        buildInFunctions.put(&quot;*&quot;, context -&gt; {</span>
+<span class="pc bpc" id="L222" title="1 of 2 branches missed.">            if (stack.size() &lt; 2) {</span>
+<span class="nc" id="L223">                throw new VMException(&quot;Not enough operands on stack for operation *&quot;);</span>
+            }
+<span class="fc" id="L225">            Object o2 = stack.pop();</span>
+<span class="fc" id="L226">            Object o1 = stack.pop();</span>
+
+<span class="pc bpc" id="L228" title="1 of 2 branches missed.">            if (o1 == null) {</span>
+<span class="nc" id="L229">                o1 = &quot;&quot;;</span>
+            }
+<span class="fc bfc" id="L231" title="All 2 branches covered.">            if (o2 == null) {</span>
+<span class="fc" id="L232">                o2 = &quot;&quot;;</span>
+            }
+
+<span class="pc bpc" id="L235" title="2 of 4 branches missed.">            if (!((o1 instanceof String) &amp;&amp; (o2 instanceof String))) {</span>
+<span class="nc" id="L236">                LOGGER.error(&quot;o1: {} ({})&quot;, o1, o1.getClass());</span>
+<span class="nc" id="L237">                LOGGER.error(&quot;o2: {} ({})&quot;, o2, o2.getClass());</span>
+<span class="nc" id="L238">                throw new VMException(&quot;Can only concatenate two String with *&quot;);</span>
+            }
+
+<span class="fc" id="L241">            stack.push(o1.toString() + o2);</span>
+<span class="fc" id="L242">        });</span>
+
+        /*
+         * Pops the top two literals and assigns to the first (which must be
+         * a global or entry variable) the value of the second.
+         */
+<span class="fc" id="L248">        buildInFunctions.put(&quot;:=&quot;, context -&gt; {</span>
+<span class="pc bpc" id="L249" title="1 of 2 branches missed.">            if (stack.size() &lt; 2) {</span>
+<span class="nc" id="L250">                throw new VMException(&quot;Invalid call to operation :=&quot;);</span>
+            }
+<span class="fc" id="L252">            Object o1 = stack.pop();</span>
+<span class="fc" id="L253">            Object o2 = stack.pop();</span>
+<span class="fc" id="L254">            assign(context, o1, o2);</span>
+<span class="fc" id="L255">        });</span>
+
+        /*
+         * Pops the top (string) literal, adds a `.' to it if the last non
+         * '}' character isn't a `.', `?', or `!', and pushes this resulting
+         * string.
+         */
+<span class="fc" id="L262">        buildInFunctions.put(&quot;add.period$&quot;, context -&gt; addPeriodFunction());</span>
+
+        /*
+         * Executes the function whose name is the entry type of an entry.
+         * For example if an entry is of type book, this function executes
+         * the book function. When given as an argument to the ITERATE
+         * command, call.type$ actually produces the output for the entries.
+         * For an entry with an unknown type, it executes the function
+         * default.type. Thus you should define (before the READ command)
+         * one function for each standard entry type as well as a
+         * default.type function.
+         */
+<span class="fc" id="L274">        buildInFunctions.put(&quot;call.type$&quot;, context -&gt; {</span>
+<span class="pc bpc" id="L275" title="1 of 2 branches missed.">            if (context == null) {</span>
+<span class="nc" id="L276">                throw new VMException(&quot;Call.type$ can only be called from within a context (ITERATE or REVERSE).&quot;);</span>
+            }
+<span class="fc" id="L278">            VM.this.execute(context.entry.getType().getName(), context);</span>
+<span class="fc" id="L279">        });</span>
+
+<span class="fc" id="L281">        buildInFunctions.put(&quot;change.case$&quot;, new ChangeCaseFunction(this));</span>
+
+        /*
+         * Pops the top (string) literal, makes sure it's a single
+         * character, converts it to the corresponding ASCII integer, and
+         * pushes this integer.
+         */
+<span class="fc" id="L288">        buildInFunctions.put(&quot;chr.to.int$&quot;, context -&gt; {</span>
+<span class="pc bpc" id="L289" title="1 of 2 branches missed.">            if (stack.isEmpty()) {</span>
+<span class="nc" id="L290">                throw new VMException(&quot;Not enough operands on stack for operation chr.to.int$&quot;);</span>
+            }
+<span class="fc" id="L292">            Object o1 = stack.pop();</span>
+
+<span class="pc bpc" id="L294" title="2 of 4 branches missed.">            if (!((o1 instanceof String) &amp;&amp; (((String) o1).length() == 1))) {</span>
+<span class="nc" id="L295">                throw new VMException(&quot;Can only perform chr.to.int$ on string with length 1&quot;);</span>
+            }
+
+<span class="fc" id="L298">            String s = (String) o1;</span>
+
+<span class="fc" id="L300">            stack.push((int) s.charAt(0));</span>
+<span class="fc" id="L301">        });</span>
+
+        /*
+         * Pushes the string that was the \cite-command argument for this
+         * entry.
+         */
+<span class="fc" id="L307">        buildInFunctions.put(&quot;cite$&quot;, context -&gt; {</span>
+<span class="pc bpc" id="L308" title="1 of 2 branches missed.">            if (context == null) {</span>
+<span class="nc" id="L309">                throw new VMException(&quot;Must have an entry to cite$&quot;);</span>
+            }
+<span class="fc" id="L311">            stack.push(context.entry.getCitationKey().orElse(null));</span>
+<span class="fc" id="L312">        });</span>
+
+        /*
+         * Pops the top literal from the stack and pushes two copies of it.
+         */
+<span class="fc" id="L317">        buildInFunctions.put(&quot;duplicate$&quot;, context -&gt; {</span>
+<span class="pc bpc" id="L318" title="1 of 2 branches missed.">            if (stack.isEmpty()) {</span>
+<span class="nc" id="L319">                throw new VMException(&quot;Not enough operands on stack for operation duplicate$&quot;);</span>
+            }
+<span class="fc" id="L321">            Object o1 = stack.pop();</span>
+
+<span class="fc" id="L323">            stack.push(o1);</span>
+<span class="fc" id="L324">            stack.push(o1);</span>
+<span class="fc" id="L325">        });</span>
+
+        /*
+         * Pops the top literal and pushes the integer 1 if it's a missing
+         * field or a string having no non-white-space characters, 0
+         * otherwise.
+         */
+<span class="fc" id="L332">        buildInFunctions.put(&quot;empty$&quot;, context -&gt; {</span>
+<span class="pc bpc" id="L333" title="1 of 2 branches missed.">            if (stack.isEmpty()) {</span>
+<span class="nc" id="L334">                throw new VMException(&quot;Not enough operands on stack for operation empty$&quot;);</span>
+            }
+<span class="fc" id="L336">            Object o1 = stack.pop();</span>
+
+<span class="fc bfc" id="L338" title="All 2 branches covered.">            if (o1 == null) {</span>
+<span class="fc" id="L339">                stack.push(VM.TRUE);</span>
+<span class="fc" id="L340">                return;</span>
+            }
+
+<span class="pc bpc" id="L343" title="1 of 2 branches missed.">            if (!(o1 instanceof String)) {</span>
+<span class="nc" id="L344">                throw new VMException(&quot;Operand does not match function empty$&quot;);</span>
+            }
+
+<span class="fc" id="L347">            String s = (String) o1;</span>
+
+<span class="fc bfc" id="L349" title="All 2 branches covered.">            stack.push(&quot;&quot;.equals(s.trim()) ? VM.TRUE : VM.FALSE);</span>
+<span class="fc" id="L350">        });</span>
+
+<span class="fc" id="L352">        buildInFunctions.put(&quot;format.name$&quot;, new FormatNameFunction(this));</span>
+
+        /*
+         * Pops the top three literals (they are two function literals and
+         * an integer literal, in that order); if the integer is greater
+         * than 0, it executes the second literal, else it executes the
+         * first.
+         */
+<span class="fc" id="L360">        buildInFunctions.put(&quot;if$&quot;, context -&gt; {</span>
+<span class="pc bpc" id="L361" title="1 of 2 branches missed.">            if (stack.size() &lt; 3) {</span>
+<span class="nc" id="L362">                throw new VMException(&quot;Not enough operands on stack for operation =&quot;);</span>
+            }
+<span class="fc" id="L364">            Object f1 = stack.pop();</span>
+<span class="fc" id="L365">            Object f2 = stack.pop();</span>
+<span class="fc" id="L366">            Object i = stack.pop();</span>
+
+<span class="pc bpc" id="L368" title="7 of 10 branches missed.">            if (!((f1 instanceof Identifier) || (f1 instanceof Tree))</span>
+                    &amp;&amp; ((f2 instanceof Identifier) || (f2 instanceof Tree)) &amp;&amp; (i instanceof Integer)) {
+<span class="nc" id="L370">                throw new VMException(&quot;Expecting two functions and an integer for if$.&quot;);</span>
+            }
+
+<span class="fc bfc" id="L373" title="All 2 branches covered.">            if ((Integer) i &gt; 0) {</span>
+<span class="fc" id="L374">                VM.this.executeInContext(f2, context);</span>
+            } else {
+<span class="fc" id="L376">                VM.this.executeInContext(f1, context);</span>
+            }
+<span class="fc" id="L378">        });</span>
+
+        /*
+         * Pops the top (integer) literal, interpreted as the ASCII integer
+         * value of a single character, converts it to the corresponding
+         * single-character string, and pushes this string.
+         */
+<span class="fc" id="L385">        buildInFunctions.put(&quot;int.to.chr$&quot;, context -&gt; {</span>
+<span class="pc bpc" id="L386" title="1 of 2 branches missed.">            if (stack.isEmpty()) {</span>
+<span class="nc" id="L387">                throw new VMException(&quot;Not enough operands on stack for operation int.to.chr$&quot;);</span>
+            }
+<span class="fc" id="L389">            Object o1 = stack.pop();</span>
+
+<span class="pc bpc" id="L391" title="1 of 2 branches missed.">            if (!(o1 instanceof Integer)) {</span>
+<span class="nc" id="L392">                throw new VMException(&quot;Can only perform operation int.to.chr$ on an Integer&quot;);</span>
+            }
+
+<span class="fc" id="L395">            Integer i = (Integer) o1;</span>
+
+<span class="fc" id="L397">            stack.push(String.valueOf((char) i.intValue()));</span>
+<span class="fc" id="L398">        });</span>
+
+        /*
+         * Pops the top (integer) literal, converts it to its (unique)
+         * string equivalent, and pushes this string.
+         */
+<span class="fc" id="L404">        buildInFunctions.put(&quot;int.to.str$&quot;, context -&gt; {</span>
+<span class="pc bpc" id="L405" title="1 of 2 branches missed.">            if (stack.isEmpty()) {</span>
+<span class="nc" id="L406">                throw new VMException(&quot;Not enough operands on stack for operation int.to.str$&quot;);</span>
+            }
+<span class="fc" id="L408">            Object o1 = stack.pop();</span>
+
+<span class="pc bpc" id="L410" title="1 of 2 branches missed.">            if (!(o1 instanceof Integer)) {</span>
+<span class="nc" id="L411">                throw new VMException(&quot;Can only transform an integer to an string using int.to.str$&quot;);</span>
+            }
+
+<span class="fc" id="L414">            stack.push(o1.toString());</span>
+<span class="fc" id="L415">        });</span>
+
+        /*
+         * Pops the top literal and pushes the integer 1 if it's a missing
+         * field, 0 otherwise.
+         */
+<span class="fc" id="L421">        buildInFunctions.put(&quot;missing$&quot;, context -&gt; {</span>
+<span class="pc bpc" id="L422" title="1 of 2 branches missed.">            if (stack.isEmpty()) {</span>
+<span class="nc" id="L423">                throw new VMException(&quot;Not enough operands on stack for operation missing$&quot;);</span>
+            }
+<span class="fc" id="L425">            Object o1 = stack.pop();</span>
+
+<span class="fc bfc" id="L427" title="All 2 branches covered.">            if (o1 == null) {</span>
+<span class="fc" id="L428">                stack.push(VM.TRUE);</span>
+<span class="fc" id="L429">                return;</span>
+            }
+
+<span class="pc bpc" id="L432" title="1 of 2 branches missed.">            if (!(o1 instanceof String)) {</span>
+<span class="nc" id="L433">                warn(&quot;Not a string or missing field in operation missing$&quot;);</span>
+<span class="nc" id="L434">                stack.push(VM.TRUE);</span>
+<span class="nc" id="L435">                return;</span>
+            }
+
+<span class="fc" id="L438">            stack.push(VM.FALSE);</span>
+<span class="fc" id="L439">        });</span>
+
+        /*
+         * Writes onto the bbl file what is accumulated in the output buffer.
+         * It writes a blank line if and only if the output buffer is empty.
+         * Since write$ does reasonable line breaking, you should use this
+         * function only when you want a blank line or an explicit line
+         * break.
+         */
+<span class="fc" id="L448">        buildInFunctions.put(&quot;newline$&quot;, context -&gt; VM.this.bbl.append('\n'));</span>
+
+        /*
+         * Pops the top (string) literal and pushes the number of names the
+         * string represents one plus the number of occurrences of the
+         * substring &quot;and&quot; (ignoring case differences) surrounded by
+         * non-null white-space at the top brace level.
+         */
+<span class="fc" id="L456">        buildInFunctions.put(&quot;num.names$&quot;, context -&gt; {</span>
+<span class="pc bpc" id="L457" title="1 of 2 branches missed.">            if (stack.isEmpty()) {</span>
+<span class="nc" id="L458">                throw new VMException(&quot;Not enough operands on stack for operation num.names$&quot;);</span>
+            }
+<span class="fc" id="L460">            Object o1 = stack.pop();</span>
+
+<span class="pc bpc" id="L462" title="1 of 2 branches missed.">            if (!(o1 instanceof String)) {</span>
+<span class="nc" id="L463">                throw new VMException(&quot;Need a string at the top of the stack for num.names$&quot;);</span>
+            }
+<span class="fc" id="L465">            String s = (String) o1;</span>
+
+<span class="fc" id="L467">            stack.push(AuthorList.parse(s).getNumberOfAuthors());</span>
+<span class="fc" id="L468">        });</span>
+
+        /*
+         * Pops the top of the stack but doesn't print it; this gets rid of
+         * an unwanted stack literal.
+         */
+<span class="fc" id="L474">        buildInFunctions.put(&quot;pop$&quot;, context -&gt; stack.pop());</span>
+
+        /*
+         * The |built_in| function {\.{preamble\$}} pushes onto the stack
+         * the concatenation of all the \.{preamble} strings read from the
+         * database files. (or the empty string if there where none)
+         *
+         * @PREAMBLE strings read from the database files.
+         */
+<span class="fc" id="L483">        buildInFunctions.put(&quot;preamble$&quot;, context -&gt; {</span>
+<span class="fc" id="L484">            stack.push(preamble);</span>
+<span class="fc" id="L485">        });</span>
+
+        /*
+         * Pops the top (string) literal, removes nonalphanumeric characters
+         * except for white-space characters and hyphens and ties (these all get
+         * converted to a space), removes certain alphabetic characters
+         * contained in the control sequences associated with a \special
+         * character&quot;, and pushes the resulting string.
+         */
+<span class="fc" id="L494">        buildInFunctions.put(&quot;purify$&quot;, new PurifyFunction(this));</span>
+
+        /*
+         * Pushes the string consisting of the double-quote character.
+         */
+<span class="fc" id="L499">        buildInFunctions.put(&quot;quote$&quot;, context -&gt; stack.push(&quot;\&quot;&quot;));</span>
+
+        /*
+         * Is a no-op.
+         */
+<span class="fc" id="L504">        buildInFunctions.put(&quot;skip$&quot;, context -&gt; {</span>
+            // Nothing to do! Yeah!
+<span class="fc" id="L506">        });</span>
+
+        /*
+         * Pops and prints the whole stack; it's meant to be used for style
+         * designers while debugging.
+         */
+<span class="fc" id="L512">        buildInFunctions.put(&quot;stack$&quot;, context -&gt; {</span>
+<span class="nc bnc" id="L513" title="All 2 branches missed.">            while (!stack.empty()) {</span>
+<span class="nc" id="L514">                LOGGER.debug(&quot;Stack entry {}&quot;, stack.pop());</span>
+            }
+<span class="nc" id="L516">        });</span>
+
+        /*
+         * Pops the top three literals (they are the two integers literals
+         * len and start, and a string literal, in that order). It pushes
+         * the substring of the (at most) len consecutive characters
+         * starting at the startth character (assuming 1-based indexing) if
+         * start is positive, and ending at the start-th character
+         * (including) from the end if start is negative (where the first
+         * character from the end is the last character).
+         */
+<span class="fc" id="L527">        buildInFunctions.put(&quot;substring$&quot;, context -&gt; substringFunction());</span>
+
+        /*
+         * Swaps the top two literals on the stack. text.length$ Pops the
+         * top (string) literal, and pushes the number of text characters
+         * it contains, where an accented character (more precisely, a
+         * \special character&quot;, defined in Section 4) counts as a single
+         * text character, even if it's missing its matching right brace,
+         * and where braces don't count as text characters.
+         */
+<span class="fc" id="L537">        buildInFunctions.put(&quot;swap$&quot;, context -&gt; {</span>
+<span class="pc bpc" id="L538" title="1 of 2 branches missed.">            if (stack.size() &lt; 2) {</span>
+<span class="nc" id="L539">                throw new VMException(&quot;Not enough operands on stack for operation swap$&quot;);</span>
+            }
+<span class="fc" id="L541">            Object f1 = stack.pop();</span>
+<span class="fc" id="L542">            Object f2 = stack.pop();</span>
+
+<span class="fc" id="L544">            stack.push(f1);</span>
+<span class="fc" id="L545">            stack.push(f2);</span>
+<span class="fc" id="L546">        });</span>
+
+        /*
+         * text.length$ Pops the top (string) literal, and pushes the number
+         * of text characters it contains, where an accented character (more
+         * precisely, a &quot;special character&quot;, defined in Section 4) counts as
+         * a single text character, even if it's missing its matching right
+         * brace, and where braces don't count as text characters.
+         *
+         * From BibTeXing: For the purposes of counting letters in labels,
+         * BibTEX considers everything contained inside the braces as a
+         * single letter.
+         */
+<span class="fc" id="L559">        buildInFunctions.put(&quot;text.length$&quot;, context -&gt; textLengthFunction());</span>
+
+        /*
+         * Pops the top two literals (the integer literal len and a string
+         * literal, in that order). It pushes the substring of the (at most) len
+         * consecutive text characters starting from the beginning of the
+         * string. This function is similar to substring$, but this one
+         * considers a \special character&quot;, even if it's missing its matching
+         * right brace, to be a single text character (rather than however many
+         * ASCII characters it actually comprises), and this function doesn't
+         * consider braces to be text characters; furthermore, this function
+         * appends any needed matching right braces.
+         */
+<span class="fc" id="L572">        buildInFunctions.put(&quot;text.prefix$&quot;, new TextPrefixFunction(this));</span>
+
+        /*
+         * Pops and prints the top of the stack to the log file. It's useful for debugging.
+         */
+<span class="fc" id="L577">        buildInFunctions.put(&quot;top$&quot;, context -&gt; LOGGER.debug(&quot;Stack entry {}&quot;, stack.pop()));</span>
+
+        /*
+         * Pushes the current entry's type (book, article, etc.), but pushes
+         * the null string if the type is either unknown or undefined.
+         */
+<span class="fc" id="L583">        buildInFunctions.put(&quot;type$&quot;, context -&gt; {</span>
+<span class="pc bpc" id="L584" title="1 of 2 branches missed.">            if (context == null) {</span>
+<span class="nc" id="L585">                throw new VMException(&quot;type$ need a context.&quot;);</span>
+            }
+
+<span class="fc" id="L588">            stack.push(context.entry.getType().getName());</span>
+<span class="fc" id="L589">        });</span>
+
+        /*
+         * Pops the top (string) literal and prints it following a warning
+         * message. This also increments a count of the number of warning
+         * messages issued.
+         */
+<span class="fc" id="L596">        buildInFunctions.put(&quot;warning$&quot;, new BstFunction() {</span>
+
+<span class="fc" id="L598">            int warning = 1;</span>
+
+            @Override
+            public void execute(BstEntry context) {
+<span class="fc" id="L602">                LOGGER.warn(&quot;Warning (#&quot; + (warning++) + &quot;): &quot; + stack.pop());</span>
+<span class="fc" id="L603">            }</span>
+        });
+
+        /*
+         * Pops the top two (function) literals, and keeps executing the
+         * second as long as the (integer) literal left on the stack by
+         * executing the first is greater than 0.
+         */
+<span class="fc" id="L611">        buildInFunctions.put(&quot;while$&quot;, this::whileFunction);</span>
+
+<span class="fc" id="L613">        buildInFunctions.put(&quot;width$&quot;, new WidthFunction(this));</span>
+
+        /*
+         * Pops the top (string) literal and writes it on the output buffer
+         * (which will result in stuff being written onto the bbl file when
+         * the buffer fills up).
+         */
+<span class="fc" id="L620">        buildInFunctions.put(&quot;write$&quot;, context -&gt; {</span>
+<span class="fc" id="L621">            String s = (String) stack.pop();</span>
+<span class="fc" id="L622">            VM.this.bbl.append(s);</span>
+<span class="fc" id="L623">        });</span>
+<span class="fc" id="L624">    }</span>
+
+    private void textLengthFunction() {
+<span class="pc bpc" id="L627" title="1 of 2 branches missed.">        if (stack.isEmpty()) {</span>
+<span class="nc" id="L628">            throw new VMException(&quot;Not enough operands on stack for operation text.length$&quot;);</span>
+        }
+<span class="fc" id="L630">        Object o1 = stack.pop();</span>
+
+<span class="pc bpc" id="L632" title="1 of 2 branches missed.">        if (!(o1 instanceof String)) {</span>
+<span class="nc" id="L633">            throw new VMException(&quot;Can only perform operation on a string text.length$&quot;);</span>
+        }
+
+<span class="fc" id="L636">        String s = (String) o1;</span>
+<span class="fc" id="L637">        char[] c = s.toCharArray();</span>
+<span class="fc" id="L638">        int result = 0;</span>
+
+        // Comments from bibtex.web:
+
+        // sp_ptr := str_start[pop_lit1];
+<span class="fc" id="L643">        int i = 0;</span>
+
+        // sp_end := str_start[pop_lit1+1];
+<span class="fc" id="L646">        int n = s.length();</span>
+
+        // sp_brace_level := 0;
+<span class="fc" id="L649">        int braceLevel = 0;</span>
+
+        // while (sp_ptr &lt; sp_end) do begin
+<span class="fc bfc" id="L652" title="All 2 branches covered.">        while (i &lt; n) {</span>
+            // incr(sp_ptr);
+<span class="fc" id="L654">            i++;</span>
+            // if (str_pool[sp_ptr-1] = left_brace) then
+            // begin
+<span class="fc bfc" id="L657" title="All 2 branches covered.">            if (c[i - 1] == '{') {</span>
+                // incr(sp_brace_level);
+<span class="fc" id="L659">                braceLevel++;</span>
+                // if ((sp_brace_level = 1) and (sp_ptr &lt; sp_end)) then
+<span class="pc bpc" id="L661" title="2 of 4 branches missed.">                if ((braceLevel == 1) &amp;&amp; (i &lt; n)) {</span>
+                    // if (str_pool[sp_ptr] = backslash) then
+                    // begin
+<span class="fc bfc" id="L664" title="All 2 branches covered.">                    if (c[i] == '\\') {</span>
+                        // incr(sp_ptr); {skip over the |backslash|}
+<span class="fc" id="L666">                        i++; // skip over backslash</span>
+                        // while ((sp_ptr &lt; sp_end) and (sp_brace_level
+                        // &gt; 0)) do begin
+<span class="pc bpc" id="L669" title="1 of 4 branches missed.">                        while ((i &lt; n) &amp;&amp; (braceLevel &gt; 0)) {</span>
+                            // if (str_pool[sp_ptr] = right_brace) then
+<span class="fc bfc" id="L671" title="All 2 branches covered.">                            if (c[i] == '}') {</span>
+                                // decr(sp_brace_level)
+<span class="fc" id="L673">                                braceLevel--;</span>
+<span class="fc bfc" id="L674" title="All 2 branches covered.">                            } else if (c[i] == '{') {</span>
+                                // incr(sp_brace_level);
+<span class="fc" id="L676">                                braceLevel++;</span>
+                            }
+                            // incr(sp_ptr);
+<span class="fc" id="L679">                            i++;</span>
+                            // end;
+                        }
+                        // incr(num_text_chars);
+<span class="fc" id="L683">                        result++;</span>
+                        // end;
+                    }
+                    // end
+                }
+
+                // else if (str_pool[sp_ptr-1] = right_brace) then
+                // begin
+<span class="fc bfc" id="L691" title="All 2 branches covered.">            } else if (c[i - 1] == '}') {</span>
+                // if (sp_brace_level &gt; 0) then
+<span class="pc bpc" id="L693" title="1 of 2 branches missed.">                if (braceLevel &gt; 0) {</span>
+                    // decr(sp_brace_level);
+<span class="fc" id="L695">                    braceLevel--;</span>
+                    // end
+                }
+            } else { // else
+                // incr(num_text_chars);
+<span class="fc" id="L700">                result++;</span>
+            }
+        }
+<span class="fc" id="L703">        stack.push(result);</span>
+<span class="fc" id="L704">    }</span>
+
+    private void whileFunction(BstEntry context) {
+<span class="pc bpc" id="L707" title="1 of 2 branches missed.">        if (stack.size() &lt; 2) {</span>
+<span class="nc" id="L708">            throw new VMException(&quot;Not enough operands on stack for operation while$&quot;);</span>
+        }
+<span class="fc" id="L710">        Object f2 = stack.pop();</span>
+<span class="fc" id="L711">        Object f1 = stack.pop();</span>
+
+<span class="pc bpc" id="L713" title="6 of 8 branches missed.">        if (!((f1 instanceof Identifier) || (f1 instanceof Tree))</span>
+                &amp;&amp; ((f2 instanceof Identifier) || (f2 instanceof Tree))) {
+<span class="nc" id="L715">            throw new VMException(&quot;Expecting two functions for while$.&quot;);</span>
+        }
+
+        do {
+<span class="fc" id="L719">            VM.this.executeInContext(f1, context);</span>
+
+<span class="fc" id="L721">            Object i = stack.pop();</span>
+<span class="pc bpc" id="L722" title="1 of 2 branches missed.">            if (!(i instanceof Integer)) {</span>
+<span class="nc" id="L723">                throw new VMException(&quot;First parameter to while has to return an integer but was &quot; + i);</span>
+            }
+<span class="fc bfc" id="L725" title="All 2 branches covered.">            if ((Integer) i &lt;= 0) {</span>
+<span class="fc" id="L726">                break;</span>
+            }
+<span class="fc" id="L728">            VM.this.executeInContext(f2, context);</span>
+<span class="fc" id="L729">        } while (true);</span>
+<span class="fc" id="L730">    }</span>
+
+    private void substringFunction() {
+<span class="pc bpc" id="L733" title="1 of 2 branches missed.">        if (stack.size() &lt; 3) {</span>
+<span class="nc" id="L734">            throw new VMException(&quot;Not enough operands on stack for operation substring$&quot;);</span>
+        }
+<span class="fc" id="L736">        Object o1 = stack.pop();</span>
+<span class="fc" id="L737">        Object o2 = stack.pop();</span>
+<span class="fc" id="L738">        Object o3 = stack.pop();</span>
+
+<span class="pc bpc" id="L740" title="3 of 6 branches missed.">        if (!((o1 instanceof Integer) &amp;&amp; (o2 instanceof Integer) &amp;&amp; (o3 instanceof String))) {</span>
+<span class="nc" id="L741">            throw new VMException(&quot;Expecting two integers and a string for substring$&quot;);</span>
+        }
+
+<span class="fc" id="L744">        Integer len = (Integer) o1;</span>
+<span class="fc" id="L745">        Integer start = (Integer) o2;</span>
+
+<span class="fc" id="L747">        int lenI = len;</span>
+<span class="fc" id="L748">        int startI = start;</span>
+
+<span class="fc bfc" id="L750" title="All 2 branches covered.">        if (lenI &gt; (Integer.MAX_VALUE / 2)) {</span>
+<span class="fc" id="L751">            lenI = Integer.MAX_VALUE / 2;</span>
+        }
+
+<span class="pc bpc" id="L754" title="1 of 2 branches missed.">        if (startI &gt; (Integer.MAX_VALUE / 2)) {</span>
+<span class="nc" id="L755">            startI = Integer.MAX_VALUE / 2;</span>
+        }
+
+<span class="pc bpc" id="L758" title="1 of 2 branches missed.">        if (startI &lt; (Integer.MIN_VALUE / 2)) {</span>
+<span class="nc" id="L759">            startI = -Integer.MIN_VALUE / 2;</span>
+        }
+
+<span class="fc" id="L762">        String s = (String) o3;</span>
+
+<span class="fc bfc" id="L764" title="All 2 branches covered.">        if (startI &lt; 0) {</span>
+<span class="fc" id="L765">            startI += s.length() + 1;</span>
+<span class="fc" id="L766">            startI = Math.max(1, (startI + 1) - lenI);</span>
+        }
+<span class="fc" id="L768">        stack.push(s.substring(startI - 1, Math.min((startI - 1) + lenI, s.length())));</span>
+<span class="fc" id="L769">    }</span>
+
+    private void addPeriodFunction() {
+<span class="pc bpc" id="L772" title="1 of 2 branches missed.">        if (stack.isEmpty()) {</span>
+<span class="nc" id="L773">            throw new VMException(&quot;Not enough operands on stack for operation add.period$&quot;);</span>
+        }
+<span class="fc" id="L775">        Object o1 = stack.pop();</span>
+
+<span class="pc bpc" id="L777" title="1 of 2 branches missed.">        if (!(o1 instanceof String)) {</span>
+<span class="nc" id="L778">            throw new VMException(&quot;Can only add a period to a string for add.period$&quot;);</span>
+        }
+
+<span class="fc" id="L781">        String s = (String) o1;</span>
+<span class="fc" id="L782">        Matcher m = ADD_PERIOD_PATTERN.matcher(s);</span>
+
+<span class="fc bfc" id="L784" title="All 2 branches covered.">        if (m.find()) {</span>
+<span class="fc" id="L785">            StringBuilder sb = new StringBuilder();</span>
+<span class="fc" id="L786">            m.appendReplacement(sb, m.group(1));</span>
+<span class="fc" id="L787">            sb.append('.');</span>
+<span class="fc" id="L788">            String group2 = m.group(2);</span>
+<span class="fc bfc" id="L789" title="All 2 branches covered.">            if (group2 != null) {</span>
+<span class="fc" id="L790">                sb.append(m.group(2));</span>
+            }
+<span class="fc" id="L792">            stack.push(sb.toString());</span>
+<span class="fc" id="L793">        } else {</span>
+<span class="fc" id="L794">            stack.push(s);</span>
+        }
+<span class="fc" id="L796">    }</span>
+
+    private static CommonTree charStream2CommonTree(CharStream bst) throws RecognitionException {
+<span class="fc" id="L799">        BstLexer lex = new BstLexer(bst);</span>
+<span class="fc" id="L800">        CommonTokenStream tokens = new CommonTokenStream(lex);</span>
+<span class="fc" id="L801">        BstParser parser = new BstParser(tokens);</span>
+<span class="fc" id="L802">        BstParser.program_return r = parser.program();</span>
+<span class="fc" id="L803">        return (CommonTree) r.getTree();</span>
+    }
+
+    private boolean assign(BstEntry context, Object o1, Object o2) {
+
+<span class="pc bpc" id="L808" title="2 of 6 branches missed.">        if (!(o1 instanceof Identifier) || !((o2 instanceof String) || (o2 instanceof Integer))) {</span>
+<span class="nc" id="L809">            throw new VMException(&quot;Invalid parameters&quot;);</span>
+        }
+
+<span class="fc" id="L812">        String name = ((Identifier) o1).getName();</span>
+
+<span class="fc bfc" id="L814" title="All 2 branches covered.">        if (o2 instanceof String) {</span>
+
+<span class="fc bfc" id="L816" title="All 4 branches covered.">            if ((context != null) &amp;&amp; context.localStrings.containsKey(name)) {</span>
+<span class="fc" id="L817">                context.localStrings.put(name, (String) o2);</span>
+<span class="fc" id="L818">                return true;</span>
+            }
+
+<span class="pc bpc" id="L821" title="1 of 2 branches missed.">            if (strings.containsKey(name)) {</span>
+<span class="fc" id="L822">                strings.put(name, (String) o2);</span>
+<span class="fc" id="L823">                return true;</span>
+            }
+<span class="nc" id="L825">            return false;</span>
+        }
+
+<span class="pc bpc" id="L828" title="1 of 4 branches missed.">        if ((context != null) &amp;&amp; context.localIntegers.containsKey(name)) {</span>
+<span class="nc" id="L829">            context.localIntegers.put(name, (Integer) o2);</span>
+<span class="nc" id="L830">            return true;</span>
+        }
+
+<span class="pc bpc" id="L833" title="1 of 2 branches missed.">        if (integers.containsKey(name)) {</span>
+<span class="fc" id="L834">            integers.put(name, (Integer) o2);</span>
+<span class="fc" id="L835">            return true;</span>
+        }
+<span class="nc" id="L837">        return false;</span>
+    }
+
+    public String run(BibDatabase db) {
+<span class="nc" id="L841">        preamble = db.getPreamble().orElse(&quot;&quot;);</span>
+<span class="nc" id="L842">        return run(db.getEntries());</span>
+    }
+
+    public String run(Collection&lt;BibEntry&gt; bibtex) {
+<span class="fc" id="L846">        return this.run(bibtex, null);</span>
+    }
+
+    /**
+     * Transforms the given list of BibEntries to a rendered list of references using the underlying bst file
+     *
+     * @param bibEntries  list of entries to convert
+     * @param bibDatabase (may be null) the bibDatabase used for resolving strings / crossref
+     * @return list of references in plain text form
+     */
+    public String run(Collection&lt;BibEntry&gt; bibEntries, BibDatabase bibDatabase) {
+<span class="fc" id="L857">        Objects.requireNonNull(bibEntries);</span>
+
+        // Reset
+<span class="fc" id="L860">        bbl = new StringBuilder();</span>
+
+<span class="fc" id="L862">        strings = new HashMap&lt;&gt;();</span>
+
+<span class="fc" id="L864">        integers = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L865">        integers.put(&quot;entry.max$&quot;, Integer.MAX_VALUE);</span>
+<span class="fc" id="L866">        integers.put(&quot;global.max$&quot;, Integer.MAX_VALUE);</span>
+
+<span class="fc" id="L868">        functions = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L869">        functions.putAll(buildInFunctions);</span>
+
+<span class="fc" id="L871">        stack = new Stack&lt;&gt;();</span>
+
+        // Create entries
+<span class="fc" id="L874">        entries = new ArrayList&lt;&gt;(bibEntries.size());</span>
+<span class="fc bfc" id="L875" title="All 2 branches covered.">        for (BibEntry entry : bibEntries) {</span>
+<span class="fc" id="L876">            entries.add(new BstEntry(entry));</span>
+<span class="fc" id="L877">        }</span>
+
+        // Go
+<span class="fc bfc" id="L880" title="All 2 branches covered.">        for (int i = 0; i &lt; tree.getChildCount(); i++) {</span>
+<span class="fc" id="L881">            Tree child = tree.getChild(i);</span>
+<span class="pc bpc" id="L882" title="2 of 11 branches missed.">            switch (child.getType()) {</span>
+                case BstParser.STRINGS:
+<span class="fc" id="L884">                    strings(child);</span>
+<span class="fc" id="L885">                    break;</span>
+                case BstParser.INTEGERS:
+<span class="fc" id="L887">                    integers(child);</span>
+<span class="fc" id="L888">                    break;</span>
+                case BstParser.FUNCTION:
+<span class="fc" id="L890">                    function(child);</span>
+<span class="fc" id="L891">                    break;</span>
+                case BstParser.EXECUTE:
+<span class="fc" id="L893">                    execute(child);</span>
+<span class="fc" id="L894">                    break;</span>
+                case BstParser.SORT:
+<span class="fc" id="L896">                    sort();</span>
+<span class="fc" id="L897">                    break;</span>
+                case BstParser.ITERATE:
+<span class="fc" id="L899">                    iterate(child);</span>
+<span class="fc" id="L900">                    break;</span>
+                case BstParser.REVERSE:
+<span class="nc" id="L902">                    reverse(child);</span>
+<span class="nc" id="L903">                    break;</span>
+                case BstParser.ENTRY:
+<span class="fc" id="L905">                    entry(child);</span>
+<span class="fc" id="L906">                    break;</span>
+                case BstParser.READ:
+<span class="fc" id="L908">                    read(bibDatabase);</span>
+<span class="fc" id="L909">                    break;</span>
+                case BstParser.MACRO:
+<span class="fc" id="L911">                    macro(child);</span>
+<span class="fc" id="L912">                    break;</span>
+                default:
+<span class="nc" id="L914">                    LOGGER.info(&quot;Unknown type: {}&quot;, child.getType());</span>
+                    break;
+            }
+        }
+
+<span class="fc" id="L919">        return bbl.toString();</span>
+    }
+
+    /**
+     * Dredges up from the database file the field values for each entry in the list. It has no arguments. If a database
+     * entry doesn't have a value for a field (and probably no database entry will have a value for every field), that
+     * field variable is marked as missing for the entry.
+     * &lt;p&gt;
+     * We use null for the missing entry designator.
+     * @param bibDatabase
+     */
+    private void read(BibDatabase bibDatabase) {
+<span class="fc" id="L931">        FieldWriter fieldWriter = new FieldWriter(new FieldWriterPreferences(true, List.of(StandardField.MONTH), new FieldContentFormatterPreferences()));</span>
+<span class="fc bfc" id="L932" title="All 2 branches covered.">        for (BstEntry e : entries) {</span>
+<span class="fc bfc" id="L933" title="All 2 branches covered.">            for (Map.Entry&lt;String, String&gt; mEntry : e.fields.entrySet()) {</span>
+<span class="fc" id="L934">                Field field = FieldFactory.parseField(mEntry.getKey());</span>
+<span class="fc" id="L935">                String fieldValue = e.entry.getResolvedFieldOrAlias(field, bibDatabase)</span>
+<span class="fc" id="L936">                                           .map(content -&gt; {</span>
+                                               try {
+<span class="fc" id="L938">                                                   String result = fieldWriter.write(field, content);</span>
+<span class="fc bfc" id="L939" title="All 2 branches covered.">                                                   if (result.startsWith(&quot;{&quot;)) {</span>
+                                                       // Strip enclosing {} from the output
+<span class="fc" id="L941">                                                       return result.substring(1, result.length() - 1);</span>
+                                                   }
+<span class="pc bpc" id="L943" title="1 of 2 branches missed.">                                                   if (field == StandardField.MONTH) {</span>
+                                                       // We don't have the internal BibTeX strings at hand.
+                                                       // We nevertheless want to have the full month name.
+                                                       // Thus, we lookup the full month name here.
+<span class="fc" id="L947">                                                       return Month.parse(result)</span>
+<span class="fc" id="L948">                                                                   .map(month -&gt; month.getFullName())</span>
+<span class="fc" id="L949">                                                                   .orElse(result);</span>
+                                                   }
+<span class="nc" id="L951">                                                   return result;</span>
+<span class="nc" id="L952">                                               } catch (InvalidFieldValueException invalidFieldValueException) {</span>
+                                                   // in case there is something wrong with the content, just return the content itself
+<span class="nc" id="L954">                                                   return content;</span>
+                                               }
+                                           })
+<span class="fc" id="L957">                                           .orElse(null);</span>
+<span class="fc" id="L958">                mEntry.setValue(fieldValue);</span>
+<span class="fc" id="L959">            }</span>
+<span class="fc" id="L960">        }</span>
+
+<span class="fc bfc" id="L962" title="All 2 branches covered.">        for (BstEntry e : entries) {</span>
+<span class="pc bpc" id="L963" title="1 of 2 branches missed.">            if (!e.fields.containsKey(StandardField.CROSSREF.getName())) {</span>
+<span class="fc" id="L964">                e.fields.put(StandardField.CROSSREF.getName(), null);</span>
+            }
+<span class="fc" id="L966">        }</span>
+<span class="fc" id="L967">    }</span>
+
+    /**
+     * Defines a string macro. It has two arguments; the first is the macro's name, which is treated like any other
+     * variable or function name, and the second is its definition, which must be double-quote-delimited. You must have
+     * one for each three-letter month abbreviation; in addition, you should have one for common journal names. The
+     * user's database may override any definition you define using this command. If you want to define a string the
+     * user can't touch, use the FUNCTION command, which has a compatible syntax.
+     */
+    private void macro(Tree child) {
+<span class="fc" id="L977">        String name = child.getChild(0).getText();</span>
+<span class="fc" id="L978">        String replacement = child.getChild(1).getText();</span>
+<span class="fc" id="L979">        functions.put(name, new MacroFunction(replacement));</span>
+<span class="fc" id="L980">    }</span>
+
+    public class MacroFunction implements BstFunction {
+
+        private final String replacement;
+
+<span class="fc" id="L986">        public MacroFunction(String replacement) {</span>
+<span class="fc" id="L987">            this.replacement = replacement;</span>
+<span class="fc" id="L988">        }</span>
+
+        @Override
+        public void execute(BstEntry context) {
+<span class="nc" id="L992">            VM.this.push(replacement);</span>
+<span class="nc" id="L993">        }</span>
+    }
+
+    /**
+     * Declares the fields and entry variables. It has three arguments, each a (possibly empty) list of variable names.
+     * The three lists are of: fields, integer entry variables, and string entry variables. There is an additional field
+     * that BibTEX automatically declares, crossref, used for cross referencing. And there is an additional string entry
+     * variable automatically declared, sort.key$, used by the SORT command. Each of these variables has a value for
+     * each entry on the list.
+     */
+    private void entry(Tree child) {
+        // Fields first
+<span class="fc" id="L1005">        Tree t = child.getChild(0);</span>
+
+<span class="fc bfc" id="L1007" title="All 2 branches covered.">        for (int i = 0; i &lt; t.getChildCount(); i++) {</span>
+<span class="fc" id="L1008">            String name = t.getChild(i).getText();</span>
+
+<span class="fc bfc" id="L1010" title="All 2 branches covered.">            for (BstEntry entry : entries) {</span>
+<span class="fc" id="L1011">                entry.fields.put(name, null);</span>
+<span class="fc" id="L1012">            }</span>
+        }
+
+        // Integers
+<span class="fc" id="L1016">        t = child.getChild(1);</span>
+
+<span class="pc bpc" id="L1018" title="1 of 2 branches missed.">        for (int i = 0; i &lt; t.getChildCount(); i++) {</span>
+<span class="nc" id="L1019">            String name = t.getChild(i).getText();</span>
+
+<span class="nc bnc" id="L1021" title="All 2 branches missed.">            for (BstEntry entry : entries) {</span>
+<span class="nc" id="L1022">                entry.localIntegers.put(name, 0);</span>
+<span class="nc" id="L1023">            }</span>
+        }
+        // Strings
+<span class="fc" id="L1026">        t = child.getChild(2);</span>
+
+<span class="fc bfc" id="L1028" title="All 2 branches covered.">        for (int i = 0; i &lt; t.getChildCount(); i++) {</span>
+<span class="fc" id="L1029">            String name = t.getChild(i).getText();</span>
+<span class="fc bfc" id="L1030" title="All 2 branches covered.">            for (BstEntry entry : entries) {</span>
+<span class="fc" id="L1031">                entry.localStrings.put(name, null);</span>
+<span class="fc" id="L1032">            }</span>
+        }
+<span class="fc bfc" id="L1034" title="All 2 branches covered.">        for (BstEntry entry : entries) {</span>
+<span class="fc" id="L1035">            entry.localStrings.put(&quot;sort.key$&quot;, null);</span>
+<span class="fc" id="L1036">        }</span>
+<span class="fc" id="L1037">    }</span>
+
+    private void reverse(Tree child) {
+
+<span class="nc" id="L1041">        BstFunction f = functions.get(child.getChild(0).getText());</span>
+
+<span class="nc" id="L1043">        ListIterator&lt;BstEntry&gt; i = entries.listIterator(entries.size());</span>
+<span class="nc bnc" id="L1044" title="All 2 branches missed.">        while (i.hasPrevious()) {</span>
+<span class="nc" id="L1045">            f.execute(i.previous());</span>
+        }
+<span class="nc" id="L1047">    }</span>
+
+    private void iterate(Tree child) {
+<span class="fc" id="L1050">        BstFunction f = functions.get(child.getChild(0).getText());</span>
+
+<span class="fc bfc" id="L1052" title="All 2 branches covered.">        for (BstEntry entry : entries) {</span>
+<span class="fc" id="L1053">            f.execute(entry);</span>
+<span class="fc" id="L1054">        }</span>
+<span class="fc" id="L1055">    }</span>
+
+    /**
+     * Sorts the entry list using the values of the string entry variable sort.key$. It has no arguments.
+     */
+    private void sort() {
+<span class="fc" id="L1061">        entries.sort(Comparator.comparing(o -&gt; (o.localStrings.get(&quot;sort.key$&quot;))));</span>
+<span class="fc" id="L1062">    }</span>
+
+    private void executeInContext(Object o, BstEntry context) {
+<span class="fc bfc" id="L1065" title="All 2 branches covered.">        if (o instanceof Tree) {</span>
+<span class="fc" id="L1066">            Tree t = (Tree) o;</span>
+<span class="fc" id="L1067">            new StackFunction(t).execute(context);</span>
+<span class="pc bpc" id="L1068" title="1 of 2 branches missed.">        } else if (o instanceof Identifier) {</span>
+<span class="fc" id="L1069">            execute(((Identifier) o).getName(), context);</span>
+        }
+<span class="fc" id="L1071">    }</span>
+
+    private void execute(Tree child) {
+<span class="fc" id="L1074">        execute(child.getChild(0).getText(), null);</span>
+<span class="fc" id="L1075">    }</span>
+
+    public class StackFunction implements BstFunction {
+
+        private final Tree localTree;
+
+<span class="fc" id="L1081">        public StackFunction(Tree stack) {</span>
+<span class="fc" id="L1082">            localTree = stack;</span>
+<span class="fc" id="L1083">        }</span>
+
+        public Tree getTree() {
+<span class="fc" id="L1086">            return localTree;</span>
+        }
+
+        @Override
+        public void execute(BstEntry context) {
+
+<span class="fc bfc" id="L1092" title="All 2 branches covered.">            for (int i = 0; i &lt; localTree.getChildCount(); i++) {</span>
+
+<span class="fc" id="L1094">                Tree c = localTree.getChild(i);</span>
+                try {
+
+<span class="fc bfc" id="L1097" title="All 5 branches covered.">                    switch (c.getType()) {</span>
+                        case BstParser.STRING:
+<span class="fc" id="L1099">                            String s = c.getText();</span>
+<span class="fc" id="L1100">                            push(s.substring(1, s.length() - 1));</span>
+<span class="fc" id="L1101">                            break;</span>
+                        case BstParser.INTEGER:
+<span class="fc" id="L1103">                            push(Integer.parseInt(c.getText().substring(1)));</span>
+<span class="fc" id="L1104">                            break;</span>
+                        case BstParser.QUOTED:
+<span class="fc" id="L1106">                            push(new Identifier(c.getText().substring(1)));</span>
+<span class="fc" id="L1107">                            break;</span>
+                        case BstParser.STACK:
+<span class="fc" id="L1109">                            push(c);</span>
+<span class="fc" id="L1110">                            break;</span>
+                        default:
+<span class="fc" id="L1112">                            VM.this.execute(c.getText(), context);</span>
+                            break;
+                    }
+<span class="fc" id="L1115">                } catch (VMException e) {</span>
+<span class="pc bpc" id="L1116" title="1 of 2 branches missed.">                    if (file == null) {</span>
+<span class="fc" id="L1117">                        LOGGER.error(&quot;ERROR &quot; + e.getMessage() + &quot; (&quot; + c.getLine() + &quot;)&quot;);</span>
+                    } else {
+<span class="nc" id="L1119">                        LOGGER.error(&quot;ERROR &quot; + e.getMessage() + &quot; (&quot; + file.getPath() + &quot;:&quot;</span>
+<span class="nc" id="L1120">                                + c.getLine() + &quot;)&quot;);</span>
+                    }
+<span class="fc" id="L1122">                    throw e;</span>
+<span class="fc" id="L1123">                }</span>
+            }
+<span class="fc" id="L1125">        }</span>
+    }
+
+    private void push(Tree t) {
+<span class="fc" id="L1129">        stack.push(t);</span>
+<span class="fc" id="L1130">    }</span>
+
+    private void execute(String name, BstEntry context) {
+
+<span class="fc bfc" id="L1134" title="All 2 branches covered.">        if (context != null) {</span>
+
+<span class="fc bfc" id="L1136" title="All 2 branches covered.">            if (context.fields.containsKey(name)) {</span>
+<span class="fc" id="L1137">                stack.push(context.fields.get(name));</span>
+<span class="fc" id="L1138">                return;</span>
+            }
+<span class="fc bfc" id="L1140" title="All 2 branches covered.">            if (context.localStrings.containsKey(name)) {</span>
+<span class="fc" id="L1141">                stack.push(context.localStrings.get(name));</span>
+<span class="fc" id="L1142">                return;</span>
+            }
+<span class="pc bpc" id="L1144" title="1 of 2 branches missed.">            if (context.localIntegers.containsKey(name)) {</span>
+<span class="nc" id="L1145">                stack.push(context.localIntegers.get(name));</span>
+<span class="nc" id="L1146">                return;</span>
+            }
+        }
+<span class="fc bfc" id="L1149" title="All 2 branches covered.">        if (strings.containsKey(name)) {</span>
+<span class="fc" id="L1150">            stack.push(strings.get(name));</span>
+<span class="fc" id="L1151">            return;</span>
+        }
+<span class="fc bfc" id="L1153" title="All 2 branches covered.">        if (integers.containsKey(name)) {</span>
+<span class="fc" id="L1154">            stack.push(integers.get(name));</span>
+<span class="fc" id="L1155">            return;</span>
+        }
+
+<span class="pc bpc" id="L1158" title="1 of 2 branches missed.">        if (functions.containsKey(name)) {</span>
+            // OK to have a null context
+<span class="fc" id="L1160">            functions.get(name).execute(context);</span>
+<span class="fc" id="L1161">            return;</span>
+        }
+
+<span class="nc" id="L1164">        throw new VMException(&quot;No matching identifier found: &quot; + name);</span>
+    }
+
+    private void function(Tree child) {
+<span class="fc" id="L1168">        String name = child.getChild(0).getText();</span>
+<span class="fc" id="L1169">        Tree localStack = child.getChild(1);</span>
+<span class="fc" id="L1170">        functions.put(name, new StackFunction(localStack));</span>
+<span class="fc" id="L1171">    }</span>
+
+    /**
+     * Declares global integer variables. It has one argument, a list of variable names. There are two such
+     * automatically-declared variables, entry.max$ and global.max$, used for limiting the lengths of string vari-
+     * ables. You may have any number of these commands, but a variable's declaration must precede its use.
+     */
+    private void integers(Tree child) {
+<span class="fc" id="L1179">        Tree t = child.getChild(0);</span>
+
+<span class="fc bfc" id="L1181" title="All 2 branches covered.">        for (int i = 0; i &lt; t.getChildCount(); i++) {</span>
+<span class="fc" id="L1182">            String name = t.getChild(i).getText();</span>
+<span class="fc" id="L1183">            integers.put(name, 0);</span>
+        }
+<span class="fc" id="L1185">    }</span>
+
+    /**
+     * Declares global string variables. It has one argument, a list of variable names. You may have any number of these
+     * commands, but a variable's declaration must precede its use.
+     *
+     * @param child
+     */
+    private void strings(Tree child) {
+<span class="fc" id="L1194">        Tree t = child.getChild(0);</span>
+
+<span class="fc bfc" id="L1196" title="All 2 branches covered.">        for (int i = 0; i &lt; t.getChildCount(); i++) {</span>
+<span class="fc" id="L1197">            String name = t.getChild(i).getText();</span>
+<span class="fc" id="L1198">            strings.put(name, null);</span>
+        }
+<span class="fc" id="L1200">    }</span>
+
+    public static class BstEntry {
+
+        public final BibEntry entry;
+
+<span class="fc" id="L1206">        public final Map&lt;String, String&gt; localStrings = new HashMap&lt;&gt;();</span>
+
+        // keys filled by org.jabref.logic.bst.VM.entry based on the contents of the bst file
+<span class="fc" id="L1209">        public final Map&lt;String, String&gt; fields = new HashMap&lt;&gt;();</span>
+
+<span class="fc" id="L1211">        public final Map&lt;String, Integer&gt; localIntegers = new HashMap&lt;&gt;();</span>
+
+<span class="fc" id="L1213">        public BstEntry(BibEntry e) {</span>
+<span class="fc" id="L1214">            this.entry = e;</span>
+<span class="fc" id="L1215">        }</span>
+    }
+
+    private void push(Integer integer) {
+<span class="fc" id="L1219">        stack.push(integer);</span>
+<span class="fc" id="L1220">    }</span>
+
+    private void push(String string) {
+<span class="fc" id="L1223">        stack.push(string);</span>
+<span class="fc" id="L1224">    }</span>
+
+    private void push(Identifier identifier) {
+<span class="fc" id="L1227">        stack.push(identifier);</span>
+<span class="fc" id="L1228">    }</span>
+
+    public Map&lt;String, String&gt; getStrings() {
+<span class="fc" id="L1231">        return strings;</span>
+    }
+
+    public Map&lt;String, Integer&gt; getIntegers() {
+<span class="fc" id="L1235">        return integers;</span>
+    }
+
+    public List&lt;BstEntry&gt; getEntries() {
+<span class="fc" id="L1239">        return entries;</span>
+    }
+
+    public Map&lt;String, BstFunction&gt; getFunctions() {
+<span class="fc" id="L1243">        return functions;</span>
+    }
+
+    public Stack&lt;Object&gt; getStack() {
+<span class="fc" id="L1247">        return stack;</span>
+    }
+
+    @Override
+    public void warn(String string) {
+<span class="nc" id="L1252">        LOGGER.warn(string);</span>
+<span class="nc" id="L1253">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

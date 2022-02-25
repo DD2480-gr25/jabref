@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HTMLCharacterChecker.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.integrity</a> &gt; <span class="el_source">HTMLCharacterChecker.java</span></div><h1>HTMLCharacterChecker.java</h1><pre class="source lang-java linenums">package org.jabref.logic.integrity;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.jabref.logic.l10n.Localization;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.field.Field;
+import org.jabref.model.entry.field.FieldProperty;
+
+/**
+ * Checks, if there are any HTML encoded characters in nonverbatim fields.
+ */
+<span class="fc" id="L17">public class HTMLCharacterChecker implements EntryChecker {</span>
+    // Detect any HTML encoded character
+<span class="fc" id="L19">    private static final Pattern HTML_CHARACTER_PATTERN = Pattern.compile(&quot;&amp;[#\\p{Alnum}]+;&quot;);</span>
+
+    @Override
+    public List&lt;IntegrityMessage&gt; check(BibEntry entry) {
+<span class="fc" id="L23">        List&lt;IntegrityMessage&gt; results = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L24" title="All 2 branches covered.">        for (Map.Entry&lt;Field, String&gt; field : entry.getFieldMap().entrySet()) {</span>
+            // skip verbatim fields
+<span class="fc bfc" id="L26" title="All 2 branches covered.">            if (field.getKey().getProperties().contains(FieldProperty.VERBATIM)) {</span>
+<span class="fc" id="L27">                continue;</span>
+            }
+
+<span class="fc" id="L30">            Matcher characterMatcher = HTML_CHARACTER_PATTERN.matcher(field.getValue());</span>
+<span class="fc bfc" id="L31" title="All 2 branches covered.">            if (characterMatcher.find()) {</span>
+<span class="fc" id="L32">                results.add(</span>
+<span class="fc" id="L33">                        new IntegrityMessage(Localization.lang(&quot;HTML encoded character found&quot;), entry, field.getKey()));</span>
+            }
+<span class="fc" id="L35">        }</span>
+<span class="fc" id="L36">        return results;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

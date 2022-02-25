@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ManageStudyDefinitionViewModel.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.slr</a> &gt; <span class="el_source">ManageStudyDefinitionViewModel.java</span></div><h1>ManageStudyDefinitionViewModel.java</h1><pre class="source lang-java linenums">package org.jabref.gui.slr;
+
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
+import java.util.Comparator;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import javafx.beans.property.Property;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+
+import org.jabref.logic.importer.ImportFormatPreferences;
+import org.jabref.logic.importer.SearchBasedFetcher;
+import org.jabref.logic.importer.WebFetchers;
+import org.jabref.model.study.Study;
+import org.jabref.model.study.StudyDatabase;
+import org.jabref.model.study.StudyQuery;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * This class provides a model for managing study definitions.
+ * To visualize the model one can bind the properties to UI elements.
+ */
+public class ManageStudyDefinitionViewModel {
+<span class="nc" id="L31">    private static final Logger LOGGER = LoggerFactory.getLogger(ManageStudyDefinitionViewModel.class);</span>
+
+<span class="nc" id="L33">    private final StringProperty title = new SimpleStringProperty();</span>
+<span class="nc" id="L34">    private final ObservableList&lt;String&gt; authors = FXCollections.observableArrayList();</span>
+<span class="nc" id="L35">    private final ObservableList&lt;String&gt; researchQuestions = FXCollections.observableArrayList();</span>
+<span class="nc" id="L36">    private final ObservableList&lt;String&gt; queries = FXCollections.observableArrayList();</span>
+<span class="nc" id="L37">    private final ObservableList&lt;StudyDatabaseItem&gt; databases = FXCollections.observableArrayList();</span>
+    // Hold the complement of databases for the selector
+<span class="nc" id="L39">    private final ObservableList&lt;StudyDatabaseItem&gt; nonSelectedDatabases = FXCollections.observableArrayList();</span>
+<span class="nc" id="L40">    private final SimpleStringProperty directory = new SimpleStringProperty();</span>
+    private Study study;
+
+<span class="nc" id="L43">    public ManageStudyDefinitionViewModel(Study study, Path studyDirectory, ImportFormatPreferences importFormatPreferences) {</span>
+<span class="nc bnc" id="L44" title="All 2 branches missed.">        if (Objects.isNull(study)) {</span>
+<span class="nc" id="L45">            computeNonSelectedDatabases(importFormatPreferences);</span>
+<span class="nc" id="L46">            return;</span>
+        }
+<span class="nc" id="L48">        this.study = study;</span>
+<span class="nc" id="L49">        title.setValue(study.getTitle());</span>
+<span class="nc" id="L50">        authors.addAll(study.getAuthors());</span>
+<span class="nc" id="L51">        researchQuestions.addAll(study.getResearchQuestions());</span>
+<span class="nc" id="L52">        queries.addAll(study.getQueries().stream().map(StudyQuery::getQuery).collect(Collectors.toList()));</span>
+<span class="nc" id="L53">        databases.addAll(study.getDatabases()</span>
+<span class="nc" id="L54">                              .stream()</span>
+<span class="nc" id="L55">                              .map(studyDatabase -&gt; new StudyDatabaseItem(studyDatabase.getName(), studyDatabase.isEnabled()))</span>
+<span class="nc" id="L56">                              .collect(Collectors.toList()));</span>
+<span class="nc" id="L57">        computeNonSelectedDatabases(importFormatPreferences);</span>
+<span class="nc bnc" id="L58" title="All 2 branches missed.">        if (!Objects.isNull(studyDirectory)) {</span>
+<span class="nc" id="L59">            this.directory.set(studyDirectory.toString());</span>
+        }
+<span class="nc" id="L61">    }</span>
+
+    private void computeNonSelectedDatabases(ImportFormatPreferences importFormatPreferences) {
+<span class="nc" id="L64">        nonSelectedDatabases.addAll(WebFetchers.getSearchBasedFetchers(importFormatPreferences)</span>
+<span class="nc" id="L65">                                               .stream()</span>
+<span class="nc" id="L66">                                               .map(SearchBasedFetcher::getName)</span>
+<span class="nc" id="L67">                                               .map(s -&gt; new StudyDatabaseItem(s, true))</span>
+<span class="nc bnc" id="L68" title="All 2 branches missed.">                                               .filter(studyDatabase -&gt; !databases.contains(studyDatabase))</span>
+<span class="nc" id="L69">                                               .collect(Collectors.toList()));</span>
+<span class="nc" id="L70">    }</span>
+
+    public StringProperty getTitle() {
+<span class="nc" id="L73">        return title;</span>
+    }
+
+    public StringProperty getDirectory() {
+<span class="nc" id="L77">        return directory;</span>
+    }
+
+    public ObservableList&lt;String&gt; getAuthors() {
+<span class="nc" id="L81">        return authors;</span>
+    }
+
+    public ObservableList&lt;String&gt; getResearchQuestions() {
+<span class="nc" id="L85">        return researchQuestions;</span>
+    }
+
+    public ObservableList&lt;String&gt; getQueries() {
+<span class="nc" id="L89">        return queries;</span>
+    }
+
+    public ObservableList&lt;StudyDatabaseItem&gt; getDatabases() {
+<span class="nc" id="L93">        return databases;</span>
+    }
+
+    public ObservableList&lt;StudyDatabaseItem&gt; getNonSelectedDatabases() {
+<span class="nc" id="L97">        return nonSelectedDatabases;</span>
+    }
+
+    public void addAuthor(String author) {
+<span class="nc bnc" id="L101" title="All 2 branches missed.">        if (author.isBlank()) {</span>
+<span class="nc" id="L102">            return;</span>
+        }
+<span class="nc" id="L104">        authors.add(author);</span>
+<span class="nc" id="L105">    }</span>
+
+    public void addResearchQuestion(String researchQuestion) {
+<span class="nc bnc" id="L108" title="All 4 branches missed.">        if (researchQuestion.isBlank() || researchQuestions.contains(researchQuestion)) {</span>
+<span class="nc" id="L109">            return;</span>
+        }
+<span class="nc" id="L111">        researchQuestions.add(researchQuestion);</span>
+<span class="nc" id="L112">    }</span>
+
+    public void addQuery(String query) {
+<span class="nc bnc" id="L115" title="All 2 branches missed.">        if (query.isBlank()) {</span>
+<span class="nc" id="L116">            return;</span>
+        }
+<span class="nc" id="L118">        queries.add(query);</span>
+<span class="nc" id="L119">    }</span>
+
+    public void addDatabase(StudyDatabaseItem database) {
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        if (Objects.isNull(database)) {</span>
+<span class="nc" id="L123">            return;</span>
+        }
+<span class="nc" id="L125">        nonSelectedDatabases.remove(database);</span>
+<span class="nc bnc" id="L126" title="All 2 branches missed.">        if (!databases.contains(database)) {</span>
+<span class="nc" id="L127">            databases.add(database);</span>
+        }
+<span class="nc" id="L129">    }</span>
+
+    public SlrStudyAndDirectory saveStudy() {
+<span class="nc bnc" id="L132" title="All 2 branches missed.">        if (Objects.isNull(study)) {</span>
+<span class="nc" id="L133">            study = new Study();</span>
+        }
+<span class="nc" id="L135">        study.setTitle(title.getValueSafe());</span>
+<span class="nc" id="L136">        study.setAuthors(authors);</span>
+<span class="nc" id="L137">        study.setResearchQuestions(researchQuestions);</span>
+<span class="nc" id="L138">        study.setQueries(queries.stream().map(StudyQuery::new).collect(Collectors.toList()));</span>
+<span class="nc" id="L139">        study.setDatabases(databases.stream().map(studyDatabaseItem -&gt; new StudyDatabase(studyDatabaseItem.getName(), studyDatabaseItem.isEnabled())).collect(Collectors.toList()));</span>
+<span class="nc" id="L140">        Path studyDirectory = null;</span>
+        try {
+<span class="nc" id="L142">            studyDirectory = Path.of(directory.getValueSafe());</span>
+<span class="nc" id="L143">        } catch (InvalidPathException e) {</span>
+<span class="nc" id="L144">            LOGGER.error(&quot;Invalid path was provided: {}&quot;, directory);</span>
+<span class="nc" id="L145">        }</span>
+<span class="nc" id="L146">        return new SlrStudyAndDirectory(study, studyDirectory);</span>
+    }
+
+    public Property&lt;String&gt; titleProperty() {
+<span class="nc" id="L150">        return title;</span>
+    }
+
+    public void removeDatabase(String database) {
+        // If a database is added from the combo box it should be enabled by default
+<span class="nc" id="L155">        Optional&lt;StudyDatabaseItem&gt; correspondingDatabase = databases.stream().filter(studyDatabaseItem -&gt; studyDatabaseItem.getName().equals(database)).findFirst();</span>
+<span class="nc bnc" id="L156" title="All 2 branches missed.">        if (correspondingDatabase.isEmpty()) {</span>
+<span class="nc" id="L157">            return;</span>
+        }
+<span class="nc" id="L159">        StudyDatabaseItem databaseToRemove = correspondingDatabase.get();</span>
+<span class="nc" id="L160">        databases.remove(databaseToRemove);</span>
+<span class="nc" id="L161">        databaseToRemove.setEnabled(true);</span>
+<span class="nc" id="L162">        nonSelectedDatabases.add(databaseToRemove);</span>
+        // Resort list
+<span class="nc" id="L164">        nonSelectedDatabases.sort(Comparator.comparing(StudyDatabaseItem::getName));</span>
+<span class="nc" id="L165">    }</span>
+
+    public void setStudyDirectory(Optional&lt;Path&gt; studyRepositoryRoot) {
+<span class="nc bnc" id="L168" title="All 2 branches missed.">        getDirectory().setValue(studyRepositoryRoot.isPresent() ? studyRepositoryRoot.get().toString() : getDirectory().getValueSafe());</span>
+<span class="nc" id="L169">    }</span>
+
+    public void deleteAuthor(String item) {
+<span class="nc" id="L172">        authors.remove(item);</span>
+<span class="nc" id="L173">    }</span>
+
+    public void deleteQuestion(String item) {
+<span class="nc" id="L176">        researchQuestions.remove(item);</span>
+<span class="nc" id="L177">    }</span>
+
+    public void deleteQuery(String item) {
+<span class="nc" id="L180">        queries.remove(item);</span>
+<span class="nc" id="L181">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

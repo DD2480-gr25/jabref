@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TagBar.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.util.component</a> &gt; <span class="el_source">TagBar.java</span></div><h1>TagBar.java</h1><pre class="source lang-java linenums">package org.jabref.gui.util.component;
+
+import java.util.Collection;
+import java.util.Set;
+import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
+
+import javafx.beans.property.ListProperty;
+import javafx.beans.property.SimpleListProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
+import javafx.event.ActionEvent;
+import javafx.fxml.FXML;
+import javafx.scene.control.TextField;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.HBox;
+import javafx.util.StringConverter;
+
+import org.jabref.model.entry.field.FieldProperty;
+import org.jabref.model.strings.StringUtil;
+
+import com.airhacks.afterburner.views.ViewLoader;
+
+/**
+ * Field editor that provides various pre-defined options as a drop-down combobox.
+ */
+public class TagBar&lt;T&gt; extends HBox {
+
+    private final ListProperty&lt;T&gt; tags;
+    private StringConverter&lt;T&gt; stringConverter;
+    @FXML
+    private TextField inputTextField;
+    @FXML
+    private HBox tagList;
+    private BiConsumer&lt;T, MouseEvent&gt; onTagClicked;
+    private java.util.Set&lt;FieldProperty&gt; properties;
+
+<span class="nc" id="L39">    public TagBar() {</span>
+<span class="nc" id="L40">        tags = new SimpleListProperty&lt;&gt;(FXCollections.observableArrayList());</span>
+<span class="nc" id="L41">        tags.addListener(this::onTagsChanged);</span>
+
+        // Load FXML
+<span class="nc" id="L44">        ViewLoader.view(this)</span>
+<span class="nc" id="L45">                  .root(this)</span>
+<span class="nc" id="L46">                  .load();</span>
+<span class="nc" id="L47">        getStylesheets().add(0, TagBar.class.getResource(&quot;TagBar.css&quot;).toExternalForm());</span>
+<span class="nc" id="L48">    }</span>
+
+    public TextField getInputTextField() {
+<span class="nc" id="L51">        return inputTextField;</span>
+    }
+
+    public ObservableList&lt;T&gt; getTags() {
+<span class="nc" id="L55">        return tags.get();</span>
+    }
+
+    public void setTags(Collection&lt;T&gt; newTags) {
+<span class="nc" id="L59">        this.tags.setAll(newTags);</span>
+<span class="nc" id="L60">    }</span>
+
+    public ListProperty&lt;T&gt; tagsProperty() {
+<span class="nc" id="L63">        return tags;</span>
+    }
+
+    private void onTagsChanged(ListChangeListener.Change&lt;? extends T&gt; change) {
+<span class="nc bnc" id="L67" title="All 2 branches missed.">        while (change.next()) {</span>
+<span class="nc bnc" id="L68" title="All 2 branches missed.">            if (change.wasRemoved()) {</span>
+<span class="nc" id="L69">                tagList.getChildren().subList(change.getFrom(), change.getFrom() + change.getRemovedSize()).clear();</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">            } else if (change.wasAdded()) {</span>
+<span class="nc" id="L71">                tagList.getChildren().addAll(change.getFrom(), change.getAddedSubList().stream().map(this::createTag).collect(Collectors.toList()));</span>
+            }
+        }
+<span class="nc bnc" id="L74" title="All 2 branches missed.">        if (this.properties.contains(FieldProperty.SINGLE_ENTRY_LINK)) {</span>
+<span class="nc bnc" id="L75" title="All 2 branches missed.">            inputTextField.setDisable(!tags.isEmpty());</span>
+        }
+<span class="nc" id="L77">    }</span>
+
+    private Tag&lt;T&gt; createTag(T item) {
+<span class="nc" id="L80">        Tag&lt;T&gt; tag = new Tag&lt;&gt;(stringConverter::toString);</span>
+<span class="nc" id="L81">        tag.setOnTagRemoved(tags::remove);</span>
+<span class="nc" id="L82">        tag.setValue(item);</span>
+<span class="nc bnc" id="L83" title="All 2 branches missed.">        if (onTagClicked != null) {</span>
+<span class="nc" id="L84">            tag.setOnMouseClicked(event -&gt; onTagClicked.accept(item, event));</span>
+        }
+<span class="nc" id="L86">        return tag;</span>
+    }
+
+    @FXML
+    private void addTextAsNewTag(ActionEvent event) {
+<span class="nc" id="L91">        String inputText = inputTextField.getText();</span>
+<span class="nc bnc" id="L92" title="All 2 branches missed.">        if (StringUtil.isNotBlank(inputText)) {</span>
+<span class="nc" id="L93">            T newTag = stringConverter.fromString(inputText);</span>
+<span class="nc bnc" id="L94" title="All 8 branches missed.">            if ((newTag != null) &amp;&amp; !tags.contains(newTag) &amp;&amp; (tags.isEmpty() || this.properties.contains(FieldProperty.MULTIPLE_ENTRY_LINK))) {</span>
+<span class="nc" id="L95">                tags.add(newTag);</span>
+<span class="nc" id="L96">                inputTextField.clear();</span>
+            }
+        }
+<span class="nc" id="L99">    }</span>
+
+    public void setStringConverter(StringConverter&lt;T&gt; stringConverter) {
+<span class="nc" id="L102">        this.stringConverter = stringConverter;</span>
+<span class="nc" id="L103">    }</span>
+
+    public void setOnTagClicked(BiConsumer&lt;T, MouseEvent&gt; onTagClicked) {
+<span class="nc" id="L106">        this.onTagClicked = onTagClicked;</span>
+<span class="nc" id="L107">    }</span>
+
+    public void setFieldProperties(Set&lt;FieldProperty&gt; properties) {
+<span class="nc" id="L110">        this.properties = properties;</span>
+<span class="nc" id="L111">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

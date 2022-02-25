@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PushToApplicationAction.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.push</a> &gt; <span class="el_source">PushToApplicationAction.java</span></div><h1>PushToApplicationAction.java</h1><pre class="source lang-java linenums">package org.jabref.gui.push;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+
+import org.jabref.gui.DialogService;
+import org.jabref.gui.Globals;
+import org.jabref.gui.StateManager;
+import org.jabref.gui.actions.Action;
+import org.jabref.gui.actions.SimpleCommand;
+import org.jabref.gui.icon.JabRefIcon;
+import org.jabref.gui.keyboard.KeyBinding;
+import org.jabref.gui.util.BackgroundTask;
+import org.jabref.gui.util.BindingsHelper;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.strings.StringUtil;
+
+import static org.jabref.gui.actions.ActionHelper.needsDatabase;
+import static org.jabref.gui.actions.ActionHelper.needsEntriesSelected;
+
+/**
+ * An Action class representing the process of invoking a PushToApplication operation.
+ */
+public class PushToApplicationAction extends SimpleCommand {
+
+    private final StateManager stateManager;
+    private final DialogService dialogService;
+
+    private PushToApplication application;
+
+<span class="nc" id="L34">    public PushToApplicationAction(PushToApplication application, StateManager stateManager, DialogService dialogService) {</span>
+<span class="nc" id="L35">        this.application = application;</span>
+<span class="nc" id="L36">        this.stateManager = stateManager;</span>
+<span class="nc" id="L37">        this.dialogService = dialogService;</span>
+
+<span class="nc" id="L39">        this.executable.bind(needsDatabase(stateManager).and(needsEntriesSelected(stateManager)));</span>
+<span class="nc" id="L40">        this.statusMessage.bind(BindingsHelper.ifThenElse(this.executable, &quot;&quot;, Localization.lang(&quot;This operation requires one or more entries to be selected.&quot;)));</span>
+<span class="nc" id="L41">    }</span>
+
+    public void updateApplication(PushToApplication application) {
+<span class="nc" id="L44">        this.application = Objects.requireNonNull(application);</span>
+<span class="nc" id="L45">    }</span>
+
+    public Action getActionInformation() {
+<span class="nc" id="L48">        return new Action() {</span>
+            @Override
+            public Optional&lt;JabRefIcon&gt; getIcon() {
+<span class="nc" id="L51">                return Optional.of(application.getIcon());</span>
+            }
+
+            @Override
+            public Optional&lt;KeyBinding&gt; getKeyBinding() {
+<span class="nc" id="L56">                return Optional.of(KeyBinding.PUSH_TO_APPLICATION);</span>
+            }
+
+            @Override
+            public String getText() {
+<span class="nc" id="L61">                return Localization.lang(&quot;Push entries to external application (%0)&quot;, application.getDisplayName());</span>
+            }
+
+            @Override
+            public String getDescription() {
+<span class="nc" id="L66">                return &quot;&quot;;</span>
+            }
+        };
+    }
+
+    private static String getKeyString(List&lt;BibEntry&gt; entries) {
+<span class="nc" id="L72">        StringBuilder result = new StringBuilder();</span>
+        Optional&lt;String&gt; citeKey;
+<span class="nc" id="L74">        boolean first = true;</span>
+<span class="nc bnc" id="L75" title="All 2 branches missed.">        for (BibEntry bes : entries) {</span>
+<span class="nc" id="L76">            citeKey = bes.getCitationKey();</span>
+<span class="nc bnc" id="L77" title="All 4 branches missed.">            if (citeKey.isEmpty() || citeKey.get().isEmpty()) {</span>
+                // Should never occur, because we made sure that all entries have keys
+<span class="nc" id="L79">                continue;</span>
+            }
+<span class="nc bnc" id="L81" title="All 2 branches missed.">            if (first) {</span>
+<span class="nc" id="L82">                result.append(citeKey.get());</span>
+<span class="nc" id="L83">                first = false;</span>
+            } else {
+<span class="nc" id="L85">                result.append(',').append(citeKey.get());</span>
+            }
+<span class="nc" id="L87">        }</span>
+<span class="nc" id="L88">        return result.toString();</span>
+    }
+
+    @Override
+    public void execute() {
+        // If required, check that all entries have citation keys defined:
+<span class="nc bnc" id="L94" title="All 2 branches missed.">        if (application.requiresCitationKeys()) {</span>
+<span class="nc bnc" id="L95" title="All 2 branches missed.">            for (BibEntry entry : stateManager.getSelectedEntries()) {</span>
+<span class="nc bnc" id="L96" title="All 2 branches missed.">                if (StringUtil.isBlank(entry.getCitationKey())) {</span>
+<span class="nc" id="L97">                    dialogService.showErrorDialogAndWait(</span>
+<span class="nc" id="L98">                            application.getDisplayName(),</span>
+<span class="nc" id="L99">                            Localization.lang(&quot;This operation requires all selected entries to have citation keys defined.&quot;));</span>
+
+<span class="nc" id="L101">                    return;</span>
+                }
+<span class="nc" id="L103">            }</span>
+        }
+
+        // All set, call the operation in a new thread:
+<span class="nc" id="L107">        BackgroundTask.wrap(this::pushEntries)</span>
+<span class="nc" id="L108">                      .onSuccess(s -&gt; application.operationCompleted())</span>
+<span class="nc" id="L109">                      .executeWith(Globals.TASK_EXECUTOR);</span>
+<span class="nc" id="L110">    }</span>
+
+    private void pushEntries() {
+<span class="nc" id="L113">        BibDatabaseContext database = stateManager.getActiveDatabase().orElseThrow(() -&gt; new NullPointerException(&quot;Database null&quot;));</span>
+<span class="nc" id="L114">        application.pushEntries(database, stateManager.getSelectedEntries(), getKeyString(stateManager.getSelectedEntries()));</span>
+<span class="nc" id="L115">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

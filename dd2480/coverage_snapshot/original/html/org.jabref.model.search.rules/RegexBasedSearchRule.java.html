@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RegexBasedSearchRule.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.model.search.rules</a> &gt; <span class="el_source">RegexBasedSearchRule.java</span></div><h1>RegexBasedSearchRule.java</h1><pre class="source lang-java linenums">package org.jabref.model.search.rules;
+
+import java.io.IOException;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
+import java.util.stream.Collectors;
+
+import org.jabref.architecture.AllowedToUseLogic;
+import org.jabref.gui.Globals;
+import org.jabref.logic.pdf.search.retrieval.PdfSearcher;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.field.Field;
+import org.jabref.model.pdf.search.PdfSearchResults;
+import org.jabref.model.pdf.search.SearchResult;
+import org.jabref.model.search.rules.SearchRules.SearchFlags;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Search rule for regex-based search.
+ */
+@AllowedToUseLogic(&quot;Because access to the lucene index is needed&quot;)
+public class RegexBasedSearchRule implements SearchRule {
+
+<span class="fc" id="L32">    private static final Logger LOGGER = LoggerFactory.getLogger(GrammarBasedSearchRule.class);</span>
+
+    private final EnumSet&lt;SearchFlags&gt; searchFlags;
+
+    private String lastQuery;
+    private List&lt;SearchResult&gt; lastSearchResults;
+
+    private final BibDatabaseContext databaseContext;
+
+<span class="fc" id="L41">    public RegexBasedSearchRule(EnumSet&lt;SearchFlags&gt; searchFlags) {</span>
+<span class="fc" id="L42">        this.searchFlags = searchFlags;</span>
+
+<span class="fc" id="L44">        databaseContext = Globals.stateManager.getActiveDatabase().orElse(null);</span>
+<span class="fc" id="L45">    }</span>
+
+    public EnumSet&lt;SearchFlags&gt; getSearchFlags() {
+<span class="nc" id="L48">        return searchFlags;</span>
+    }
+
+    @Override
+    public boolean validateSearchStrings(String query) {
+<span class="nc" id="L53">        String searchString = query;</span>
+<span class="nc bnc" id="L54" title="All 2 branches missed.">        if (!searchFlags.contains(SearchRules.SearchFlags.CASE_SENSITIVE)) {</span>
+<span class="nc" id="L55">            searchString = searchString.toLowerCase(Locale.ROOT);</span>
+        }
+
+        try {
+<span class="nc bnc" id="L59" title="All 2 branches missed.">            Pattern.compile(searchString, searchFlags.contains(SearchRules.SearchFlags.CASE_SENSITIVE) ? 0 : Pattern.CASE_INSENSITIVE);</span>
+<span class="nc" id="L60">        } catch (PatternSyntaxException ex) {</span>
+<span class="nc" id="L61">            return false;</span>
+<span class="nc" id="L62">        }</span>
+<span class="nc" id="L63">        return true;</span>
+    }
+
+    @Override
+    public boolean applyRule(String query, BibEntry bibEntry) {
+        Pattern pattern;
+
+        try {
+<span class="fc bfc" id="L71" title="All 2 branches covered.">            pattern = Pattern.compile(query, searchFlags.contains(SearchRules.SearchFlags.CASE_SENSITIVE) ? 0 : Pattern.CASE_INSENSITIVE);</span>
+<span class="nc" id="L72">        } catch (PatternSyntaxException ex) {</span>
+<span class="nc" id="L73">            return false;</span>
+<span class="fc" id="L74">        }</span>
+
+<span class="fc bfc" id="L76" title="All 2 branches covered.">        for (Field field : bibEntry.getFields()) {</span>
+<span class="fc" id="L77">            Optional&lt;String&gt; fieldOptional = bibEntry.getField(field);</span>
+<span class="pc bpc" id="L78" title="1 of 2 branches missed.">            if (fieldOptional.isPresent()) {</span>
+<span class="fc" id="L79">                String fieldContentNoBrackets = bibEntry.getLatexFreeField(field).get();</span>
+<span class="fc" id="L80">                Matcher m = pattern.matcher(fieldContentNoBrackets);</span>
+<span class="fc bfc" id="L81" title="All 2 branches covered.">                if (m.find()) {</span>
+<span class="fc" id="L82">                    return true;</span>
+                }
+            }
+<span class="fc" id="L85">        }</span>
+<span class="pc bpc" id="L86" title="1 of 2 branches missed.">        return getFulltextResults(query, bibEntry).numSearchResults() &gt; 0;</span>
+    }
+
+    @Override
+    public PdfSearchResults getFulltextResults(String query, BibEntry bibEntry) {
+
+<span class="pc bpc" id="L92" title="3 of 4 branches missed.">        if (!searchFlags.contains(SearchRules.SearchFlags.FULLTEXT) || databaseContext == null) {</span>
+<span class="fc" id="L93">            return new PdfSearchResults(List.of());</span>
+        }
+
+<span class="nc bnc" id="L96" title="All 2 branches missed.">        if (!query.equals(this.lastQuery)) {</span>
+<span class="nc" id="L97">            this.lastQuery = query;</span>
+<span class="nc" id="L98">            lastSearchResults = List.of();</span>
+            try {
+<span class="nc" id="L100">                PdfSearcher searcher = PdfSearcher.of(databaseContext);</span>
+<span class="nc" id="L101">                PdfSearchResults results = searcher.search(query, 5);</span>
+<span class="nc" id="L102">                lastSearchResults = results.getSortedByScore();</span>
+<span class="nc" id="L103">            } catch (IOException e) {</span>
+<span class="nc" id="L104">                LOGGER.error(&quot;Could not retrieve search results!&quot;, e);</span>
+<span class="nc" id="L105">            }</span>
+        }
+<span class="nc" id="L107">        return new PdfSearchResults(lastSearchResults.stream().filter(searchResult -&gt; searchResult.isResultFor(bibEntry)).collect(Collectors.toList()));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

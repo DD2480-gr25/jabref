@@ -1,0 +1,369 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MetaData.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.model.metadata</a> &gt; <span class="el_source">MetaData.java</span></div><h1>MetaData.java</h1><pre class="source lang-java linenums">package org.jabref.model.metadata;
+
+import java.nio.charset.Charset;
+import java.nio.file.Path;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+
+import org.jabref.architecture.AllowedToUseLogic;
+import org.jabref.logic.citationkeypattern.AbstractCitationKeyPattern;
+import org.jabref.logic.citationkeypattern.DatabaseCitationKeyPattern;
+import org.jabref.logic.citationkeypattern.GlobalCitationKeyPattern;
+import org.jabref.logic.cleanup.FieldFormatterCleanups;
+import org.jabref.model.database.BibDatabaseMode;
+import org.jabref.model.database.event.ChangePropagation;
+import org.jabref.model.entry.field.Field;
+import org.jabref.model.entry.types.EntryType;
+import org.jabref.model.groups.GroupTreeNode;
+import org.jabref.model.groups.event.GroupUpdatedEvent;
+import org.jabref.model.metadata.event.MetaDataChangedEvent;
+
+import com.google.common.eventbus.EventBus;
+import com.tobiasdiez.easybind.optional.OptionalBinding;
+import com.tobiasdiez.easybind.optional.OptionalWrapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+@AllowedToUseLogic(&quot;because it needs access to citation pattern and cleanups&quot;)
+public class MetaData {
+
+    public static final String META_FLAG = &quot;jabref-meta: &quot;;
+    public static final String SAVE_ORDER_CONFIG = &quot;saveOrderConfig&quot;;
+    public static final String SAVE_ACTIONS = &quot;saveActions&quot;;
+    public static final String PREFIX_KEYPATTERN = &quot;keypattern_&quot;;
+    public static final String KEYPATTERNDEFAULT = &quot;keypatterndefault&quot;;
+    public static final String DATABASE_TYPE = &quot;databaseType&quot;;
+    public static final String GROUPSTREE = &quot;grouping&quot;;
+    public static final String GROUPSTREE_LEGACY = &quot;groupstree&quot;;
+    public static final String FILE_DIRECTORY = &quot;fileDirectory&quot;;
+    public static final String PROTECTED_FLAG_META = &quot;protectedFlag&quot;;
+    public static final String SELECTOR_META_PREFIX = &quot;selector_&quot;;
+
+    public static final char ESCAPE_CHARACTER = '\\';
+    public static final char SEPARATOR_CHARACTER = ';';
+<span class="fc" id="L51">    public static final String SEPARATOR_STRING = String.valueOf(SEPARATOR_CHARACTER);</span>
+
+<span class="fc" id="L53">    private static final Logger LOGGER = LoggerFactory.getLogger(MetaData.class);</span>
+
+<span class="fc" id="L55">    private final EventBus eventBus = new EventBus();</span>
+<span class="fc" id="L56">    private final Map&lt;EntryType, String&gt; citeKeyPatterns = new HashMap&lt;&gt;(); // &lt;BibType, Pattern&gt;</span>
+<span class="fc" id="L57">    private final Map&lt;String, String&gt; userFileDirectory = new HashMap&lt;&gt;(); // &lt;User, FilePath&gt;</span>
+<span class="fc" id="L58">    private final Map&lt;String, Path&gt; laTexFileDirectory = new HashMap&lt;&gt;(); // &lt;User, FilePath&gt;</span>
+<span class="fc" id="L59">    private final ObjectProperty&lt;GroupTreeNode&gt; groupsRoot = new SimpleObjectProperty&lt;&gt;(null);</span>
+<span class="fc" id="L60">    private final OptionalBinding&lt;GroupTreeNode&gt; groupsRootBinding = new OptionalWrapper&lt;&gt;(groupsRoot);</span>
+    private Charset encoding;
+    private SaveOrderConfig saveOrderConfig;
+    private String defaultCiteKeyPattern;
+    private FieldFormatterCleanups saveActions;
+    private BibDatabaseMode mode;
+    private boolean isProtected;
+    private String defaultFileDirectory;
+<span class="fc" id="L68">    private final ContentSelectors contentSelectors = new ContentSelectors();</span>
+<span class="fc" id="L69">    private final Map&lt;String, List&lt;String&gt;&gt; unknownMetaData = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L70">    private boolean isEventPropagationEnabled = true;</span>
+
+    /**
+     * Constructs an empty metadata.
+     */
+<span class="fc" id="L75">    public MetaData() {</span>
+        // Do nothing
+<span class="fc" id="L77">    }</span>
+
+    public Optional&lt;SaveOrderConfig&gt; getSaveOrderConfig() {
+<span class="fc" id="L80">        return Optional.ofNullable(saveOrderConfig);</span>
+    }
+
+    public void setSaveOrderConfig(SaveOrderConfig saveOrderConfig) {
+<span class="fc" id="L84">        this.saveOrderConfig = saveOrderConfig;</span>
+<span class="fc" id="L85">        postChange();</span>
+<span class="fc" id="L86">    }</span>
+
+    public Optional&lt;GroupTreeNode&gt; getGroups() {
+<span class="fc" id="L89">        return groupsRootBinding.getValue();</span>
+    }
+
+    public OptionalBinding&lt;GroupTreeNode&gt; groupsBinding() {
+<span class="nc" id="L93">        return groupsRootBinding;</span>
+    }
+
+    /**
+     * Sets a new group root node. &lt;b&gt;WARNING &lt;/b&gt;: This invalidates everything returned by getGroups() so far!!!
+     */
+    public void setGroups(GroupTreeNode root) {
+<span class="fc" id="L100">        Objects.requireNonNull(root);</span>
+<span class="fc" id="L101">        groupsRoot.setValue(root);</span>
+<span class="fc" id="L102">        root.subscribeToDescendantChanged(groupTreeNode -&gt; groupsRootBinding.invalidate());</span>
+<span class="fc" id="L103">        root.subscribeToDescendantChanged(groupTreeNode -&gt; eventBus.post(new GroupUpdatedEvent(this)));</span>
+<span class="fc" id="L104">        eventBus.post(new GroupUpdatedEvent(this));</span>
+<span class="fc" id="L105">        postChange();</span>
+<span class="fc" id="L106">    }</span>
+
+    /**
+     * @return the stored label patterns
+     */
+    public AbstractCitationKeyPattern getCiteKeyPattern(GlobalCitationKeyPattern globalPattern) {
+<span class="fc" id="L112">        Objects.requireNonNull(globalPattern);</span>
+<span class="fc" id="L113">        AbstractCitationKeyPattern bibtexKeyPattern = new DatabaseCitationKeyPattern(globalPattern);</span>
+
+        // Add stored key patterns
+<span class="fc" id="L116">        citeKeyPatterns.forEach(bibtexKeyPattern::addCitationKeyPattern);</span>
+<span class="fc" id="L117">        getDefaultCiteKeyPattern().ifPresent(bibtexKeyPattern::setDefaultValue);</span>
+
+<span class="fc" id="L119">        return bibtexKeyPattern;</span>
+    }
+
+    /**
+     * Updates the stored key patterns to the given key patterns.
+     *
+     * @param bibtexKeyPattern the key patterns to update to. &lt;br /&gt; A reference to this object is stored internally and is returned at getCiteKeyPattern();
+     */
+    public void setCiteKeyPattern(AbstractCitationKeyPattern bibtexKeyPattern) {
+<span class="fc" id="L128">        Objects.requireNonNull(bibtexKeyPattern);</span>
+
+<span class="fc" id="L130">        List&lt;String&gt; defaultValue = bibtexKeyPattern.getDefaultValue();</span>
+<span class="fc" id="L131">        Map&lt;EntryType, List&lt;String&gt;&gt; nonDefaultPatterns = bibtexKeyPattern.getPatterns();</span>
+<span class="fc" id="L132">        setCiteKeyPattern(defaultValue, nonDefaultPatterns);</span>
+<span class="fc" id="L133">    }</span>
+
+    public void setCiteKeyPattern(List&lt;String&gt; defaultValue, Map&lt;EntryType, List&lt;String&gt;&gt; nonDefaultPatterns) {
+        // Remove all patterns from metadata
+<span class="fc" id="L137">        citeKeyPatterns.clear();</span>
+
+        // Set new value if it is not a default value
+<span class="fc bfc" id="L140" title="All 2 branches covered.">        for (Map.Entry&lt;EntryType, List&lt;String&gt;&gt; pattern : nonDefaultPatterns.entrySet()) {</span>
+<span class="fc" id="L141">            citeKeyPatterns.put(pattern.getKey(), pattern.getValue().get(0));</span>
+<span class="fc" id="L142">        }</span>
+
+        // Store default pattern
+<span class="pc bpc" id="L145" title="1 of 2 branches missed.">        if (defaultValue.isEmpty()) {</span>
+<span class="nc" id="L146">            defaultCiteKeyPattern = null;</span>
+        } else {
+<span class="fc" id="L148">            defaultCiteKeyPattern = defaultValue.get(0);</span>
+        }
+
+<span class="fc" id="L151">        postChange();</span>
+<span class="fc" id="L152">    }</span>
+
+    public Optional&lt;FieldFormatterCleanups&gt; getSaveActions() {
+<span class="fc" id="L155">        return Optional.ofNullable(saveActions);</span>
+    }
+
+    public void setSaveActions(FieldFormatterCleanups saveActions) {
+<span class="fc" id="L159">        this.saveActions = Objects.requireNonNull(saveActions);</span>
+<span class="fc" id="L160">        postChange();</span>
+<span class="fc" id="L161">    }</span>
+
+    public Optional&lt;BibDatabaseMode&gt; getMode() {
+<span class="fc" id="L164">        return Optional.ofNullable(mode);</span>
+    }
+
+    public void setMode(BibDatabaseMode mode) {
+<span class="pc bpc" id="L168" title="1 of 2 branches missed.">        if (mode == this.mode) {</span>
+<span class="nc" id="L169">            return;</span>
+        }
+
+<span class="fc" id="L172">        this.mode = Objects.requireNonNull(mode);</span>
+<span class="fc" id="L173">        postChange();</span>
+<span class="fc" id="L174">    }</span>
+
+    public boolean isProtected() {
+<span class="fc" id="L177">        return isProtected;</span>
+    }
+
+    public ContentSelectors getContentSelectors() {
+<span class="fc" id="L181">        return contentSelectors;</span>
+    }
+
+    public List&lt;ContentSelector&gt; getContentSelectorList() {
+<span class="fc" id="L185">        return contentSelectors.getContentSelectors();</span>
+    }
+
+    public void addContentSelector(ContentSelector contentSelector) {
+<span class="fc" id="L189">        this.contentSelectors.addContentSelector(contentSelector);</span>
+<span class="fc" id="L190">        postChange();</span>
+<span class="fc" id="L191">    }</span>
+
+    public void clearContentSelectors(Field field) {
+<span class="nc" id="L194">        contentSelectors.removeSelector(field);</span>
+<span class="nc" id="L195">        postChange();</span>
+<span class="nc" id="L196">    }</span>
+
+    public List&lt;String&gt; getContentSelectorValuesForField(Field field) {
+<span class="fc" id="L199">        return contentSelectors.getSelectorValuesForField(field);</span>
+    }
+
+    public Optional&lt;String&gt; getDefaultFileDirectory() {
+<span class="fc" id="L203">        return Optional.ofNullable(defaultFileDirectory);</span>
+    }
+
+    public void setDefaultFileDirectory(String path) {
+<span class="fc" id="L207">        defaultFileDirectory = Objects.requireNonNull(path).trim();</span>
+<span class="fc" id="L208">        postChange();</span>
+<span class="fc" id="L209">    }</span>
+
+    public Optional&lt;String&gt; getUserFileDirectory(String user) {
+<span class="fc" id="L212">        return Optional.ofNullable(userFileDirectory.get(user));</span>
+    }
+
+    public void markAsProtected() {
+<span class="fc" id="L216">        isProtected = true;</span>
+<span class="fc" id="L217">        postChange();</span>
+<span class="fc" id="L218">    }</span>
+
+    public void clearDefaultFileDirectory() {
+<span class="nc" id="L221">        defaultFileDirectory = null;</span>
+<span class="nc" id="L222">        postChange();</span>
+<span class="nc" id="L223">    }</span>
+
+    public void setUserFileDirectory(String user, String path) {
+<span class="fc" id="L226">        userFileDirectory.put(Objects.requireNonNull(user), Objects.requireNonNull(path));</span>
+<span class="fc" id="L227">        postChange();</span>
+<span class="fc" id="L228">    }</span>
+
+    public void clearUserFileDirectory(String user) {
+<span class="nc" id="L231">        userFileDirectory.remove(user);</span>
+<span class="nc" id="L232">        postChange();</span>
+<span class="nc" id="L233">    }</span>
+
+    public Optional&lt;Path&gt; getLatexFileDirectory(String user) {
+<span class="fc" id="L236">        return Optional.ofNullable(laTexFileDirectory.get(user));</span>
+    }
+
+    public void setLatexFileDirectory(String user, Path path) {
+<span class="fc" id="L240">        laTexFileDirectory.put(Objects.requireNonNull(user), Objects.requireNonNull(path));</span>
+<span class="fc" id="L241">        postChange();</span>
+<span class="fc" id="L242">    }</span>
+
+    public void clearLatexFileDirectory(String user) {
+<span class="nc" id="L245">        laTexFileDirectory.remove(user);</span>
+<span class="nc" id="L246">        postChange();</span>
+<span class="nc" id="L247">    }</span>
+
+    public void markAsNotProtected() {
+<span class="nc" id="L250">        isProtected = false;</span>
+<span class="nc" id="L251">        postChange();</span>
+<span class="nc" id="L252">    }</span>
+
+    public void clearSaveActions() {
+<span class="nc" id="L255">        saveActions = null;</span>
+<span class="nc" id="L256">        postChange();</span>
+<span class="nc" id="L257">    }</span>
+
+    public void clearSaveOrderConfig() {
+<span class="nc" id="L260">        saveOrderConfig = null;</span>
+<span class="nc" id="L261">        postChange();</span>
+<span class="nc" id="L262">    }</span>
+
+    /**
+     * Posts a new {@link MetaDataChangedEvent} on the {@link EventBus}.
+     */
+    private void postChange() {
+<span class="pc bpc" id="L268" title="1 of 2 branches missed.">        if (isEventPropagationEnabled) {</span>
+<span class="fc" id="L269">            eventBus.post(new MetaDataChangedEvent(this));</span>
+        }
+<span class="fc" id="L271">    }</span>
+
+    /**
+     * Returns the encoding used during parsing.
+     */
+    public Optional&lt;Charset&gt; getEncoding() {
+<span class="fc" id="L277">        return Optional.ofNullable(encoding);</span>
+    }
+
+    public void setEncoding(Charset encoding) {
+<span class="fc" id="L281">        setEncoding(encoding, ChangePropagation.POST_EVENT);</span>
+<span class="fc" id="L282">    }</span>
+
+    /**
+     * This method (with additional parameter) has been introduced to avoid event loops while saving a database.
+     */
+    public void setEncoding(Charset encoding, ChangePropagation postChanges) {
+<span class="fc" id="L288">        this.encoding = Objects.requireNonNull(encoding);</span>
+<span class="pc bpc" id="L289" title="1 of 2 branches missed.">        if (postChanges == ChangePropagation.POST_EVENT) {</span>
+<span class="fc" id="L290">            postChange();</span>
+        }
+<span class="fc" id="L292">    }</span>
+
+    /**
+     * If disabled {@link MetaDataChangedEvent} will not be posted.
+     */
+    public void setEventPropagation(boolean enabled) {
+<span class="nc" id="L298">        this.isEventPropagationEnabled = enabled;</span>
+<span class="nc" id="L299">    }</span>
+
+    public void registerListener(Object listener) {
+<span class="nc" id="L302">        this.eventBus.register(listener);</span>
+<span class="nc" id="L303">    }</span>
+
+    public void unregisterListener(Object listener) {
+        try {
+<span class="nc" id="L307">            this.eventBus.unregister(listener);</span>
+<span class="nc" id="L308">        } catch (IllegalArgumentException e) {</span>
+            // occurs if the event source has not been registered, should not prevent shutdown
+<span class="nc" id="L310">        }</span>
+<span class="nc" id="L311">    }</span>
+
+    public Optional&lt;String&gt; getDefaultCiteKeyPattern() {
+<span class="fc" id="L314">        return Optional.ofNullable(defaultCiteKeyPattern);</span>
+    }
+
+    public boolean isEmpty() {
+<span class="fc" id="L318">        return this.equals(new MetaData());</span>
+    }
+
+    public Map&lt;String, String&gt; getUserFileDirectories() {
+<span class="fc" id="L322">        return Collections.unmodifiableMap(userFileDirectory);</span>
+    }
+
+    public Map&lt;String, Path&gt; getLatexFileDirectories() {
+<span class="fc" id="L326">        return Collections.unmodifiableMap(laTexFileDirectory);</span>
+    }
+
+    public Map&lt;String, List&lt;String&gt;&gt; getUnknownMetaData() {
+<span class="fc" id="L330">        return Collections.unmodifiableMap(unknownMetaData);</span>
+    }
+
+    public void putUnknownMetaDataItem(String key, List&lt;String&gt; value) {
+<span class="fc" id="L334">        Objects.requireNonNull(key);</span>
+<span class="fc" id="L335">        Objects.requireNonNull(value);</span>
+
+<span class="fc" id="L337">        unknownMetaData.put(key, value);</span>
+<span class="fc" id="L338">    }</span>
+
+    @Override
+    public boolean equals(Object o) {
+<span class="pc bpc" id="L342" title="1 of 2 branches missed.">        if (this == o) {</span>
+<span class="nc" id="L343">            return true;</span>
+        }
+<span class="pc bpc" id="L345" title="2 of 4 branches missed.">        if ((o == null) || (getClass() != o.getClass())) {</span>
+<span class="nc" id="L346">            return false;</span>
+        }
+<span class="fc" id="L348">        MetaData metaData = (MetaData) o;</span>
+<span class="pc bpc" id="L349" title="1 of 2 branches missed.">        return (isProtected == metaData.isProtected)</span>
+<span class="pc bpc" id="L350" title="1 of 2 branches missed.">                &amp;&amp; Objects.equals(groupsRoot.getValue(), metaData.groupsRoot.getValue())</span>
+<span class="pc bpc" id="L351" title="1 of 2 branches missed.">                &amp;&amp; Objects.equals(encoding, metaData.encoding)</span>
+<span class="pc bpc" id="L352" title="1 of 2 branches missed.">                &amp;&amp; Objects.equals(saveOrderConfig, metaData.saveOrderConfig)</span>
+<span class="pc bpc" id="L353" title="1 of 2 branches missed.">                &amp;&amp; Objects.equals(citeKeyPatterns, metaData.citeKeyPatterns)</span>
+<span class="pc bpc" id="L354" title="1 of 2 branches missed.">                &amp;&amp; Objects.equals(userFileDirectory, metaData.userFileDirectory)</span>
+<span class="pc bpc" id="L355" title="1 of 2 branches missed.">                &amp;&amp; Objects.equals(laTexFileDirectory, metaData.laTexFileDirectory)</span>
+<span class="pc bpc" id="L356" title="1 of 2 branches missed.">                &amp;&amp; Objects.equals(defaultCiteKeyPattern, metaData.defaultCiteKeyPattern)</span>
+<span class="pc bpc" id="L357" title="2 of 4 branches missed.">                &amp;&amp; Objects.equals(saveActions, metaData.saveActions)</span>
+                &amp;&amp; (mode == metaData.mode)
+<span class="pc bpc" id="L359" title="1 of 2 branches missed.">                &amp;&amp; Objects.equals(defaultFileDirectory, metaData.defaultFileDirectory)</span>
+<span class="pc bpc" id="L360" title="1 of 2 branches missed.">                &amp;&amp; Objects.equals(contentSelectors, metaData.contentSelectors);</span>
+    }
+
+    @Override
+    public int hashCode() {
+<span class="nc" id="L365">        return Objects.hash(groupsRoot.getValue(), encoding, saveOrderConfig, citeKeyPatterns, userFileDirectory,</span>
+<span class="nc" id="L366">                defaultCiteKeyPattern, saveActions, mode, isProtected, defaultFileDirectory);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

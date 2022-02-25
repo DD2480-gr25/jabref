@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MetaDataParser.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.importer.util</a> &gt; <span class="el_source">MetaDataParser.java</span></div><h1>MetaDataParser.java</h1><pre class="source lang-java linenums">package org.jabref.logic.importer.util;
+
+import java.io.IOException;
+import java.io.Reader;
+import java.io.StringReader;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import org.jabref.logic.cleanup.Cleanups;
+import org.jabref.logic.importer.ParseException;
+import org.jabref.model.database.BibDatabaseMode;
+import org.jabref.model.entry.field.FieldFactory;
+import org.jabref.model.entry.types.EntryType;
+import org.jabref.model.entry.types.EntryTypeFactory;
+import org.jabref.model.metadata.ContentSelectors;
+import org.jabref.model.metadata.MetaData;
+import org.jabref.model.metadata.SaveOrderConfig;
+import org.jabref.model.strings.StringUtil;
+import org.jabref.model.util.FileUpdateMonitor;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class MetaDataParser {
+
+<span class="fc" id="L32">    private static final Logger LOGGER = LoggerFactory.getLogger(MetaDataParser.class);</span>
+    private static FileUpdateMonitor fileMonitor;
+
+<span class="fc" id="L35">    public MetaDataParser(FileUpdateMonitor fileMonitor) {</span>
+<span class="fc" id="L36">        MetaDataParser.fileMonitor = fileMonitor;</span>
+<span class="fc" id="L37">    }</span>
+
+    /**
+     * Parses the given data map and returns a new resulting {@link MetaData} instance.
+     */
+    public MetaData parse(Map&lt;String, String&gt; data, Character keywordSeparator) throws ParseException {
+<span class="fc" id="L43">        return parse(new MetaData(), data, keywordSeparator);</span>
+    }
+
+    /**
+     * Parses the data map and changes the given {@link MetaData} instance respectively.
+     */
+    public MetaData parse(MetaData metaData, Map&lt;String, String&gt; data, Character keywordSeparator) throws ParseException {
+<span class="fc" id="L50">        List&lt;String&gt; defaultCiteKeyPattern = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L51">        Map&lt;EntryType, List&lt;String&gt;&gt; nonDefaultCiteKeyPatterns = new HashMap&lt;&gt;();</span>
+
+        // process groups (GROUPSTREE and GROUPSTREE_LEGACY) at the very end (otherwise it can happen that not all dependent data are set)
+<span class="fc" id="L54">        List&lt;Map.Entry&lt;String, String&gt;&gt; entryList = new ArrayList&lt;&gt;(data.entrySet());</span>
+<span class="fc" id="L55">        entryList.sort(groupsLast());</span>
+
+<span class="fc bfc" id="L57" title="All 2 branches covered.">        for (Map.Entry&lt;String, String&gt; entry : entryList) {</span>
+<span class="fc" id="L58">            List&lt;String&gt; value = getAsList(entry.getValue());</span>
+
+<span class="fc bfc" id="L60" title="All 2 branches covered.">            if (entry.getKey().startsWith(MetaData.PREFIX_KEYPATTERN)) {</span>
+<span class="fc" id="L61">                EntryType entryType = EntryTypeFactory.parse(entry.getKey().substring(MetaData.PREFIX_KEYPATTERN.length()));</span>
+<span class="fc" id="L62">                nonDefaultCiteKeyPatterns.put(entryType, Collections.singletonList(getSingleItem(value)));</span>
+<span class="fc bfc" id="L63" title="All 2 branches covered.">            } else if (entry.getKey().startsWith(MetaData.FILE_DIRECTORY + '-')) {</span>
+                // The user name comes directly after &quot;FILE_DIRECTORY-&quot;
+<span class="fc" id="L65">                String user = entry.getKey().substring(MetaData.FILE_DIRECTORY.length() + 1);</span>
+<span class="fc" id="L66">                metaData.setUserFileDirectory(user, getSingleItem(value));</span>
+<span class="fc bfc" id="L67" title="All 2 branches covered.">            } else if (entry.getKey().startsWith(MetaData.SELECTOR_META_PREFIX)) {</span>
+<span class="fc" id="L68">                metaData.addContentSelector(ContentSelectors.parse(FieldFactory.parseField(entry.getKey().substring(MetaData.SELECTOR_META_PREFIX.length())), StringUtil.unquote(entry.getValue(), MetaData.ESCAPE_CHARACTER)));</span>
+<span class="fc bfc" id="L69" title="All 2 branches covered.">            } else if (entry.getKey().startsWith(MetaData.FILE_DIRECTORY + &quot;Latex-&quot;)) {</span>
+                // The user name comes directly after &quot;FILE_DIRECTORYLatex-&quot;
+<span class="fc" id="L71">                String user = entry.getKey().substring(MetaData.FILE_DIRECTORY.length() + 6);</span>
+<span class="fc" id="L72">                Path path = Path.of(getSingleItem(value)).normalize();</span>
+<span class="fc" id="L73">                metaData.setLatexFileDirectory(user, path);</span>
+<span class="fc bfc" id="L74" title="All 2 branches covered.">            } else if (entry.getKey().equals(MetaData.SAVE_ACTIONS)) {</span>
+<span class="fc" id="L75">                metaData.setSaveActions(Cleanups.parse(value));</span>
+<span class="fc bfc" id="L76" title="All 2 branches covered.">            } else if (entry.getKey().equals(MetaData.DATABASE_TYPE)) {</span>
+<span class="fc" id="L77">                metaData.setMode(BibDatabaseMode.parse(getSingleItem(value)));</span>
+<span class="fc bfc" id="L78" title="All 2 branches covered.">            } else if (entry.getKey().equals(MetaData.KEYPATTERNDEFAULT)) {</span>
+<span class="fc" id="L79">                defaultCiteKeyPattern = Collections.singletonList(getSingleItem(value));</span>
+<span class="fc bfc" id="L80" title="All 2 branches covered.">            } else if (entry.getKey().equals(MetaData.PROTECTED_FLAG_META)) {</span>
+<span class="pc bpc" id="L81" title="1 of 2 branches missed.">                if (Boolean.parseBoolean(getSingleItem(value))) {</span>
+<span class="fc" id="L82">                    metaData.markAsProtected();</span>
+                } else {
+<span class="nc" id="L84">                    metaData.markAsNotProtected();</span>
+                }
+<span class="fc bfc" id="L86" title="All 2 branches covered.">            } else if (entry.getKey().equals(MetaData.FILE_DIRECTORY)) {</span>
+<span class="fc" id="L87">                metaData.setDefaultFileDirectory(getSingleItem(value));</span>
+<span class="fc bfc" id="L88" title="All 2 branches covered.">            } else if (entry.getKey().equals(MetaData.SAVE_ORDER_CONFIG)) {</span>
+<span class="fc" id="L89">                metaData.setSaveOrderConfig(SaveOrderConfig.parse(value));</span>
+<span class="fc bfc" id="L90" title="All 4 branches covered.">            } else if (entry.getKey().equals(MetaData.GROUPSTREE) || entry.getKey().equals(MetaData.GROUPSTREE_LEGACY)) {</span>
+<span class="fc" id="L91">                metaData.setGroups(GroupsParser.importGroups(value, keywordSeparator, fileMonitor, metaData));</span>
+            } else {
+                // Keep meta data items that we do not know in the file
+<span class="fc" id="L94">                metaData.putUnknownMetaDataItem(entry.getKey(), value);</span>
+            }
+<span class="fc" id="L96">        }</span>
+
+<span class="pc bpc" id="L98" title="1 of 4 branches missed.">        if (!defaultCiteKeyPattern.isEmpty() || !nonDefaultCiteKeyPatterns.isEmpty()) {</span>
+<span class="fc" id="L99">            metaData.setCiteKeyPattern(defaultCiteKeyPattern, nonDefaultCiteKeyPatterns);</span>
+        }
+
+<span class="fc" id="L102">        return metaData;</span>
+    }
+
+    private static Comparator&lt;? super Map.Entry&lt;String, String&gt;&gt; groupsLast() {
+<span class="pc bpc" id="L106" title="1 of 4 branches missed.">        return (s1, s2) -&gt; MetaData.GROUPSTREE.equals(s1.getKey()) || MetaData.GROUPSTREE_LEGACY.equals(s1.getKey()) ? 1 :</span>
+<span class="fc bfc" id="L107" title="All 4 branches covered.">                MetaData.GROUPSTREE.equals(s2.getKey()) || MetaData.GROUPSTREE_LEGACY.equals(s2.getKey()) ? -1 : 0;</span>
+    }
+
+    /**
+     * Returns the first item in the list.
+     * If the specified list does not contain exactly one item, then a {@link ParseException} will be thrown.
+     * @param value
+     * @return
+     */
+    private static String getSingleItem(List&lt;String&gt; value) throws ParseException {
+<span class="pc bpc" id="L117" title="1 of 2 branches missed.">        if (value.size() == 1) {</span>
+<span class="fc" id="L118">            return value.get(0);</span>
+        } else {
+<span class="nc" id="L120">            throw new ParseException(&quot;Expected a single item but received &quot; + value.toString());</span>
+        }
+    }
+
+    private static List&lt;String&gt; getAsList(String value) throws ParseException {
+<span class="fc" id="L125">        StringReader valueReader = new StringReader(value);</span>
+<span class="fc" id="L126">        List&lt;String&gt; orderedValue = new ArrayList&lt;&gt;();</span>
+
+        // We must allow for ; and \ in escape sequences.
+        try {
+            Optional&lt;String&gt; unit;
+<span class="fc bfc" id="L131" title="All 2 branches covered.">            while ((unit = getNextUnit(valueReader)).isPresent()) {</span>
+<span class="fc" id="L132">                orderedValue.add(unit.get());</span>
+            }
+<span class="nc" id="L134">        } catch (IOException ex) {</span>
+<span class="nc" id="L135">            LOGGER.error(&quot;Weird error while parsing meta data.&quot;, ex);</span>
+<span class="nc" id="L136">            throw new ParseException(&quot;Weird error while parsing meta data.&quot;, ex);</span>
+<span class="fc" id="L137">        }</span>
+<span class="fc" id="L138">        return orderedValue;</span>
+    }
+
+    /**
+     * Reads the next unit. Units are delimited by ';' (MetaData.SEPARATOR_CHARACTER).
+     */
+    private static Optional&lt;String&gt; getNextUnit(Reader reader) throws IOException {
+        int c;
+<span class="fc" id="L146">        boolean escape = false;</span>
+<span class="fc" id="L147">        StringBuilder res = new StringBuilder();</span>
+<span class="fc bfc" id="L148" title="All 2 branches covered.">        while ((c = reader.read()) != -1) {</span>
+<span class="fc bfc" id="L149" title="All 2 branches covered.">            if (escape) {</span>
+<span class="fc" id="L150">                res.append((char) c);</span>
+<span class="fc" id="L151">                escape = false;</span>
+<span class="fc bfc" id="L152" title="All 2 branches covered.">            } else if (c == MetaData.ESCAPE_CHARACTER) {</span>
+<span class="fc" id="L153">                escape = true;</span>
+<span class="fc bfc" id="L154" title="All 2 branches covered.">            } else if (c == MetaData.SEPARATOR_CHARACTER) {</span>
+<span class="fc" id="L155">                break;</span>
+            } else {
+<span class="fc" id="L157">                res.append((char) c);</span>
+            }
+        }
+<span class="fc bfc" id="L160" title="All 2 branches covered.">        if (res.length() &gt; 0) {</span>
+<span class="fc" id="L161">            return Optional.of(res.toString());</span>
+        }
+<span class="fc" id="L163">        return Optional.empty();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

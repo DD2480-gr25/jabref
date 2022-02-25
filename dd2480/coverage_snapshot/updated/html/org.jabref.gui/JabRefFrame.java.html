@@ -1,0 +1,1381 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JabRefFrame.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui</a> &gt; <span class="el_source">JabRefFrame.java</span></div><h1>JabRefFrame.java</h1><pre class="source lang-java linenums">package org.jabref.gui;
+
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.TimerTask;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+
+import javafx.application.Platform;
+import javafx.beans.InvalidationListener;
+import javafx.beans.Observable;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.StringBinding;
+import javafx.collections.transformation.FilteredList;
+import javafx.concurrent.Task;
+import javafx.geometry.Orientation;
+import javafx.scene.Group;
+import javafx.scene.Node;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuBar;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.Separator;
+import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.SplitPane;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
+import javafx.scene.control.ToolBar;
+import javafx.scene.control.Tooltip;
+import javafx.scene.control.skin.TabPaneSkin;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.TransferMode;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+import javafx.scene.shape.Rectangle;
+import javafx.stage.Stage;
+
+import org.jabref.gui.actions.ActionFactory;
+import org.jabref.gui.actions.ActionHelper;
+import org.jabref.gui.actions.SimpleCommand;
+import org.jabref.gui.actions.StandardActions;
+import org.jabref.gui.auximport.NewSubLibraryAction;
+import org.jabref.gui.bibtexextractor.ExtractBibtexAction;
+import org.jabref.gui.citationkeypattern.GenerateCitationKeyAction;
+import org.jabref.gui.cleanup.CleanupAction;
+import org.jabref.gui.contentselector.ManageContentSelectorAction;
+import org.jabref.gui.copyfiles.CopyFilesAction;
+import org.jabref.gui.customentrytypes.CustomizeEntryAction;
+import org.jabref.gui.desktop.JabRefDesktop;
+import org.jabref.gui.dialogs.AutosaveUiManager;
+import org.jabref.gui.documentviewer.ShowDocumentViewerAction;
+import org.jabref.gui.duplicationFinder.DuplicateSearch;
+import org.jabref.gui.edit.CopyMoreAction;
+import org.jabref.gui.edit.EditAction;
+import org.jabref.gui.edit.ManageKeywordsAction;
+import org.jabref.gui.edit.MassSetFieldsAction;
+import org.jabref.gui.edit.OpenBrowserAction;
+import org.jabref.gui.edit.ReplaceStringAction;
+import org.jabref.gui.entryeditor.OpenEntryEditorAction;
+import org.jabref.gui.entryeditor.PreviewSwitchAction;
+import org.jabref.gui.exporter.ExportCommand;
+import org.jabref.gui.exporter.ExportToClipboardAction;
+import org.jabref.gui.exporter.SaveAction;
+import org.jabref.gui.exporter.SaveAllAction;
+import org.jabref.gui.exporter.SaveDatabaseAction;
+import org.jabref.gui.exporter.WriteMetadataToPdfAction;
+import org.jabref.gui.externalfiles.AutoLinkFilesAction;
+import org.jabref.gui.externalfiles.DownloadFullTextAction;
+import org.jabref.gui.externalfiles.FindUnlinkedFilesAction;
+import org.jabref.gui.externalfiletype.ExternalFileTypes;
+import org.jabref.gui.help.AboutAction;
+import org.jabref.gui.help.ErrorConsoleAction;
+import org.jabref.gui.help.HelpAction;
+import org.jabref.gui.help.SearchForUpdateAction;
+import org.jabref.gui.icon.IconTheme;
+import org.jabref.gui.importer.GenerateEntryFromIdDialog;
+import org.jabref.gui.importer.ImportCommand;
+import org.jabref.gui.importer.ImportEntriesDialog;
+import org.jabref.gui.importer.NewDatabaseAction;
+import org.jabref.gui.importer.NewEntryAction;
+import org.jabref.gui.importer.actions.OpenDatabaseAction;
+import org.jabref.gui.importer.fetcher.LookupIdentifierAction;
+import org.jabref.gui.integrity.IntegrityCheckAction;
+import org.jabref.gui.journals.AbbreviateAction;
+import org.jabref.gui.keyboard.KeyBinding;
+import org.jabref.gui.keyboard.KeyBindingRepository;
+import org.jabref.gui.libraryproperties.LibraryPropertiesAction;
+import org.jabref.gui.menus.FileHistoryMenu;
+import org.jabref.gui.mergeentries.MergeEntriesAction;
+import org.jabref.gui.preferences.ShowPreferencesAction;
+import org.jabref.gui.preview.CopyCitationAction;
+import org.jabref.gui.push.PushToApplicationAction;
+import org.jabref.gui.push.PushToApplicationsManager;
+import org.jabref.gui.search.GlobalSearchBar;
+import org.jabref.gui.search.RebuildFulltextSearchIndexAction;
+import org.jabref.gui.shared.ConnectToSharedDatabaseCommand;
+import org.jabref.gui.shared.PullChangesFromSharedAction;
+import org.jabref.gui.sidepane.SidePane;
+import org.jabref.gui.sidepane.SidePaneType;
+import org.jabref.gui.slr.ExistingStudySearchAction;
+import org.jabref.gui.slr.StartNewStudyAction;
+import org.jabref.gui.specialfields.SpecialFieldMenuItemFactory;
+import org.jabref.gui.texparser.ParseLatexAction;
+import org.jabref.gui.theme.ThemeManager;
+import org.jabref.gui.undo.CountingUndoManager;
+import org.jabref.gui.undo.UndoRedoAction;
+import org.jabref.gui.util.BackgroundTask;
+import org.jabref.gui.util.DefaultTaskExecutor;
+import org.jabref.gui.util.TaskExecutor;
+import org.jabref.logic.autosaveandbackup.AutosaveManager;
+import org.jabref.logic.autosaveandbackup.BackupManager;
+import org.jabref.logic.citationstyle.CitationStyleOutputFormat;
+import org.jabref.logic.importer.IdFetcher;
+import org.jabref.logic.importer.ImportCleanup;
+import org.jabref.logic.importer.ParserResult;
+import org.jabref.logic.importer.WebFetchers;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.logic.shared.DatabaseLocation;
+import org.jabref.logic.undo.AddUndoableActionEvent;
+import org.jabref.logic.undo.UndoChangeEvent;
+import org.jabref.logic.undo.UndoRedoEvent;
+import org.jabref.logic.util.OS;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.field.SpecialField;
+import org.jabref.model.entry.types.StandardEntryType;
+import org.jabref.preferences.PreferencesService;
+import org.jabref.preferences.TelemetryPreferences;
+
+import com.google.common.eventbus.Subscribe;
+import com.tobiasdiez.easybind.EasyBind;
+import com.tobiasdiez.easybind.EasyObservableList;
+import com.tobiasdiez.easybind.Subscription;
+import org.controlsfx.control.PopOver;
+import org.controlsfx.control.TaskProgressView;
+import org.fxmisc.richtext.CodeArea;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * The main window of the application.
+ */
+public class JabRefFrame extends BorderPane {
+
+    public static final String FRAME_TITLE = &quot;JabRef&quot;;
+
+<span class="fc" id="L161">    private static final Logger LOGGER = LoggerFactory.getLogger(JabRefFrame.class);</span>
+
+<span class="nc" id="L163">    private final SplitPane splitPane = new SplitPane();</span>
+<span class="nc" id="L164">    private final PreferencesService prefs = Globals.prefs;</span>
+    private final GlobalSearchBar globalSearchBar;
+
+    private final FileHistoryMenu fileHistory;
+
+    @SuppressWarnings({&quot;FieldCanBeLocal&quot;}) private EasyObservableList&lt;BibDatabaseContext&gt; openDatabaseList;
+
+    private final Stage mainStage;
+    private final StateManager stateManager;
+    private final ThemeManager themeManager;
+    private final CountingUndoManager undoManager;
+    private final PushToApplicationsManager pushToApplicationsManager;
+    private final DialogService dialogService;
+    private SidePane sidePane;
+    private TabPane tabbedPane;
+    private PopOver progressViewPopOver;
+    private PopOver entryFromIdPopOver;
+
+    private Subscription dividerSubscription;
+
+    private final TaskExecutor taskExecutor;
+
+<span class="nc" id="L186">    public JabRefFrame(Stage mainStage) {</span>
+<span class="nc" id="L187">        this.mainStage = mainStage;</span>
+<span class="nc" id="L188">        this.stateManager = Globals.stateManager;</span>
+<span class="nc" id="L189">        this.themeManager = Globals.getThemeManager();</span>
+<span class="nc" id="L190">        this.dialogService = new JabRefDialogService(mainStage, this, themeManager);</span>
+<span class="nc" id="L191">        this.pushToApplicationsManager = new PushToApplicationsManager(dialogService, stateManager, prefs);</span>
+<span class="nc" id="L192">        this.undoManager = Globals.undoManager;</span>
+<span class="nc" id="L193">        this.globalSearchBar = new GlobalSearchBar(this, stateManager, prefs, undoManager);</span>
+<span class="nc" id="L194">        this.fileHistory = new FileHistoryMenu(prefs, dialogService, getOpenDatabaseAction());</span>
+<span class="nc" id="L195">        this.taskExecutor = Globals.TASK_EXECUTOR;</span>
+<span class="nc" id="L196">        this.setOnKeyTyped(key -&gt; {</span>
+<span class="nc bnc" id="L197" title="All 2 branches missed.">            if (this.fileHistory.isShowing()) {</span>
+<span class="nc bnc" id="L198" title="All 2 branches missed.">                if (this.fileHistory.openFileByKey(key)) {</span>
+<span class="nc" id="L199">                    this.fileHistory.getParentMenu().hide();</span>
+                }
+            }
+<span class="nc" id="L202">        });</span>
+<span class="nc" id="L203">    }</span>
+
+    private void initDragAndDrop() {
+<span class="nc" id="L206">        Tab dndIndicator = new Tab(Localization.lang(&quot;Open files...&quot;), null);</span>
+<span class="nc" id="L207">        dndIndicator.getStyleClass().add(&quot;drop&quot;);</span>
+
+<span class="nc" id="L209">        EasyBind.subscribe(tabbedPane.skinProperty(), skin -&gt; {</span>
+<span class="nc bnc" id="L210" title="All 2 branches missed.">            if (!(skin instanceof TabPaneSkin)) {</span>
+<span class="nc" id="L211">                return;</span>
+            }
+            // Add drag and drop listeners to JabRefFrame
+<span class="nc" id="L214">            this.getScene().setOnDragOver(event -&gt; {</span>
+<span class="nc bnc" id="L215" title="All 2 branches missed.">                if (DragAndDropHelper.hasBibFiles(event.getDragboard())) {</span>
+<span class="nc" id="L216">                    event.acceptTransferModes(TransferMode.ANY);</span>
+<span class="nc bnc" id="L217" title="All 2 branches missed.">                    if (!tabbedPane.getTabs().contains(dndIndicator)) {</span>
+<span class="nc" id="L218">                        tabbedPane.getTabs().add(dndIndicator);</span>
+                    }
+<span class="nc" id="L220">                    event.consume();</span>
+                } else {
+<span class="nc" id="L222">                    tabbedPane.getTabs().remove(dndIndicator);</span>
+                }
+<span class="nc" id="L224">            });</span>
+
+<span class="nc" id="L226">            this.getScene().setOnDragExited(event -&gt; tabbedPane.getTabs().remove(dndIndicator));</span>
+
+<span class="nc" id="L228">            this.getScene().setOnDragDropped(event -&gt; {</span>
+<span class="nc" id="L229">                tabbedPane.getTabs().remove(dndIndicator);</span>
+<span class="nc" id="L230">                List&lt;Path&gt; bibFiles = DragAndDropHelper.getBibFiles(event.getDragboard());</span>
+<span class="nc" id="L231">                OpenDatabaseAction openDatabaseAction = this.getOpenDatabaseAction();</span>
+<span class="nc" id="L232">                openDatabaseAction.openFiles(bibFiles, true);</span>
+<span class="nc" id="L233">                event.setDropCompleted(true);</span>
+<span class="nc" id="L234">                event.consume();</span>
+<span class="nc" id="L235">            });</span>
+<span class="nc" id="L236">        });</span>
+<span class="nc" id="L237">    }</span>
+
+    private void initKeyBindings() {
+<span class="nc" id="L240">        addEventFilter(KeyEvent.KEY_PRESSED, event -&gt; {</span>
+<span class="nc" id="L241">            Optional&lt;KeyBinding&gt; keyBinding = Globals.getKeyPrefs().mapToKeyBinding(event);</span>
+<span class="nc bnc" id="L242" title="All 2 branches missed.">            if (keyBinding.isPresent()) {</span>
+<span class="nc bnc" id="L243" title="All 15 branches missed.">                switch (keyBinding.get()) {</span>
+                    case FOCUS_ENTRY_TABLE:
+<span class="nc" id="L245">                        getCurrentLibraryTab().getMainTable().requestFocus();</span>
+<span class="nc" id="L246">                        event.consume();</span>
+<span class="nc" id="L247">                        break;</span>
+                    case NEXT_LIBRARY:
+<span class="nc" id="L249">                        tabbedPane.getSelectionModel().selectNext();</span>
+<span class="nc" id="L250">                        event.consume();</span>
+<span class="nc" id="L251">                        break;</span>
+                    case PREVIOUS_LIBRARY:
+<span class="nc" id="L253">                        tabbedPane.getSelectionModel().selectPrevious();</span>
+<span class="nc" id="L254">                        event.consume();</span>
+<span class="nc" id="L255">                        break;</span>
+                    case SEARCH:
+<span class="nc" id="L257">                        getGlobalSearchBar().focus();</span>
+<span class="nc" id="L258">                        break;</span>
+                    case NEW_ARTICLE:
+<span class="nc" id="L260">                        new NewEntryAction(this, StandardEntryType.Article, dialogService, prefs, stateManager).execute();</span>
+<span class="nc" id="L261">                        break;</span>
+                    case NEW_BOOK:
+<span class="nc" id="L263">                        new NewEntryAction(this, StandardEntryType.Book, dialogService, prefs, stateManager).execute();</span>
+<span class="nc" id="L264">                        break;</span>
+                    case NEW_INBOOK:
+<span class="nc" id="L266">                        new NewEntryAction(this, StandardEntryType.InBook, dialogService, prefs, stateManager).execute();</span>
+<span class="nc" id="L267">                        break;</span>
+                    case NEW_MASTERSTHESIS:
+<span class="nc" id="L269">                        new NewEntryAction(this, StandardEntryType.MastersThesis, dialogService, prefs, stateManager).execute();</span>
+<span class="nc" id="L270">                        break;</span>
+                    case NEW_PHDTHESIS:
+<span class="nc" id="L272">                        new NewEntryAction(this, StandardEntryType.PhdThesis, dialogService, prefs, stateManager).execute();</span>
+<span class="nc" id="L273">                        break;</span>
+                    case NEW_PROCEEDINGS:
+<span class="nc" id="L275">                        new NewEntryAction(this, StandardEntryType.Proceedings, dialogService, prefs, stateManager).execute();</span>
+<span class="nc" id="L276">                        break;</span>
+                    case NEW_TECHREPORT:
+<span class="nc" id="L278">                        new NewEntryAction(this, StandardEntryType.TechReport, dialogService, prefs, stateManager).execute();</span>
+<span class="nc" id="L279">                        break;</span>
+                    case NEW_UNPUBLISHED:
+<span class="nc" id="L281">                        new NewEntryAction(this, StandardEntryType.Unpublished, dialogService, prefs, stateManager).execute();</span>
+<span class="nc" id="L282">                        break;</span>
+                    case NEW_INPROCEEDINGS:
+<span class="nc" id="L284">                        new NewEntryAction(this, StandardEntryType.InProceedings, dialogService, prefs, stateManager).execute();</span>
+<span class="nc" id="L285">                        break;</span>
+                    case PASTE:
+<span class="nc bnc" id="L287" title="All 2 branches missed.">                        if (OS.OS_X) { // Workaround for a jdk issue that executes paste twice when using cmd+v in a TextField</span>
+                            // Extra workaround for CodeArea, which does not inherit from TextInputControl
+<span class="nc bnc" id="L289" title="All 4 branches missed.">                            if (!(stateManager.getFocusOwner().isPresent() &amp;&amp; (stateManager.getFocusOwner().get() instanceof CodeArea))) {</span>
+<span class="nc" id="L290">                                event.consume();</span>
+                            }
+                            break;
+                        }
+                    default:
+                }
+            }
+<span class="nc" id="L297">        });</span>
+<span class="nc" id="L298">    }</span>
+
+    private void initShowTrackingNotification() {
+<span class="nc bnc" id="L301" title="All 2 branches missed.">        if (prefs.getTelemetryPreferences().shouldAskToCollectTelemetry()) {</span>
+<span class="nc" id="L302">            JabRefExecutorService.INSTANCE.submit(new TimerTask() {</span>
+
+                @Override
+                public void run() {
+<span class="nc" id="L306">                    DefaultTaskExecutor.runInJavaFXThread(JabRefFrame.this::showTrackingNotification);</span>
+<span class="nc" id="L307">                }</span>
+            }, 60000); // run in one minute
+        }
+<span class="nc" id="L310">    }</span>
+
+    private void showTrackingNotification() {
+<span class="nc" id="L313">        TelemetryPreferences telemetryPreferences = prefs.getTelemetryPreferences();</span>
+<span class="nc" id="L314">        boolean shouldCollect = telemetryPreferences.shouldCollectTelemetry();</span>
+
+<span class="nc bnc" id="L316" title="All 2 branches missed.">        if (!telemetryPreferences.shouldCollectTelemetry()) {</span>
+<span class="nc" id="L317">            shouldCollect = dialogService.showConfirmationDialogAndWait(</span>
+<span class="nc" id="L318">                    Localization.lang(&quot;Telemetry: Help make JabRef better&quot;),</span>
+<span class="nc" id="L319">                    Localization.lang(&quot;To improve the user experience, we would like to collect anonymous statistics on the features you use. We will only record what features you access and how often you do it. We will neither collect any personal data nor the content of bibliographic items. If you choose to allow data collection, you can later disable it via Options -&gt; Preferences -&gt; General.&quot;),</span>
+<span class="nc" id="L320">                    Localization.lang(&quot;Share anonymous statistics&quot;),</span>
+<span class="nc" id="L321">                    Localization.lang(&quot;Don't share&quot;));</span>
+        }
+
+<span class="nc" id="L324">        telemetryPreferences.setCollectTelemetry(shouldCollect);</span>
+<span class="nc" id="L325">        telemetryPreferences.setAskToCollectTelemetry(false);</span>
+<span class="nc" id="L326">    }</span>
+
+    /**
+     * The MacAdapter calls this method when a &quot;BIB&quot; file has been double-clicked from the Finder.
+     */
+    public void openAction(String filePath) {
+<span class="nc" id="L332">        Path file = Path.of(filePath);</span>
+        // all the logic is done in openIt. Even raising an existing panel
+<span class="nc" id="L334">        getOpenDatabaseAction().openFile(file, true);</span>
+<span class="nc" id="L335">    }</span>
+
+    /**
+     * The MacAdapter calls this method when &quot;About&quot; is selected from the application menu.
+     */
+    public void about() {
+<span class="nc" id="L341">        HelpAction.getMainHelpPageCommand().execute();</span>
+<span class="nc" id="L342">    }</span>
+
+    /**
+     * Tears down all things started by JabRef
+     * &lt;p&gt;
+     * FIXME: Currently some threads remain and therefore hinder JabRef to be closed properly
+     *
+     * @param filenames the filenames of all currently opened files - used for storing them if prefs openLastEdited is
+     *                  set to true
+     */
+    private void tearDownJabRef(List&lt;String&gt; filenames) {
+<span class="nc bnc" id="L353" title="All 2 branches missed.">        if (prefs.getImportExportPreferences().shouldOpenLastEdited()) {</span>
+            // Here we store the names of all current files. If there is no current file, we remove any
+            // previously stored filename.
+<span class="nc bnc" id="L356" title="All 2 branches missed.">            if (filenames.isEmpty()) {</span>
+<span class="nc" id="L357">                prefs.clearEditedFiles();</span>
+            } else {
+<span class="nc" id="L359">                Path focusedDatabase = getCurrentLibraryTab().getBibDatabaseContext()</span>
+<span class="nc" id="L360">                                                             .getDatabasePath()</span>
+<span class="nc" id="L361">                                                             .orElse(null);</span>
+<span class="nc" id="L362">                prefs.getGuiPreferences().setLastFilesOpened(filenames);</span>
+<span class="nc" id="L363">                prefs.getGuiPreferences().setLastFocusedFile(focusedDatabase);</span>
+            }
+        }
+
+<span class="nc" id="L367">        prefs.flush();</span>
+<span class="nc" id="L368">    }</span>
+
+    /**
+     * General info dialog.  The MacAdapter calls this method when &quot;Quit&quot; is selected from the application menu, Cmd-Q
+     * is pressed, or &quot;Quit&quot; is selected from the Dock. The function returns a boolean indicating if quitting is ok or
+     * not.
+     * &lt;p&gt;
+     * Non-OSX JabRef calls this when choosing &quot;Quit&quot; from the menu
+     * &lt;p&gt;
+     * SIDE EFFECT: tears down JabRef
+     *
+     * @return true if the user chose to quit; false otherwise
+     */
+    public boolean quit() {
+        // First ask if the user really wants to close, if there are still background tasks running
+        /*
+        It is important to wait for unfinished background tasks before checking if a save-operation is needed, because
+        the background tasks may make changes themselves that need saving.
+         */
+<span class="nc bnc" id="L387" title="All 2 branches missed.">        if (stateManager.getAnyTaskRunning().getValue()) {</span>
+<span class="nc" id="L388">            Optional&lt;ButtonType&gt; shouldClose = dialogService.showBackgroundProgressDialogAndWait(</span>
+<span class="nc" id="L389">                    Localization.lang(&quot;Please wait...&quot;),</span>
+<span class="nc" id="L390">                    Localization.lang(&quot;Waiting for background tasks to finish. Quit anyway?&quot;),</span>
+                    stateManager);
+<span class="nc bnc" id="L392" title="All 4 branches missed.">            if (!(shouldClose.isPresent() &amp;&amp; (shouldClose.get() == ButtonType.YES))) {</span>
+<span class="nc" id="L393">                return false;</span>
+            }
+        }
+
+        // Then ask if the user really wants to close, if the library has not been saved since last save.
+<span class="nc" id="L398">        List&lt;String&gt; filenames = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L399" title="All 2 branches missed.">        for (int i = 0; i &lt; tabbedPane.getTabs().size(); i++) {</span>
+<span class="nc" id="L400">            LibraryTab libraryTab = getLibraryTabAt(i);</span>
+<span class="nc" id="L401">            final BibDatabaseContext context = libraryTab.getBibDatabaseContext();</span>
+
+<span class="nc bnc" id="L403" title="All 2 branches missed.">            if (context.hasEmptyEntries()) {</span>
+<span class="nc bnc" id="L404" title="All 2 branches missed.">                if (!confirmEmptyEntry(libraryTab, context)) {</span>
+<span class="nc" id="L405">                    return false;</span>
+                }
+            }
+
+<span class="nc bnc" id="L409" title="All 4 branches missed.">            if (libraryTab.isModified() &amp;&amp; (context.getLocation() == DatabaseLocation.LOCAL)) {</span>
+<span class="nc" id="L410">                tabbedPane.getSelectionModel().select(i);</span>
+<span class="nc bnc" id="L411" title="All 2 branches missed.">                if (!confirmClose(libraryTab)) {</span>
+<span class="nc" id="L412">                    return false;</span>
+                }
+<span class="nc bnc" id="L414" title="All 2 branches missed.">            } else if (context.getLocation() == DatabaseLocation.SHARED) {</span>
+<span class="nc" id="L415">                context.convertToLocalDatabase();</span>
+<span class="nc" id="L416">                context.getDBMSSynchronizer().closeSharedDatabase();</span>
+<span class="nc" id="L417">                context.clearDBMSSynchronizer();</span>
+            }
+<span class="nc" id="L419">            AutosaveManager.shutdown(context);</span>
+<span class="nc" id="L420">            BackupManager.shutdown(context);</span>
+<span class="nc" id="L421">            context.getDatabasePath().map(Path::toAbsolutePath).map(Path::toString).ifPresent(filenames::add);</span>
+        }
+
+<span class="nc" id="L424">        WaitForSaveFinishedDialog waitForSaveFinishedDialog = new WaitForSaveFinishedDialog(dialogService);</span>
+<span class="nc" id="L425">        waitForSaveFinishedDialog.showAndWait(getLibraryTabs());</span>
+
+        // Good bye!
+<span class="nc" id="L428">        tearDownJabRef(filenames);</span>
+<span class="nc" id="L429">        Platform.exit();</span>
+<span class="nc" id="L430">        return true;</span>
+    }
+
+    private void initLayout() {
+<span class="nc" id="L434">        setId(&quot;frame&quot;);</span>
+
+<span class="nc" id="L436">        VBox head = new VBox(createMenu(), createToolbar());</span>
+<span class="nc" id="L437">        head.setSpacing(0d);</span>
+<span class="nc" id="L438">        setTop(head);</span>
+
+<span class="nc" id="L440">        splitPane.getItems().addAll(tabbedPane);</span>
+<span class="nc" id="L441">        SplitPane.setResizableWithParent(sidePane, false);</span>
+
+<span class="nc" id="L443">        sidePane.getChildren().addListener((InvalidationListener) c -&gt; updateSidePane());</span>
+<span class="nc" id="L444">        updateSidePane();</span>
+
+        // We need to wait with setting the divider since it gets reset a few times during the initial set-up
+<span class="nc" id="L447">        mainStage.showingProperty().addListener(new InvalidationListener() {</span>
+
+            @Override
+            public void invalidated(Observable observable) {
+<span class="nc bnc" id="L451" title="All 2 branches missed.">                if (mainStage.isShowing()) {</span>
+<span class="nc" id="L452">                    setDividerPosition();</span>
+<span class="nc" id="L453">                    observable.removeListener(this);</span>
+                }
+<span class="nc" id="L455">            }</span>
+        });
+
+<span class="nc" id="L458">        setCenter(splitPane);</span>
+<span class="nc" id="L459">    }</span>
+
+    private void updateSidePane() {
+<span class="nc bnc" id="L462" title="All 2 branches missed.">        if (sidePane.getChildren().isEmpty()) {</span>
+<span class="nc bnc" id="L463" title="All 2 branches missed.">            if (dividerSubscription != null) {</span>
+<span class="nc" id="L464">                dividerSubscription.unsubscribe();</span>
+            }
+<span class="nc" id="L466">            splitPane.getItems().remove(sidePane);</span>
+        } else {
+<span class="nc bnc" id="L468" title="All 2 branches missed.">            if (!splitPane.getItems().contains(sidePane)) {</span>
+<span class="nc" id="L469">                splitPane.getItems().add(0, sidePane);</span>
+<span class="nc" id="L470">                setDividerPosition();</span>
+            }
+        }
+<span class="nc" id="L473">    }</span>
+
+    private void setDividerPosition() {
+<span class="nc" id="L476">        splitPane.setDividerPositions(prefs.getGuiPreferences().getSidePaneWidth());</span>
+<span class="nc bnc" id="L477" title="All 4 branches missed.">        if (mainStage.isShowing() &amp;&amp; !sidePane.getChildren().isEmpty()) {</span>
+<span class="nc" id="L478">            dividerSubscription = EasyBind.subscribe(splitPane.getDividers().get(0).positionProperty(),</span>
+<span class="nc" id="L479">                    position -&gt; prefs.getGuiPreferences().setSidePaneWidth(position.doubleValue()));</span>
+        }
+<span class="nc" id="L481">    }</span>
+
+    private Node createToolbar() {
+<span class="nc" id="L484">        final ActionFactory factory = new ActionFactory(Globals.getKeyPrefs());</span>
+
+<span class="nc" id="L486">        final Region leftSpacer = new Region();</span>
+<span class="nc" id="L487">        final Region rightSpacer = new Region();</span>
+
+<span class="nc" id="L489">        final PushToApplicationAction pushToApplicationAction = getPushToApplicationsManager().getPushToApplicationAction();</span>
+<span class="nc" id="L490">        final Button pushToApplicationButton = factory.createIconButton(pushToApplicationAction.getActionInformation(), pushToApplicationAction);</span>
+<span class="nc" id="L491">        pushToApplicationsManager.registerReconfigurable(pushToApplicationButton);</span>
+
+        // Setup Toolbar
+
+<span class="nc" id="L495">        ToolBar toolBar = new ToolBar(</span>
+
+                new HBox(
+<span class="nc" id="L498">                        factory.createIconButton(StandardActions.NEW_LIBRARY, new NewDatabaseAction(this, prefs)),</span>
+<span class="nc" id="L499">                        factory.createIconButton(StandardActions.OPEN_LIBRARY, new OpenDatabaseAction(this, prefs, dialogService, stateManager, themeManager)),</span>
+<span class="nc" id="L500">                        factory.createIconButton(StandardActions.SAVE_LIBRARY, new SaveAction(SaveAction.SaveMethod.SAVE, this, prefs, stateManager))),</span>
+
+                leftSpacer,
+
+                globalSearchBar,
+
+                rightSpacer,
+
+                new HBox(
+<span class="nc" id="L509">                        factory.createIconButton(StandardActions.NEW_ARTICLE, new NewEntryAction(this, StandardEntryType.Article, dialogService, prefs, stateManager)),</span>
+<span class="nc" id="L510">                        factory.createIconButton(StandardActions.NEW_ENTRY, new NewEntryAction(this, dialogService, prefs, stateManager)),</span>
+<span class="nc" id="L511">                        createNewEntryFromIdButton(),</span>
+<span class="nc" id="L512">                        factory.createIconButton(StandardActions.NEW_ENTRY_FROM_PLAIN_TEXT, new ExtractBibtexAction(dialogService, prefs, stateManager)),</span>
+<span class="nc" id="L513">                        factory.createIconButton(StandardActions.DELETE_ENTRY, new EditAction(StandardActions.DELETE_ENTRY, this, stateManager))),</span>
+
+                new Separator(Orientation.VERTICAL),
+
+                new HBox(
+<span class="nc" id="L518">                        factory.createIconButton(StandardActions.UNDO, new UndoRedoAction(StandardActions.UNDO, this, dialogService, stateManager)),</span>
+<span class="nc" id="L519">                        factory.createIconButton(StandardActions.REDO, new UndoRedoAction(StandardActions.REDO, this, dialogService, stateManager)),</span>
+<span class="nc" id="L520">                        factory.createIconButton(StandardActions.CUT, new EditAction(StandardActions.CUT, this, stateManager)),</span>
+<span class="nc" id="L521">                        factory.createIconButton(StandardActions.COPY, new EditAction(StandardActions.COPY, this, stateManager)),</span>
+<span class="nc" id="L522">                        factory.createIconButton(StandardActions.PASTE, new EditAction(StandardActions.PASTE, this, stateManager))),</span>
+
+                new Separator(Orientation.VERTICAL),
+
+                new HBox(
+                        pushToApplicationButton,
+<span class="nc" id="L528">                        factory.createIconButton(StandardActions.GENERATE_CITE_KEYS, new GenerateCitationKeyAction(this, dialogService, stateManager, taskExecutor, prefs)),</span>
+<span class="nc" id="L529">                        factory.createIconButton(StandardActions.CLEANUP_ENTRIES, new CleanupAction(this, prefs, dialogService, stateManager))),</span>
+
+                new Separator(Orientation.VERTICAL),
+
+                new HBox(
+<span class="nc" id="L534">                        factory.createIconButton(StandardActions.OPEN_GITHUB, new OpenBrowserAction(&quot;https://github.com/JabRef/jabref&quot;)),</span>
+<span class="nc" id="L535">                        factory.createIconButton(StandardActions.OPEN_FACEBOOK, new OpenBrowserAction(&quot;https://www.facebook.com/JabRef/&quot;)),</span>
+<span class="nc" id="L536">                        factory.createIconButton(StandardActions.OPEN_TWITTER, new OpenBrowserAction(&quot;https://twitter.com/jabref_org&quot;))),</span>
+
+                new Separator(Orientation.VERTICAL),
+
+                new HBox(
+<span class="nc" id="L541">                        createTaskIndicator()));</span>
+
+<span class="nc" id="L543">        leftSpacer.setPrefWidth(50);</span>
+<span class="nc" id="L544">        leftSpacer.setMinWidth(Region.USE_PREF_SIZE);</span>
+<span class="nc" id="L545">        leftSpacer.setMaxWidth(Region.USE_PREF_SIZE);</span>
+<span class="nc" id="L546">        HBox.setHgrow(globalSearchBar, Priority.ALWAYS);</span>
+<span class="nc" id="L547">        HBox.setHgrow(rightSpacer, Priority.SOMETIMES);</span>
+
+<span class="nc" id="L549">        toolBar.getStyleClass().add(&quot;mainToolbar&quot;);</span>
+
+<span class="nc" id="L551">        return toolBar;</span>
+    }
+
+    /**
+     * Returns the indexed LibraryTab.
+     *
+     * @param i Index of base
+     */
+    public LibraryTab getLibraryTabAt(int i) {
+<span class="nc" id="L560">        return (LibraryTab) tabbedPane.getTabs().get(i);</span>
+    }
+
+    /**
+     * Returns a list of all LibraryTabs in this frame.
+     */
+    public List&lt;LibraryTab&gt; getLibraryTabs() {
+<span class="nc" id="L567">        return tabbedPane.getTabs().stream()</span>
+<span class="nc" id="L568">            .filter(LibraryTab.class::isInstance)</span>
+<span class="nc" id="L569">                         .map(LibraryTab.class::cast)</span>
+<span class="nc" id="L570">                         .collect(Collectors.toList());</span>
+    }
+
+    public void showLibraryTabAt(int i) {
+<span class="nc" id="L574">        tabbedPane.getSelectionModel().select(i);</span>
+<span class="nc" id="L575">    }</span>
+
+    public void showLibraryTab(LibraryTab libraryTab) {
+<span class="nc" id="L578">        tabbedPane.getSelectionModel().select(libraryTab);</span>
+<span class="nc" id="L579">    }</span>
+
+    public void init() {
+<span class="nc" id="L582">        sidePane = new SidePane(prefs, taskExecutor, dialogService, stateManager, undoManager);</span>
+<span class="nc" id="L583">        tabbedPane = new TabPane();</span>
+<span class="nc" id="L584">        tabbedPane.setTabDragPolicy(TabPane.TabDragPolicy.REORDER);</span>
+
+<span class="nc" id="L586">        initLayout();</span>
+<span class="nc" id="L587">        initKeyBindings();</span>
+<span class="nc" id="L588">        initDragAndDrop();</span>
+
+        // Bind global state
+<span class="nc" id="L591">        FilteredList&lt;Tab&gt; filteredTabs = new FilteredList&lt;&gt;(tabbedPane.getTabs());</span>
+<span class="nc" id="L592">        filteredTabs.setPredicate(tab -&gt; tab instanceof LibraryTab);</span>
+
+        // This variable cannot be inlined, since otherwise the list created by EasyBind is being garbage collected
+<span class="nc" id="L595">        openDatabaseList = EasyBind.map(filteredTabs, tab -&gt; ((LibraryTab) tab).getBibDatabaseContext());</span>
+<span class="nc" id="L596">        EasyBind.bindContent(stateManager.getOpenDatabases(), openDatabaseList);</span>
+
+<span class="nc" id="L598">        stateManager.activeDatabaseProperty().bind(</span>
+<span class="nc" id="L599">                EasyBind.map(tabbedPane.getSelectionModel().selectedItemProperty(),</span>
+<span class="nc" id="L600">                        selectedTab -&gt; Optional.ofNullable(selectedTab)</span>
+<span class="nc" id="L601">                                               .filter(tab -&gt; tab instanceof LibraryTab)</span>
+<span class="nc" id="L602">                                               .map(tab -&gt; (LibraryTab) tab)</span>
+<span class="nc" id="L603">                                               .map(LibraryTab::getBibDatabaseContext)));</span>
+
+        // Subscribe to the search
+<span class="nc" id="L606">        EasyBind.subscribe(stateManager.activeSearchQueryProperty(),</span>
+                query -&gt; {
+<span class="nc bnc" id="L608" title="All 2 branches missed.">                    if (prefs.getSearchPreferences().shouldKeepSearchString()) {</span>
+<span class="nc bnc" id="L609" title="All 2 branches missed.">                        for (LibraryTab tab : getLibraryTabs()) {</span>
+<span class="nc" id="L610">                            tab.setCurrentSearchQuery(query);</span>
+<span class="nc" id="L611">                        }</span>
+                    } else {
+<span class="nc bnc" id="L613" title="All 2 branches missed.">                        if (getCurrentLibraryTab() != null) {</span>
+<span class="nc" id="L614">                            getCurrentLibraryTab().setCurrentSearchQuery(query);</span>
+                        }
+                    }
+<span class="nc" id="L617">                });</span>
+
+        // Wait for the scene to be created, otherwise focusOwnerProperty is not provided
+<span class="nc" id="L620">        Platform.runLater(() -&gt; stateManager.focusOwnerProperty().bind(</span>
+<span class="nc" id="L621">                EasyBind.map(mainStage.getScene().focusOwnerProperty(), Optional::ofNullable)));</span>
+        /*
+         * The following state listener makes sure focus is registered with the
+         * correct database when the user switches tabs. Without this,
+         * cut/paste/copy operations would some times occur in the wrong tab.
+         */
+<span class="nc" id="L627">        EasyBind.subscribe(tabbedPane.getSelectionModel().selectedItemProperty(), tab -&gt; {</span>
+<span class="nc bnc" id="L628" title="All 2 branches missed.">            if (!(tab instanceof LibraryTab libraryTab)) {</span>
+<span class="nc" id="L629">                stateManager.setSelectedEntries(Collections.emptyList());</span>
+<span class="nc" id="L630">                mainStage.titleProperty().unbind();</span>
+<span class="nc" id="L631">                mainStage.setTitle(FRAME_TITLE);</span>
+<span class="nc" id="L632">                return;</span>
+            }
+
+            // Poor-mans binding to global state
+<span class="nc" id="L636">            stateManager.setSelectedEntries(libraryTab.getSelectedEntries());</span>
+
+            // Update active search query when switching between databases
+<span class="nc bnc" id="L639" title="All 6 branches missed.">            if (prefs.getSearchPreferences().shouldKeepSearchString() &amp;&amp; libraryTab.getCurrentSearchQuery().isEmpty() &amp;&amp; stateManager.activeSearchQueryProperty().get().isPresent()) {</span>
+                // apply search query also when opening a new library and keep search string is activated
+<span class="nc" id="L641">                libraryTab.setCurrentSearchQuery(stateManager.activeSearchQueryProperty().get());</span>
+            } else {
+<span class="nc" id="L643">                stateManager.activeSearchQueryProperty().set(libraryTab.getCurrentSearchQuery());</span>
+            }
+
+            // Update search autocompleter with information for the correct database:
+<span class="nc" id="L647">            libraryTab.updateSearchManager();</span>
+
+<span class="nc" id="L649">            libraryTab.getUndoManager().postUndoRedoEvent();</span>
+<span class="nc" id="L650">            libraryTab.getMainTable().requestFocus();</span>
+
+            // Set window title - copy tab title
+<span class="nc" id="L653">            StringBinding windowTitle = Bindings.createStringBinding(</span>
+<span class="nc" id="L654">                    () -&gt; libraryTab.textProperty().getValue() + &quot; \u2013 &quot; + FRAME_TITLE,</span>
+<span class="nc" id="L655">                    libraryTab.textProperty());</span>
+<span class="nc" id="L656">            mainStage.titleProperty().bind(windowTitle);</span>
+<span class="nc" id="L657">        });</span>
+<span class="nc" id="L658">        initShowTrackingNotification();</span>
+<span class="nc" id="L659">    }</span>
+
+    /**
+     * Returns the currently viewed BasePanel.
+     */
+    public LibraryTab getCurrentLibraryTab() {
+<span class="nc bnc" id="L665" title="All 4 branches missed.">        if ((tabbedPane == null) || (tabbedPane.getSelectionModel().getSelectedItem() == null)) {</span>
+<span class="nc" id="L666">            return null;</span>
+        }
+<span class="nc" id="L668">        return (LibraryTab) tabbedPane.getSelectionModel().getSelectedItem();</span>
+    }
+
+    /**
+     * @return the BasePanel count.
+     */
+    public int getBasePanelCount() {
+<span class="nc" id="L675">        return tabbedPane.getTabs().size();</span>
+    }
+
+    /**
+     * @deprecated do not operate on tabs but on BibDatabaseContexts
+     */
+    @Deprecated
+    public TabPane getTabbedPane() {
+<span class="nc" id="L683">        return tabbedPane;</span>
+    }
+
+    private MenuBar createMenu() {
+<span class="nc" id="L687">        ActionFactory factory = new ActionFactory(Globals.getKeyPrefs());</span>
+<span class="nc" id="L688">        Menu file = new Menu(Localization.lang(&quot;File&quot;));</span>
+<span class="nc" id="L689">        Menu edit = new Menu(Localization.lang(&quot;Edit&quot;));</span>
+<span class="nc" id="L690">        Menu library = new Menu(Localization.lang(&quot;Library&quot;));</span>
+<span class="nc" id="L691">        Menu quality = new Menu(Localization.lang(&quot;Quality&quot;));</span>
+<span class="nc" id="L692">        Menu lookup = new Menu(Localization.lang(&quot;Lookup&quot;));</span>
+<span class="nc" id="L693">        Menu view = new Menu(Localization.lang(&quot;View&quot;));</span>
+<span class="nc" id="L694">        Menu tools = new Menu(Localization.lang(&quot;Tools&quot;));</span>
+<span class="nc" id="L695">        Menu options = new Menu(Localization.lang(&quot;Options&quot;));</span>
+<span class="nc" id="L696">        Menu help = new Menu(Localization.lang(&quot;Help&quot;));</span>
+
+<span class="nc" id="L698">        file.getItems().addAll(</span>
+<span class="nc" id="L699">                factory.createMenuItem(StandardActions.NEW_LIBRARY, new NewDatabaseAction(this, prefs)),</span>
+<span class="nc" id="L700">                factory.createMenuItem(StandardActions.OPEN_LIBRARY, getOpenDatabaseAction()),</span>
+                fileHistory,
+<span class="nc" id="L702">                factory.createMenuItem(StandardActions.SAVE_LIBRARY, new SaveAction(SaveAction.SaveMethod.SAVE, this, prefs, stateManager)),</span>
+<span class="nc" id="L703">                factory.createMenuItem(StandardActions.SAVE_LIBRARY_AS, new SaveAction(SaveAction.SaveMethod.SAVE_AS, this, prefs, stateManager)),</span>
+<span class="nc" id="L704">                factory.createMenuItem(StandardActions.SAVE_ALL, new SaveAllAction(this, prefs)),</span>
+
+                new SeparatorMenuItem(),
+
+<span class="nc" id="L708">                factory.createSubMenu(StandardActions.IMPORT,</span>
+<span class="nc" id="L709">                        factory.createMenuItem(StandardActions.IMPORT_INTO_CURRENT_LIBRARY, new ImportCommand(this, false, prefs, stateManager)),</span>
+<span class="nc" id="L710">                        factory.createMenuItem(StandardActions.IMPORT_INTO_NEW_LIBRARY, new ImportCommand(this, true, prefs, stateManager))),</span>
+
+<span class="nc" id="L712">                factory.createSubMenu(StandardActions.EXPORT,</span>
+<span class="nc" id="L713">                        factory.createMenuItem(StandardActions.EXPORT_ALL, new ExportCommand(false, stateManager, dialogService, prefs)),</span>
+<span class="nc" id="L714">                        factory.createMenuItem(StandardActions.EXPORT_SELECTED, new ExportCommand(true, stateManager, dialogService, prefs)),</span>
+<span class="nc" id="L715">                        factory.createMenuItem(StandardActions.SAVE_SELECTED_AS_PLAIN_BIBTEX, new SaveAction(SaveAction.SaveMethod.SAVE_SELECTED, this, prefs, stateManager))),</span>
+
+                new SeparatorMenuItem(),
+
+<span class="nc" id="L719">                factory.createSubMenu(StandardActions.REMOTE_DB,</span>
+<span class="nc" id="L720">                        factory.createMenuItem(StandardActions.CONNECT_TO_SHARED_DB, new ConnectToSharedDatabaseCommand(this)),</span>
+<span class="nc" id="L721">                        factory.createMenuItem(StandardActions.PULL_CHANGES_FROM_SHARED_DB, new PullChangesFromSharedAction(stateManager))),</span>
+
+                new SeparatorMenuItem(),
+
+<span class="nc" id="L725">                factory.createMenuItem(StandardActions.CLOSE_LIBRARY, new CloseDatabaseAction()),</span>
+<span class="nc" id="L726">                factory.createMenuItem(StandardActions.QUIT, new CloseAction()));</span>
+
+<span class="nc" id="L728">        edit.getItems().addAll(</span>
+<span class="nc" id="L729">                factory.createMenuItem(StandardActions.UNDO, new UndoRedoAction(StandardActions.UNDO, this, dialogService, stateManager)),</span>
+<span class="nc" id="L730">                factory.createMenuItem(StandardActions.REDO, new UndoRedoAction(StandardActions.REDO, this, dialogService, stateManager)),</span>
+
+                new SeparatorMenuItem(),
+
+<span class="nc" id="L734">                factory.createMenuItem(StandardActions.CUT, new EditAction(StandardActions.CUT, this, stateManager)),</span>
+
+<span class="nc" id="L736">                factory.createMenuItem(StandardActions.COPY, new EditAction(StandardActions.COPY, this, stateManager)),</span>
+<span class="nc" id="L737">                factory.createSubMenu(StandardActions.COPY_MORE,</span>
+<span class="nc" id="L738">                        factory.createMenuItem(StandardActions.COPY_TITLE, new CopyMoreAction(StandardActions.COPY_TITLE, dialogService, stateManager, Globals.getClipboardManager(), prefs)),</span>
+<span class="nc" id="L739">                        factory.createMenuItem(StandardActions.COPY_KEY, new CopyMoreAction(StandardActions.COPY_KEY, dialogService, stateManager, Globals.getClipboardManager(), prefs)),</span>
+<span class="nc" id="L740">                        factory.createMenuItem(StandardActions.COPY_CITE_KEY, new CopyMoreAction(StandardActions.COPY_CITE_KEY, dialogService, stateManager, Globals.getClipboardManager(), prefs)),</span>
+<span class="nc" id="L741">                        factory.createMenuItem(StandardActions.COPY_KEY_AND_TITLE, new CopyMoreAction(StandardActions.COPY_KEY_AND_TITLE, dialogService, stateManager, Globals.getClipboardManager(), prefs)),</span>
+<span class="nc" id="L742">                        factory.createMenuItem(StandardActions.COPY_KEY_AND_LINK, new CopyMoreAction(StandardActions.COPY_KEY_AND_LINK, dialogService, stateManager, Globals.getClipboardManager(), prefs)),</span>
+<span class="nc" id="L743">                        factory.createMenuItem(StandardActions.COPY_CITATION_PREVIEW, new CopyCitationAction(CitationStyleOutputFormat.HTML, dialogService, stateManager, Globals.getClipboardManager(), Globals.TASK_EXECUTOR, prefs.getPreviewPreferences())),</span>
+<span class="nc" id="L744">                        factory.createMenuItem(StandardActions.EXPORT_SELECTED_TO_CLIPBOARD, new ExportToClipboardAction(dialogService, Globals.exportFactory, stateManager, Globals.getClipboardManager(), Globals.TASK_EXECUTOR, prefs))),</span>
+
+<span class="nc" id="L746">                factory.createMenuItem(StandardActions.PASTE, new EditAction(StandardActions.PASTE, this, stateManager)),</span>
+
+                new SeparatorMenuItem(),
+
+<span class="nc" id="L750">                factory.createMenuItem(StandardActions.REPLACE_ALL, new ReplaceStringAction(this, stateManager)),</span>
+<span class="nc" id="L751">                factory.createMenuItem(StandardActions.GENERATE_CITE_KEYS, new GenerateCitationKeyAction(this, dialogService, stateManager, taskExecutor, prefs)),</span>
+
+                new SeparatorMenuItem(),
+
+<span class="nc" id="L755">                factory.createMenuItem(StandardActions.MANAGE_KEYWORDS, new ManageKeywordsAction(stateManager)),</span>
+<span class="nc" id="L756">                factory.createMenuItem(StandardActions.MASS_SET_FIELDS, new MassSetFieldsAction(stateManager, dialogService, undoManager)));</span>
+
+<span class="nc" id="L758">        SeparatorMenuItem specialFieldsSeparator = new SeparatorMenuItem();</span>
+<span class="nc" id="L759">        specialFieldsSeparator.visibleProperty().bind(prefs.getSpecialFieldsPreferences().specialFieldsEnabledProperty());</span>
+
+<span class="nc" id="L761">        edit.getItems().addAll(</span>
+                specialFieldsSeparator,
+                // ToDo: SpecialField needs the active BasePanel to mark it as changed.
+                //  Refactor BasePanel, should mark the BibDatabaseContext or the UndoManager as dirty instead!
+<span class="nc" id="L765">                SpecialFieldMenuItemFactory.createSpecialFieldMenu(SpecialField.RANKING, factory, this, dialogService, prefs, undoManager, stateManager),</span>
+<span class="nc" id="L766">                SpecialFieldMenuItemFactory.getSpecialFieldSingleItem(SpecialField.RELEVANCE, factory, this, dialogService, prefs, undoManager, stateManager),</span>
+<span class="nc" id="L767">                SpecialFieldMenuItemFactory.getSpecialFieldSingleItem(SpecialField.QUALITY, factory, this, dialogService, prefs, undoManager, stateManager),</span>
+<span class="nc" id="L768">                SpecialFieldMenuItemFactory.getSpecialFieldSingleItem(SpecialField.PRINTED, factory, this, dialogService, prefs, undoManager, stateManager),</span>
+<span class="nc" id="L769">                SpecialFieldMenuItemFactory.createSpecialFieldMenu(SpecialField.PRIORITY, factory, this, dialogService, prefs, undoManager, stateManager),</span>
+<span class="nc" id="L770">                SpecialFieldMenuItemFactory.createSpecialFieldMenu(SpecialField.READ_STATUS, factory, this, dialogService, prefs, undoManager, stateManager));</span>
+
+        // @formatter:off
+<span class="nc" id="L773">        library.getItems().addAll(</span>
+<span class="nc" id="L774">                factory.createMenuItem(StandardActions.NEW_ENTRY, new NewEntryAction(this, dialogService, prefs, stateManager)),</span>
+<span class="nc" id="L775">                factory.createMenuItem(StandardActions.NEW_ENTRY_FROM_PLAIN_TEXT, new ExtractBibtexAction(dialogService, prefs, stateManager)),</span>
+<span class="nc" id="L776">                factory.createMenuItem(StandardActions.DELETE_ENTRY, new EditAction(StandardActions.DELETE_ENTRY, this, stateManager)),</span>
+
+                new SeparatorMenuItem(),
+
+<span class="nc" id="L780">                factory.createMenuItem(StandardActions.LIBRARY_PROPERTIES, new LibraryPropertiesAction(stateManager))</span>
+        );
+
+<span class="nc" id="L783">        quality.getItems().addAll(</span>
+<span class="nc" id="L784">                factory.createMenuItem(StandardActions.FIND_DUPLICATES, new DuplicateSearch(this, dialogService, stateManager)),</span>
+<span class="nc" id="L785">                factory.createMenuItem(StandardActions.MERGE_ENTRIES, new MergeEntriesAction(this, dialogService, stateManager)),</span>
+<span class="nc" id="L786">                factory.createMenuItem(StandardActions.CHECK_INTEGRITY, new IntegrityCheckAction(this, stateManager, Globals.TASK_EXECUTOR)),</span>
+<span class="nc" id="L787">                factory.createMenuItem(StandardActions.CLEANUP_ENTRIES, new CleanupAction(this, this.prefs, dialogService, stateManager)),</span>
+
+                new SeparatorMenuItem(),
+
+<span class="nc" id="L791">                factory.createMenuItem(StandardActions.SET_FILE_LINKS, new AutoLinkFilesAction(dialogService, prefs, stateManager, undoManager, Globals.TASK_EXECUTOR)),</span>
+
+                new SeparatorMenuItem(),
+
+<span class="nc" id="L795">                factory.createSubMenu(StandardActions.ABBREVIATE,</span>
+<span class="nc" id="L796">                        factory.createMenuItem(StandardActions.ABBREVIATE_DEFAULT, new AbbreviateAction(StandardActions.ABBREVIATE_DEFAULT, this, dialogService, stateManager)),</span>
+<span class="nc" id="L797">                        factory.createMenuItem(StandardActions.ABBREVIATE_MEDLINE, new AbbreviateAction(StandardActions.ABBREVIATE_MEDLINE, this, dialogService, stateManager)),</span>
+<span class="nc" id="L798">                        factory.createMenuItem(StandardActions.ABBREVIATE_SHORTEST_UNIQUE, new AbbreviateAction(StandardActions.ABBREVIATE_SHORTEST_UNIQUE, this, dialogService, stateManager))),</span>
+
+<span class="nc" id="L800">                factory.createMenuItem(StandardActions.UNABBREVIATE, new AbbreviateAction(StandardActions.UNABBREVIATE, this, dialogService, stateManager))</span>
+        );
+
+<span class="nc" id="L803">        Menu lookupIdentifiers = factory.createSubMenu(StandardActions.LOOKUP_DOC_IDENTIFIER);</span>
+<span class="nc bnc" id="L804" title="All 2 branches missed.">        for (IdFetcher&lt;?&gt; fetcher : WebFetchers.getIdFetchers(prefs.getImportFormatPreferences())) {</span>
+<span class="nc" id="L805">            LookupIdentifierAction&lt;?&gt; identifierAction = new LookupIdentifierAction&lt;&gt;(this, fetcher, stateManager, undoManager);</span>
+<span class="nc" id="L806">            lookupIdentifiers.getItems().add(factory.createMenuItem(identifierAction.getAction(), identifierAction));</span>
+<span class="nc" id="L807">        }</span>
+
+<span class="nc" id="L809">        lookup.getItems().addAll(</span>
+                lookupIdentifiers,
+<span class="nc" id="L811">                factory.createMenuItem(StandardActions.DOWNLOAD_FULL_TEXT, new DownloadFullTextAction(dialogService, stateManager, prefs)),</span>
+
+                new SeparatorMenuItem(),
+
+<span class="nc" id="L815">                factory.createMenuItem(StandardActions.FIND_UNLINKED_FILES, new FindUnlinkedFilesAction(dialogService, stateManager))</span>
+        );
+
+        // PushToApplication
+<span class="nc" id="L819">        final PushToApplicationAction pushToApplicationAction = pushToApplicationsManager.getPushToApplicationAction();</span>
+<span class="nc" id="L820">        final MenuItem pushToApplicationMenuItem = factory.createMenuItem(pushToApplicationAction.getActionInformation(), pushToApplicationAction);</span>
+<span class="nc" id="L821">        pushToApplicationsManager.registerReconfigurable(pushToApplicationMenuItem);</span>
+
+<span class="nc" id="L823">        tools.getItems().addAll(</span>
+<span class="nc" id="L824">                factory.createMenuItem(StandardActions.PARSE_LATEX, new ParseLatexAction(stateManager)),</span>
+<span class="nc" id="L825">                factory.createMenuItem(StandardActions.NEW_SUB_LIBRARY_FROM_AUX, new NewSubLibraryAction(this, stateManager)),</span>
+
+                new SeparatorMenuItem(),
+
+<span class="nc" id="L829">                factory.createMenuItem(StandardActions.WRITE_METADATA_TO_PDF, new WriteMetadataToPdfAction(stateManager, prefs.getGeneralPreferences().getDefaultBibDatabaseMode(), Globals.entryTypesManager, prefs.getFieldWriterPreferences(), dialogService, taskExecutor, prefs.getFilePreferences(), prefs.getXmpPreferences(), prefs.getGeneralPreferences().getDefaultEncoding())),</span>
+<span class="nc" id="L830">                factory.createMenuItem(StandardActions.COPY_LINKED_FILES, new CopyFilesAction(dialogService, prefs, stateManager)),</span>
+
+                new SeparatorMenuItem(),
+
+<span class="nc" id="L834">                factory.createMenuItem(StandardActions.SEND_AS_EMAIL, new SendAsEMailAction(dialogService, this.prefs, stateManager)),</span>
+                pushToApplicationMenuItem,
+                new SeparatorMenuItem(),
+<span class="nc" id="L837">                factory.createMenuItem(StandardActions.START_NEW_STUDY, new StartNewStudyAction(this, Globals.getFileUpdateMonitor(), Globals.TASK_EXECUTOR, prefs, stateManager, themeManager)),</span>
+<span class="nc" id="L838">                factory.createMenuItem(StandardActions.SEARCH_FOR_EXISTING_STUDY, new ExistingStudySearchAction(this, Globals.getFileUpdateMonitor(), Globals.TASK_EXECUTOR, prefs, stateManager, themeManager)),</span>
+
+                new SeparatorMenuItem(),
+
+<span class="nc" id="L842">                factory.createMenuItem(StandardActions.REBUILD_FULLTEXT_SEARCH_INDEX, new RebuildFulltextSearchIndexAction(stateManager, this::getCurrentLibraryTab, dialogService, prefs.getFilePreferences()))</span>
+        );
+<span class="nc" id="L844">        SidePaneType webSearchPane = SidePaneType.WEB_SEARCH;</span>
+<span class="nc" id="L845">        SidePaneType groupsPane = SidePaneType.GROUPS;</span>
+<span class="nc" id="L846">        SidePaneType openOfficePane = SidePaneType.OPEN_OFFICE;</span>
+<span class="nc" id="L847">        view.getItems().addAll(</span>
+<span class="nc" id="L848">                factory.createCheckMenuItem(webSearchPane.getToggleAction(), sidePane.getToggleCommandFor(webSearchPane), sidePane.paneVisibleBinding(webSearchPane)),</span>
+<span class="nc" id="L849">                factory.createCheckMenuItem(groupsPane.getToggleAction(), sidePane.getToggleCommandFor(groupsPane), sidePane.paneVisibleBinding(groupsPane)),</span>
+<span class="nc" id="L850">                factory.createCheckMenuItem(openOfficePane.getToggleAction(), sidePane.getToggleCommandFor(openOfficePane), sidePane.paneVisibleBinding(openOfficePane)),</span>
+
+                new SeparatorMenuItem(),
+
+<span class="nc" id="L854">                factory.createMenuItem(StandardActions.NEXT_PREVIEW_STYLE, new PreviewSwitchAction(PreviewSwitchAction.Direction.NEXT, this, stateManager)),</span>
+<span class="nc" id="L855">                factory.createMenuItem(StandardActions.PREVIOUS_PREVIEW_STYLE, new PreviewSwitchAction(PreviewSwitchAction.Direction.PREVIOUS, this, stateManager)),</span>
+
+                new SeparatorMenuItem(),
+
+<span class="nc" id="L859">                factory.createMenuItem(StandardActions.SHOW_PDF_VIEWER, new ShowDocumentViewerAction(stateManager, prefs)),</span>
+<span class="nc" id="L860">                factory.createMenuItem(StandardActions.EDIT_ENTRY, new OpenEntryEditorAction(this, stateManager)),</span>
+<span class="nc" id="L861">                factory.createMenuItem(StandardActions.OPEN_CONSOLE, new OpenConsoleAction(stateManager, prefs))</span>
+        );
+
+<span class="nc" id="L864">        options.getItems().addAll(</span>
+<span class="nc" id="L865">                factory.createMenuItem(StandardActions.SHOW_PREFS, new ShowPreferencesAction(this, Globals.TASK_EXECUTOR)),</span>
+
+                new SeparatorMenuItem(),
+
+<span class="nc" id="L869">                factory.createMenuItem(StandardActions.MANAGE_CONTENT_SELECTORS, new ManageContentSelectorAction(this, stateManager)),</span>
+<span class="nc" id="L870">                factory.createMenuItem(StandardActions.CUSTOMIZE_ENTRY_TYPES, new CustomizeEntryAction(stateManager, Globals.entryTypesManager))</span>
+        );
+
+<span class="nc" id="L873">        help.getItems().addAll(</span>
+<span class="nc" id="L874">                factory.createMenuItem(StandardActions.HELP, HelpAction.getMainHelpPageCommand()),</span>
+<span class="nc" id="L875">                factory.createMenuItem(StandardActions.OPEN_FORUM, new OpenBrowserAction(&quot;http://discourse.jabref.org/&quot;)),</span>
+
+                new SeparatorMenuItem(),
+
+<span class="nc" id="L879">                factory.createMenuItem(StandardActions.ERROR_CONSOLE, new ErrorConsoleAction()),</span>
+
+                new SeparatorMenuItem(),
+
+<span class="nc" id="L883">                factory.createMenuItem(StandardActions.DONATE, new OpenBrowserAction(&quot;https://donations.jabref.org&quot;)),</span>
+<span class="nc" id="L884">                factory.createMenuItem(StandardActions.SEARCH_FOR_UPDATES, new SearchForUpdateAction(Globals.BUILD_INFO, prefs.getInternalPreferences(), dialogService, Globals.TASK_EXECUTOR)),</span>
+<span class="nc" id="L885">                factory.createSubMenu(StandardActions.WEB_MENU,</span>
+<span class="nc" id="L886">                        factory.createMenuItem(StandardActions.OPEN_WEBPAGE, new OpenBrowserAction(&quot;https://jabref.org/&quot;)),</span>
+<span class="nc" id="L887">                        factory.createMenuItem(StandardActions.OPEN_BLOG, new OpenBrowserAction(&quot;https://blog.jabref.org/&quot;)),</span>
+<span class="nc" id="L888">                        factory.createMenuItem(StandardActions.OPEN_FACEBOOK, new OpenBrowserAction(&quot;https://www.facebook.com/JabRef/&quot;)),</span>
+<span class="nc" id="L889">                        factory.createMenuItem(StandardActions.OPEN_TWITTER, new OpenBrowserAction(&quot;https://twitter.com/jabref_org&quot;)),</span>
+<span class="nc" id="L890">                        factory.createMenuItem(StandardActions.OPEN_GITHUB, new OpenBrowserAction(&quot;https://github.com/JabRef/jabref&quot;)),</span>
+
+                        new SeparatorMenuItem(),
+
+<span class="nc" id="L894">                        factory.createMenuItem(StandardActions.OPEN_DEV_VERSION_LINK, new OpenBrowserAction(&quot;https://builds.jabref.org/master/&quot;)),</span>
+<span class="nc" id="L895">                        factory.createMenuItem(StandardActions.OPEN_CHANGELOG, new OpenBrowserAction(&quot;https://github.com/JabRef/jabref/blob/master/CHANGELOG.md&quot;))</span>
+                ),
+<span class="nc" id="L897">                factory.createMenuItem(StandardActions.ABOUT, new AboutAction())</span>
+        );
+
+        // @formatter:on
+<span class="nc" id="L901">        MenuBar menu = new MenuBar();</span>
+<span class="nc" id="L902">        menu.getStyleClass().add(&quot;mainMenu&quot;);</span>
+<span class="nc" id="L903">        menu.getMenus().addAll(</span>
+                file,
+                edit,
+                library,
+                quality,
+                lookup,
+                tools,
+                view,
+                options,
+                help);
+<span class="nc" id="L913">        menu.setUseSystemMenuBar(true);</span>
+<span class="nc" id="L914">        return menu;</span>
+    }
+
+    private Button createNewEntryFromIdButton() {
+<span class="nc" id="L918">        Button newEntryFromIdButton = new Button();</span>
+
+<span class="nc" id="L920">        newEntryFromIdButton.setGraphic(IconTheme.JabRefIcons.IMPORT.getGraphicNode());</span>
+<span class="nc" id="L921">        newEntryFromIdButton.getStyleClass().setAll(&quot;icon-button&quot;);</span>
+<span class="nc" id="L922">        newEntryFromIdButton.setFocusTraversable(false);</span>
+<span class="nc" id="L923">        newEntryFromIdButton.disableProperty().bind(ActionHelper.needsDatabase(stateManager).not());</span>
+<span class="nc" id="L924">        newEntryFromIdButton.setOnMouseClicked(event -&gt; {</span>
+<span class="nc" id="L925">            GenerateEntryFromIdDialog entryFromId = new GenerateEntryFromIdDialog(getCurrentLibraryTab(), dialogService, prefs, taskExecutor, stateManager);</span>
+
+<span class="nc bnc" id="L927" title="All 2 branches missed.">            if (entryFromIdPopOver == null) {</span>
+<span class="nc" id="L928">                entryFromIdPopOver = new PopOver(entryFromId.getDialogPane());</span>
+<span class="nc" id="L929">                entryFromIdPopOver.setTitle(Localization.lang(&quot;Import by ID&quot;));</span>
+<span class="nc" id="L930">                entryFromIdPopOver.setArrowLocation(PopOver.ArrowLocation.TOP_CENTER);</span>
+<span class="nc" id="L931">                entryFromIdPopOver.setContentNode(entryFromId.getDialogPane());</span>
+<span class="nc" id="L932">                entryFromIdPopOver.show(newEntryFromIdButton);</span>
+<span class="nc" id="L933">                entryFromId.setEntryFromIdPopOver(entryFromIdPopOver);</span>
+<span class="nc bnc" id="L934" title="All 2 branches missed.">            } else if (entryFromIdPopOver.isShowing()) {</span>
+<span class="nc" id="L935">                entryFromIdPopOver.hide();</span>
+            } else {
+<span class="nc" id="L937">                entryFromIdPopOver.setContentNode(entryFromId.getDialogPane());</span>
+<span class="nc" id="L938">                entryFromIdPopOver.show(newEntryFromIdButton);</span>
+<span class="nc" id="L939">                entryFromId.setEntryFromIdPopOver(entryFromIdPopOver);</span>
+            }
+<span class="nc" id="L941">        });</span>
+<span class="nc" id="L942">        newEntryFromIdButton.setTooltip(new Tooltip(Localization.lang(&quot;Import by ID&quot;)));</span>
+
+<span class="nc" id="L944">        return newEntryFromIdButton;</span>
+    }
+
+    private Group createTaskIndicator() {
+<span class="nc" id="L948">        ProgressIndicator indicator = new ProgressIndicator();</span>
+<span class="nc" id="L949">        indicator.getStyleClass().add(&quot;progress-indicatorToolbar&quot;);</span>
+<span class="nc" id="L950">        indicator.progressProperty().bind(stateManager.getTasksProgress());</span>
+
+<span class="nc" id="L952">        Tooltip someTasksRunning = new Tooltip(Localization.lang(&quot;Background Tasks are running&quot;));</span>
+<span class="nc" id="L953">        Tooltip noTasksRunning = new Tooltip(Localization.lang(&quot;Background Tasks are done&quot;));</span>
+<span class="nc" id="L954">        indicator.setTooltip(noTasksRunning);</span>
+<span class="nc" id="L955">        stateManager.getAnyTaskRunning().addListener((observable, oldValue, newValue) -&gt; {</span>
+<span class="nc bnc" id="L956" title="All 2 branches missed.">            if (newValue) {</span>
+<span class="nc" id="L957">                indicator.setTooltip(someTasksRunning);</span>
+            } else {
+<span class="nc" id="L959">                indicator.setTooltip(noTasksRunning);</span>
+            }
+<span class="nc" id="L961">        });</span>
+
+        /*
+        The label of the indicator cannot be removed with styling. Therefore,
+        hide it and clip it to a square of (width x width) each time width is updated.
+         */
+<span class="nc" id="L967">        indicator.widthProperty().addListener((observable, oldValue, newValue) -&gt; {</span>
+            /*
+            The indeterminate spinner is wider than the determinate spinner.
+            We must make sure they are the same width for the clipping to result in a square of the same size always.
+             */
+<span class="nc bnc" id="L972" title="All 2 branches missed.">            if (!indicator.isIndeterminate()) {</span>
+<span class="nc" id="L973">                indicator.setPrefWidth(newValue.doubleValue());</span>
+            }
+<span class="nc bnc" id="L975" title="All 2 branches missed.">            if (newValue.doubleValue() &gt; 0) {</span>
+<span class="nc" id="L976">                Rectangle clip = new Rectangle(newValue.doubleValue(), newValue.doubleValue());</span>
+<span class="nc" id="L977">                indicator.setClip(clip);</span>
+            }
+<span class="nc" id="L979">        });</span>
+
+<span class="nc" id="L981">        indicator.setOnMouseClicked(event -&gt; {</span>
+<span class="nc" id="L982">            TaskProgressView&lt;Task&lt;?&gt;&gt; taskProgressView = new TaskProgressView&lt;&gt;();</span>
+<span class="nc" id="L983">            EasyBind.bindContent(taskProgressView.getTasks(), stateManager.getBackgroundTasks());</span>
+<span class="nc" id="L984">            taskProgressView.setRetainTasks(true);</span>
+<span class="nc" id="L985">            taskProgressView.setGraphicFactory(BackgroundTask::getIcon);</span>
+
+<span class="nc bnc" id="L987" title="All 2 branches missed.">            if (progressViewPopOver == null) {</span>
+<span class="nc" id="L988">                progressViewPopOver = new PopOver(taskProgressView);</span>
+<span class="nc" id="L989">                progressViewPopOver.setTitle(Localization.lang(&quot;Background Tasks&quot;));</span>
+<span class="nc" id="L990">                progressViewPopOver.setArrowLocation(PopOver.ArrowLocation.RIGHT_TOP);</span>
+<span class="nc" id="L991">                progressViewPopOver.setContentNode(taskProgressView);</span>
+<span class="nc" id="L992">                progressViewPopOver.show(indicator);</span>
+<span class="nc bnc" id="L993" title="All 2 branches missed.">            } else if (progressViewPopOver.isShowing()) {</span>
+<span class="nc" id="L994">                progressViewPopOver.hide();</span>
+            } else {
+<span class="nc" id="L996">                progressViewPopOver.setContentNode(taskProgressView);</span>
+<span class="nc" id="L997">                progressViewPopOver.show(indicator);</span>
+            }
+<span class="nc" id="L999">        });</span>
+
+<span class="nc" id="L1001">        return new Group(indicator);</span>
+    }
+
+    public void addParserResult(ParserResult parserResult, boolean focusPanel) {
+<span class="nc bnc" id="L1005" title="All 2 branches missed.">        if (parserResult.toOpenTab()) {</span>
+            // Add the entries to the open tab.
+<span class="nc" id="L1007">            LibraryTab libraryTab = getCurrentLibraryTab();</span>
+<span class="nc bnc" id="L1008" title="All 2 branches missed.">            if (libraryTab == null) {</span>
+                // There is no open tab to add to, so we create a new tab:
+<span class="nc" id="L1010">                addTab(parserResult.getDatabaseContext(), focusPanel);</span>
+            } else {
+<span class="nc" id="L1012">                addImportedEntries(libraryTab, parserResult);</span>
+            }
+<span class="nc" id="L1014">        } else {</span>
+            // only add tab if DB is not already open
+<span class="nc" id="L1016">            Optional&lt;LibraryTab&gt; libraryTab = getLibraryTabs().stream()</span>
+<span class="nc" id="L1017">                                                              .filter(p -&gt; p.getBibDatabaseContext()</span>
+<span class="nc" id="L1018">                                                                            .getDatabasePath()</span>
+<span class="nc" id="L1019">                                                                            .equals(parserResult.getPath()))</span>
+<span class="nc" id="L1020">                                                              .findFirst();</span>
+
+<span class="nc bnc" id="L1022" title="All 2 branches missed.">            if (libraryTab.isPresent()) {</span>
+<span class="nc" id="L1023">                tabbedPane.getSelectionModel().select(libraryTab.get());</span>
+            } else {
+<span class="nc" id="L1025">                addTab(parserResult.getDatabaseContext(), focusPanel);</span>
+            }
+        }
+<span class="nc" id="L1028">    }</span>
+
+    /**
+     * This method causes all open LibraryTabs to set up their tables anew. When called from PreferencesDialogViewModel,
+     * this updates to the new settings. We need to notify all tabs about the changes to avoid problems when changing
+     * the column set.
+     */
+    public void setupAllTables() {
+<span class="nc" id="L1036">        tabbedPane.getTabs().forEach(tab -&gt; {</span>
+<span class="nc bnc" id="L1037" title="All 4 branches missed.">            if (tab instanceof LibraryTab libraryTab &amp;&amp; (libraryTab.getDatabase() != null)) {</span>
+<span class="nc" id="L1038">                DefaultTaskExecutor.runInJavaFXThread(libraryTab::setupMainPanel);</span>
+            }
+<span class="nc" id="L1040">        });</span>
+<span class="nc" id="L1041">    }</span>
+
+    private ContextMenu createTabContextMenuFor(LibraryTab tab, KeyBindingRepository keyBindingRepository) {
+<span class="nc" id="L1044">        ContextMenu contextMenu = new ContextMenu();</span>
+<span class="nc" id="L1045">        ActionFactory factory = new ActionFactory(keyBindingRepository);</span>
+
+<span class="nc" id="L1047">        contextMenu.getItems().addAll(</span>
+<span class="nc" id="L1048">                factory.createMenuItem(StandardActions.LIBRARY_PROPERTIES, new LibraryPropertiesAction(tab::getBibDatabaseContext, stateManager)),</span>
+<span class="nc" id="L1049">                factory.createMenuItem(StandardActions.OPEN_DATABASE_FOLDER, new OpenDatabaseFolder(tab::getBibDatabaseContext)),</span>
+<span class="nc" id="L1050">                factory.createMenuItem(StandardActions.OPEN_CONSOLE, new OpenConsoleAction(tab::getBibDatabaseContext, stateManager, prefs)),</span>
+                new SeparatorMenuItem(),
+<span class="nc" id="L1052">                factory.createMenuItem(StandardActions.CLOSE_LIBRARY, new CloseDatabaseAction(tab)),</span>
+<span class="nc" id="L1053">                factory.createMenuItem(StandardActions.CLOSE_OTHER_LIBRARIES, new CloseOthersDatabaseAction(tab)),</span>
+<span class="nc" id="L1054">                factory.createMenuItem(StandardActions.CLOSE_ALL_LIBRARIES, new CloseAllDatabaseAction()));</span>
+
+<span class="nc" id="L1056">        return contextMenu;</span>
+    }
+
+    public void addTab(LibraryTab libraryTab, boolean raisePanel) {
+<span class="nc" id="L1060">        tabbedPane.getTabs().add(libraryTab);</span>
+
+<span class="nc" id="L1062">        libraryTab.setOnCloseRequest(event -&gt; {</span>
+<span class="nc" id="L1063">            closeTab(libraryTab);</span>
+<span class="nc" id="L1064">            libraryTab.getDataLoadingTask().cancel();</span>
+<span class="nc" id="L1065">            event.consume();</span>
+<span class="nc" id="L1066">        });</span>
+
+<span class="nc" id="L1068">        libraryTab.setContextMenu(createTabContextMenuFor(libraryTab, Globals.getKeyPrefs()));</span>
+
+<span class="nc bnc" id="L1070" title="All 2 branches missed.">        if (raisePanel) {</span>
+<span class="nc" id="L1071">            tabbedPane.getSelectionModel().select(libraryTab);</span>
+        }
+
+<span class="nc" id="L1074">        libraryTab.getUndoManager().registerListener(new UndoRedoEventManager());</span>
+
+<span class="nc" id="L1076">        BibDatabaseContext context = libraryTab.getBibDatabaseContext();</span>
+
+<span class="nc bnc" id="L1078" title="All 2 branches missed.">        if (readyForAutosave(context)) {</span>
+<span class="nc" id="L1079">            AutosaveManager autosaver = AutosaveManager.start(context);</span>
+<span class="nc" id="L1080">            autosaver.registerListener(new AutosaveUiManager(libraryTab));</span>
+        }
+
+<span class="nc" id="L1083">        BackupManager.start(context, Globals.entryTypesManager, prefs);</span>
+
+<span class="nc" id="L1085">        trackOpenNewDatabase(libraryTab);</span>
+<span class="nc" id="L1086">    }</span>
+
+    private void trackOpenNewDatabase(LibraryTab libraryTab) {
+<span class="nc" id="L1089">        Globals.getTelemetryClient().ifPresent(client -&gt; client.trackEvent(</span>
+                &quot;OpenNewDatabase&quot;,
+<span class="nc" id="L1091">                Map.of(),</span>
+<span class="nc" id="L1092">                Map.of(&quot;NumberOfEntries&quot;, (double) libraryTab.getBibDatabaseContext().getDatabase().getEntryCount())));</span>
+<span class="nc" id="L1093">    }</span>
+
+    public LibraryTab addTab(BibDatabaseContext databaseContext, boolean raisePanel) {
+<span class="nc" id="L1096">        Objects.requireNonNull(databaseContext);</span>
+
+<span class="nc" id="L1098">        LibraryTab libraryTab = new LibraryTab(this, prefs, stateManager, themeManager, databaseContext, ExternalFileTypes.getInstance());</span>
+<span class="nc" id="L1099">        addTab(libraryTab, raisePanel);</span>
+<span class="nc" id="L1100">        return libraryTab;</span>
+    }
+
+    private boolean readyForAutosave(BibDatabaseContext context) {
+<span class="nc bnc" id="L1104" title="All 2 branches missed.">        return ((context.getLocation() == DatabaseLocation.SHARED)</span>
+<span class="nc bnc" id="L1105" title="All 2 branches missed.">                || ((context.getLocation() == DatabaseLocation.LOCAL)</span>
+<span class="nc bnc" id="L1106" title="All 2 branches missed.">                &amp;&amp; prefs.getImportExportPreferences().shouldAutoSave()))</span>
+<span class="nc bnc" id="L1107" title="All 2 branches missed.">                &amp;&amp; context.getDatabasePath().isPresent();</span>
+    }
+
+    /**
+     * Opens the import inspection dialog to let the user decide which of the given entries to import.
+     *
+     * @param panel        The BasePanel to add to.
+     * @param parserResult The entries to add.
+     */
+    private void addImportedEntries(final LibraryTab panel, final ParserResult parserResult) {
+<span class="nc" id="L1117">        BackgroundTask&lt;ParserResult&gt; task = BackgroundTask.wrap(() -&gt; parserResult);</span>
+<span class="nc" id="L1118">        ImportCleanup cleanup = new ImportCleanup(panel.getBibDatabaseContext().getMode());</span>
+<span class="nc" id="L1119">        cleanup.doPostCleanup(parserResult.getDatabase().getEntries());</span>
+<span class="nc" id="L1120">        ImportEntriesDialog dialog = new ImportEntriesDialog(panel.getBibDatabaseContext(), task);</span>
+<span class="nc" id="L1121">        dialog.setTitle(Localization.lang(&quot;Import&quot;));</span>
+<span class="nc" id="L1122">        dialogService.showCustomDialogAndWait(dialog);</span>
+<span class="nc" id="L1123">    }</span>
+
+    public FileHistoryMenu getFileHistory() {
+<span class="nc" id="L1126">        return fileHistory;</span>
+    }
+
+    /**
+     * Ask if the user really wants to close the given database
+     *
+     * @return true if the user choose to close the database
+     */
+    private boolean confirmClose(LibraryTab libraryTab) {
+<span class="nc" id="L1135">        String filename = libraryTab.getBibDatabaseContext()</span>
+<span class="nc" id="L1136">                                    .getDatabasePath()</span>
+<span class="nc" id="L1137">                                    .map(Path::toAbsolutePath)</span>
+<span class="nc" id="L1138">                                    .map(Path::toString)</span>
+<span class="nc" id="L1139">                                    .orElse(Localization.lang(&quot;untitled&quot;));</span>
+
+<span class="nc" id="L1141">        ButtonType saveChanges = new ButtonType(Localization.lang(&quot;Save changes&quot;), ButtonBar.ButtonData.YES);</span>
+<span class="nc" id="L1142">        ButtonType discardChanges = new ButtonType(Localization.lang(&quot;Discard changes&quot;), ButtonBar.ButtonData.NO);</span>
+<span class="nc" id="L1143">        ButtonType cancel = new ButtonType(Localization.lang(&quot;Return to JabRef&quot;), ButtonBar.ButtonData.CANCEL_CLOSE);</span>
+
+<span class="nc" id="L1145">        Optional&lt;ButtonType&gt; response = dialogService.showCustomButtonDialogAndWait(Alert.AlertType.CONFIRMATION,</span>
+<span class="nc" id="L1146">                Localization.lang(&quot;Save before closing&quot;),</span>
+<span class="nc" id="L1147">                Localization.lang(&quot;Library '%0' has changed.&quot;, filename),</span>
+                saveChanges, discardChanges, cancel);
+
+<span class="nc bnc" id="L1150" title="All 4 branches missed.">        if (response.isPresent() &amp;&amp; response.get().equals(saveChanges)) {</span>
+            // The user wants to save.
+            try {
+<span class="nc" id="L1153">                SaveDatabaseAction saveAction = new SaveDatabaseAction(libraryTab, prefs, Globals.entryTypesManager);</span>
+<span class="nc bnc" id="L1154" title="All 2 branches missed.">                if (saveAction.save()) {</span>
+<span class="nc" id="L1155">                    return true;</span>
+                }
+                // The action was either canceled or unsuccessful.
+<span class="nc" id="L1158">                dialogService.notify(Localization.lang(&quot;Unable to save library&quot;));</span>
+<span class="nc" id="L1159">            } catch (Throwable ex) {</span>
+<span class="nc" id="L1160">                LOGGER.error(&quot;A problem occurred when trying to save the file&quot;, ex);</span>
+<span class="nc" id="L1161">                dialogService.showErrorDialogAndWait(Localization.lang(&quot;Save library&quot;), Localization.lang(&quot;Could not save file.&quot;), ex);</span>
+<span class="nc" id="L1162">            }</span>
+            // Save was cancelled or an error occurred.
+<span class="nc" id="L1164">            return false;</span>
+        }
+<span class="nc bnc" id="L1166" title="All 4 branches missed.">        return response.isEmpty() || !response.get().equals(cancel);</span>
+    }
+
+    /**
+     * Ask if the user really wants to remove any empty entries
+     */
+    private Boolean confirmEmptyEntry(LibraryTab libraryTab, BibDatabaseContext context) {
+<span class="nc" id="L1173">        String filename = libraryTab.getBibDatabaseContext()</span>
+<span class="nc" id="L1174">                                    .getDatabasePath()</span>
+<span class="nc" id="L1175">                                    .map(Path::toAbsolutePath)</span>
+<span class="nc" id="L1176">                                    .map(Path::toString)</span>
+<span class="nc" id="L1177">                                    .orElse(Localization.lang(&quot;untitled&quot;));</span>
+
+<span class="nc" id="L1179">        ButtonType deleteEmptyEntries = new ButtonType(Localization.lang(&quot;Delete empty entries&quot;), ButtonBar.ButtonData.YES);</span>
+<span class="nc" id="L1180">        ButtonType keepEmptyEntries = new ButtonType(Localization.lang(&quot;Keep empty entries&quot;), ButtonBar.ButtonData.NO);</span>
+<span class="nc" id="L1181">        ButtonType cancel = new ButtonType(Localization.lang(&quot;Return to JabRef&quot;), ButtonBar.ButtonData.CANCEL_CLOSE);</span>
+
+<span class="nc" id="L1183">        Optional&lt;ButtonType&gt; response = dialogService.showCustomButtonDialogAndWait(Alert.AlertType.CONFIRMATION,</span>
+<span class="nc" id="L1184">                Localization.lang(&quot;Empty entries&quot;),</span>
+<span class="nc" id="L1185">                Localization.lang(&quot;Library '%0' has empty entries. Do you want to delete them?&quot;, filename),</span>
+                deleteEmptyEntries, keepEmptyEntries, cancel);
+<span class="nc bnc" id="L1187" title="All 4 branches missed.">        if (response.isPresent() &amp;&amp; response.get().equals(deleteEmptyEntries)) {</span>
+            // The user wants to delete.
+            try {
+<span class="nc bnc" id="L1190" title="All 2 branches missed.">                for (BibEntry currentEntry : new ArrayList&lt;&gt;(context.getEntries())) {</span>
+<span class="nc bnc" id="L1191" title="All 2 branches missed.">                    if (currentEntry.getFields().isEmpty()) {</span>
+<span class="nc" id="L1192">                        context.getDatabase().removeEntries(Collections.singletonList(currentEntry));</span>
+                    }
+<span class="nc" id="L1194">                }</span>
+<span class="nc" id="L1195">                SaveDatabaseAction saveAction = new SaveDatabaseAction(libraryTab, prefs, Globals.entryTypesManager);</span>
+<span class="nc bnc" id="L1196" title="All 2 branches missed.">                if (saveAction.save()) {</span>
+<span class="nc" id="L1197">                    return true;</span>
+                }
+                // The action was either canceled or unsuccessful.
+<span class="nc" id="L1200">                dialogService.notify(Localization.lang(&quot;Unable to save library&quot;));</span>
+<span class="nc" id="L1201">            } catch (Throwable ex) {</span>
+<span class="nc" id="L1202">                LOGGER.error(&quot;A problem occurred when trying to delete the empty entries&quot;, ex);</span>
+<span class="nc" id="L1203">                dialogService.showErrorDialogAndWait(Localization.lang(&quot;Delete empty entries&quot;), Localization.lang(&quot;Could not delete empty entries.&quot;), ex);</span>
+<span class="nc" id="L1204">            }</span>
+            // Save was cancelled or an error occurred.
+<span class="nc" id="L1206">            return false;</span>
+        }
+<span class="nc bnc" id="L1208" title="All 2 branches missed.">        return !response.get().equals(cancel);</span>
+    }
+
+    private void closeTab(LibraryTab libraryTab) {
+        // empty tab without database
+<span class="nc bnc" id="L1213" title="All 2 branches missed.">        if (libraryTab == null) {</span>
+<span class="nc" id="L1214">            return;</span>
+        }
+
+<span class="nc" id="L1217">        final BibDatabaseContext context = libraryTab.getBibDatabaseContext();</span>
+<span class="nc bnc" id="L1218" title="All 2 branches missed.">        if (context.hasEmptyEntries()) {</span>
+<span class="nc bnc" id="L1219" title="All 2 branches missed.">            if (!confirmEmptyEntry(libraryTab, context)) {</span>
+<span class="nc" id="L1220">                return;</span>
+            }
+        }
+
+<span class="nc bnc" id="L1224" title="All 4 branches missed.">        if (libraryTab.isModified() &amp;&amp; (context.getLocation() == DatabaseLocation.LOCAL)) {</span>
+<span class="nc bnc" id="L1225" title="All 2 branches missed.">            if (confirmClose(libraryTab)) {</span>
+<span class="nc" id="L1226">                removeTab(libraryTab);</span>
+            } else {
+<span class="nc" id="L1228">                return;</span>
+            }
+<span class="nc bnc" id="L1230" title="All 2 branches missed.">        } else if (context.getLocation() == DatabaseLocation.SHARED) {</span>
+<span class="nc" id="L1231">            context.convertToLocalDatabase();</span>
+<span class="nc" id="L1232">            context.getDBMSSynchronizer().closeSharedDatabase();</span>
+<span class="nc" id="L1233">            context.clearDBMSSynchronizer();</span>
+<span class="nc" id="L1234">            removeTab(libraryTab);</span>
+        } else {
+<span class="nc" id="L1236">            removeTab(libraryTab);</span>
+        }
+<span class="nc" id="L1238">        AutosaveManager.shutdown(context);</span>
+<span class="nc" id="L1239">        BackupManager.shutdown(context);</span>
+<span class="nc" id="L1240">    }</span>
+
+    private void removeTab(LibraryTab libraryTab) {
+<span class="nc" id="L1243">        DefaultTaskExecutor.runInJavaFXThread(() -&gt; {</span>
+<span class="nc" id="L1244">            libraryTab.cleanUp();</span>
+<span class="nc" id="L1245">            tabbedPane.getTabs().remove(libraryTab);</span>
+<span class="nc" id="L1246">        });</span>
+<span class="nc" id="L1247">    }</span>
+
+    public void closeCurrentTab() {
+<span class="nc" id="L1250">        removeTab(getCurrentLibraryTab());</span>
+<span class="nc" id="L1251">    }</span>
+
+    public OpenDatabaseAction getOpenDatabaseAction() {
+<span class="nc" id="L1254">        return new OpenDatabaseAction(this, prefs, dialogService, stateManager, themeManager);</span>
+    }
+
+    public PushToApplicationsManager getPushToApplicationsManager() {
+<span class="nc" id="L1258">        return pushToApplicationsManager;</span>
+    }
+
+    public GlobalSearchBar getGlobalSearchBar() {
+<span class="nc" id="L1262">        return globalSearchBar;</span>
+    }
+
+    public CountingUndoManager getUndoManager() {
+<span class="nc" id="L1266">        return undoManager;</span>
+    }
+
+    public DialogService getDialogService() {
+<span class="nc" id="L1270">        return dialogService;</span>
+    }
+
+    /**
+     * The action concerned with closing the window.
+     */
+<span class="nc" id="L1276">    private class CloseAction extends SimpleCommand {</span>
+
+        @Override
+        public void execute() {
+<span class="nc" id="L1280">            quit();</span>
+<span class="nc" id="L1281">        }</span>
+    }
+
+    private class CloseDatabaseAction extends SimpleCommand {
+
+        private final LibraryTab libraryTab;
+
+<span class="nc" id="L1288">        public CloseDatabaseAction(LibraryTab libraryTab) {</span>
+<span class="nc" id="L1289">            this.libraryTab = libraryTab;</span>
+<span class="nc" id="L1290">        }</span>
+
+        /**
+         * Using this constructor will result in executing the command on the currently open library tab
+         */
+        public CloseDatabaseAction() {
+<span class="nc" id="L1296">            this(null);</span>
+<span class="nc" id="L1297">        }</span>
+
+        @Override
+        public void execute() {
+<span class="nc" id="L1301">            closeTab(Optional.ofNullable(libraryTab).orElse(getCurrentLibraryTab()));</span>
+<span class="nc" id="L1302">        }</span>
+    }
+
+    private class CloseOthersDatabaseAction extends SimpleCommand {
+
+        private final LibraryTab libraryTab;
+
+<span class="nc" id="L1309">        public CloseOthersDatabaseAction(LibraryTab libraryTab) {</span>
+<span class="nc" id="L1310">            this.libraryTab = libraryTab;</span>
+<span class="nc" id="L1311">            this.executable.bind(ActionHelper.isOpenMultiDatabase(tabbedPane));</span>
+<span class="nc" id="L1312">        }</span>
+
+        @Override
+        public void execute() {
+<span class="nc" id="L1316">            LibraryTab toKeepLibraryTab = Optional.of(libraryTab).get();</span>
+<span class="nc bnc" id="L1317" title="All 2 branches missed.">            for (Tab tab : tabbedPane.getTabs()) {</span>
+<span class="nc" id="L1318">                LibraryTab libraryTab = (LibraryTab) tab;</span>
+<span class="nc bnc" id="L1319" title="All 2 branches missed.">                if (libraryTab != toKeepLibraryTab) {</span>
+<span class="nc" id="L1320">                    closeTab(libraryTab);</span>
+                }
+<span class="nc" id="L1322">            }</span>
+<span class="nc" id="L1323">        }</span>
+    }
+
+<span class="nc" id="L1326">    private class CloseAllDatabaseAction extends SimpleCommand {</span>
+
+        @Override
+        public void execute() {
+<span class="nc bnc" id="L1330" title="All 2 branches missed.">            for (Tab tab : tabbedPane.getTabs()) {</span>
+<span class="nc" id="L1331">                closeTab((LibraryTab) tab);</span>
+<span class="nc" id="L1332">            }</span>
+<span class="nc" id="L1333">        }</span>
+    }
+
+    private class OpenDatabaseFolder extends SimpleCommand {
+
+        private final Supplier&lt;BibDatabaseContext&gt; databaseContext;
+
+<span class="nc" id="L1340">        public OpenDatabaseFolder(Supplier&lt;BibDatabaseContext&gt; databaseContext) {</span>
+<span class="nc" id="L1341">            this.databaseContext = databaseContext;</span>
+<span class="nc" id="L1342">        }</span>
+
+        @Override
+        public void execute() {
+<span class="nc" id="L1346">            Optional.of(databaseContext.get()).flatMap(BibDatabaseContext::getDatabasePath).ifPresent(path -&gt; {</span>
+                try {
+<span class="nc" id="L1348">                    JabRefDesktop.openFolderAndSelectFile(path, prefs);</span>
+<span class="nc" id="L1349">                } catch (IOException e) {</span>
+<span class="nc" id="L1350">                    LOGGER.info(&quot;Could not open folder&quot;, e);</span>
+<span class="nc" id="L1351">                }</span>
+<span class="nc" id="L1352">            });</span>
+<span class="nc" id="L1353">        }</span>
+    }
+
+<span class="nc" id="L1356">    private class UndoRedoEventManager {</span>
+
+        @Subscribe
+        public void listen(UndoRedoEvent event) {
+<span class="nc" id="L1360">            updateTexts(event);</span>
+<span class="nc" id="L1361">            JabRefFrame.this.getCurrentLibraryTab().updateEntryEditorIfShowing();</span>
+<span class="nc" id="L1362">        }</span>
+
+        @Subscribe
+        public void listen(AddUndoableActionEvent event) {
+<span class="nc" id="L1366">            updateTexts(event);</span>
+<span class="nc" id="L1367">        }</span>
+
+        private void updateTexts(UndoChangeEvent event) {
+            /* TODO
+            SwingUtilities.invokeLater(() -&gt; {
+                undo.putValue(Action.SHORT_DESCRIPTION, event.getUndoDescription());
+                undo.setEnabled(event.isCanUndo());
+                redo.putValue(Action.SHORT_DESCRIPTION, event.getRedoDescription());
+                redo.setEnabled(event.isCanRedo());
+            });
+            */
+<span class="nc" id="L1378">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PersistenceVisualStateTable.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.maintable</a> &gt; <span class="el_source">PersistenceVisualStateTable.java</span></div><h1>PersistenceVisualStateTable.java</h1><pre class="source lang-java linenums">package org.jabref.gui.maintable;
+
+import java.util.stream.Collectors;
+
+import javafx.scene.control.TableView;
+
+import org.jabref.gui.maintable.columns.MainTableColumn;
+import org.jabref.preferences.PreferencesService;
+
+/**
+ * Keep track of changes made to the columns (reordering, resorting, resizing).
+ */
+public class PersistenceVisualStateTable extends AbstractPersistenceVisualStateTable {
+
+    public PersistenceVisualStateTable(final TableView&lt;BibEntryTableViewModel&gt; mainTable, PreferencesService preferences) {
+<span class="nc" id="L16">        super(mainTable, preferences);</span>
+<span class="nc" id="L17">    }</span>
+
+    /**
+     * Stores shown columns, their width and their sortType in preferences.
+     */
+    @Override
+    protected void updateColumns() {
+<span class="nc" id="L24">        preferences.storeMainTableColumnPreferences(new ColumnPreferences(</span>
+<span class="nc" id="L25">                mainTable.getColumns().stream()</span>
+<span class="nc" id="L26">                         .filter(col -&gt; col instanceof MainTableColumn&lt;?&gt;)</span>
+<span class="nc" id="L27">                         .map(column -&gt; ((MainTableColumn&lt;?&gt;) column).getModel())</span>
+<span class="nc" id="L28">                         .collect(Collectors.toList()),</span>
+<span class="nc" id="L29">                preferences.getColumnPreferences().getColumnSortOrder()));</span>
+<span class="nc" id="L30">    }</span>
+
+    /**
+     * Stores the SortOrder of the the Table in the preferences. Cannot be combined with updateColumns, because JavaFX
+     * would provide just an empty list for the sort order on other changes.
+     */
+    @Override
+    protected void updateSortOrder() {
+<span class="nc" id="L38">        preferences.storeMainTableColumnPreferences(new ColumnPreferences(</span>
+<span class="nc" id="L39">                preferences.getColumnPreferences().getColumns(),</span>
+<span class="nc" id="L40">                mainTable.getSortOrder().stream()</span>
+<span class="nc" id="L41">                         .filter(col -&gt; col instanceof MainTableColumn&lt;?&gt;)</span>
+<span class="nc" id="L42">                         .map(column -&gt; ((MainTableColumn&lt;?&gt;) column).getModel())</span>
+<span class="nc" id="L43">                         .collect(Collectors.toList())));</span>
+<span class="nc" id="L44">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

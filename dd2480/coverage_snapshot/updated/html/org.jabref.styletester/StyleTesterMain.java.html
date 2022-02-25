@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StyleTesterMain.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.styletester</a> &gt; <span class="el_source">StyleTesterMain.java</span></div><h1>StyleTesterMain.java</h1><pre class="source lang-java linenums">package org.jabref.styletester;
+
+import javafx.application.Application;
+import javafx.scene.Scene;
+import javafx.stage.Stage;
+
+import org.jabref.gui.JabRefExecutorService;
+import org.jabref.gui.theme.ThemeManager;
+import org.jabref.gui.util.DefaultFileUpdateMonitor;
+import org.jabref.logic.JabRefException;
+import org.jabref.preferences.JabRefPreferences;
+
+/**
+ * Useful for checking the display of different controls. Not needed inside of JabRef.
+ */
+<span class="nc" id="L16">public class StyleTesterMain extends Application {</span>
+
+    public static void main(String[] args) {
+<span class="nc" id="L19">        launch(args);</span>
+<span class="nc" id="L20">    }</span>
+
+    @Override
+    public void start(Stage stage) throws JabRefException {
+<span class="nc" id="L24">        StyleTesterView view = new StyleTesterView();</span>
+<span class="nc" id="L25">        DefaultFileUpdateMonitor fileUpdateMonitor = new DefaultFileUpdateMonitor();</span>
+<span class="nc" id="L26">        JabRefExecutorService.INSTANCE.executeInterruptableTask(fileUpdateMonitor, &quot;FileUpdateMonitor&quot;);</span>
+<span class="nc" id="L27">        ThemeManager themeManager = new ThemeManager(</span>
+<span class="nc" id="L28">                JabRefPreferences.getInstance().getAppearancePreferences(),</span>
+                fileUpdateMonitor,
+                Runnable::run);
+
+<span class="nc" id="L32">        Scene scene = new Scene(view.getContent());</span>
+<span class="nc" id="L33">        themeManager.installCss(scene);</span>
+<span class="nc" id="L34">        stage.setScene(scene);</span>
+<span class="nc" id="L35">        stage.show();</span>
+<span class="nc" id="L36">    }</span>
+
+    @Override
+    public void stop() {
+<span class="nc" id="L40">        JabRefExecutorService.INSTANCE.shutdownEverything();</span>
+<span class="nc" id="L41">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

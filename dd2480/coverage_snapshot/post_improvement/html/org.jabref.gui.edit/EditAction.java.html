@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EditAction.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.edit</a> &gt; <span class="el_source">EditAction.java</span></div><h1>EditAction.java</h1><pre class="source lang-java linenums">package org.jabref.gui.edit;
+
+import javafx.scene.control.TextInputControl;
+
+import org.jabref.gui.JabRefFrame;
+import org.jabref.gui.StateManager;
+import org.jabref.gui.actions.ActionHelper;
+import org.jabref.gui.actions.SimpleCommand;
+import org.jabref.gui.actions.StandardActions;
+
+import org.fxmisc.richtext.CodeArea;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Class for handling general actions; cut, copy and paste. The focused component is kept track of by
+ * Globals.focusListener, and we call the action stored under the relevant name in its action map.
+ */
+public class EditAction extends SimpleCommand {
+
+<span class="nc" id="L21">    private static final Logger LOGGER = LoggerFactory.getLogger(EditAction.class);</span>
+
+    private final JabRefFrame frame;
+    private final StandardActions action;
+    private final StateManager stateManager;
+
+<span class="nc" id="L27">    public EditAction(StandardActions action, JabRefFrame frame, StateManager stateManager) {</span>
+<span class="nc" id="L28">        this.action = action;</span>
+<span class="nc" id="L29">        this.frame = frame;</span>
+<span class="nc" id="L30">        this.stateManager = stateManager;</span>
+
+<span class="nc bnc" id="L32" title="All 2 branches missed.">        if (action == StandardActions.PASTE) {</span>
+<span class="nc" id="L33">            this.executable.bind(ActionHelper.needsDatabase(stateManager));</span>
+        } else {
+<span class="nc" id="L35">            this.executable.bind(ActionHelper.needsEntriesSelected(stateManager));</span>
+        }
+<span class="nc" id="L37">    }</span>
+
+    @Override
+    public String toString() {
+<span class="nc" id="L41">        return this.action.toString();</span>
+    }
+
+    @Override
+    public void execute() {
+<span class="nc" id="L46">        stateManager.getFocusOwner().ifPresent(focusOwner -&gt; {</span>
+<span class="nc" id="L47">            LOGGER.debug(&quot;focusOwner: {}; Action: {}&quot;, focusOwner.toString(), action.getText());</span>
+<span class="nc bnc" id="L48" title="All 2 branches missed.">            if (focusOwner instanceof TextInputControl) {</span>
+                // Focus is on text field -&gt; copy/paste/cut selected text
+<span class="nc" id="L50">                TextInputControl textInput = (TextInputControl) focusOwner;</span>
+                // DELETE_ENTRY in text field should do forward delete
+<span class="nc bnc" id="L52" title="All 5 branches missed.">                switch (action) {</span>
+<span class="nc" id="L53">                    case COPY -&gt; textInput.copy();</span>
+<span class="nc" id="L54">                    case CUT -&gt; textInput.cut();</span>
+<span class="nc" id="L55">                    case PASTE -&gt; textInput.paste();</span>
+<span class="nc" id="L56">                    case DELETE_ENTRY -&gt; textInput.deleteNextChar();</span>
+<span class="nc" id="L57">                    default -&gt; throw new IllegalStateException(&quot;Only cut/copy/paste supported in TextInputControl but got &quot; + action);</span>
+                }
+
+<span class="nc bnc" id="L60" title="All 2 branches missed.">            } else if (!(focusOwner instanceof CodeArea)) {</span>
+
+<span class="nc" id="L62">                LOGGER.debug(&quot;Else: {}&quot;, focusOwner.getClass().getSimpleName());</span>
+                // Not sure what is selected -&gt; copy/paste/cut selected entries
+
+                // ToDo: Should be handled by BibDatabaseContext instead of LibraryTab
+<span class="nc bnc" id="L66" title="All 5 branches missed.">                switch (action) {</span>
+<span class="nc" id="L67">                    case COPY -&gt; frame.getCurrentLibraryTab().copy();</span>
+<span class="nc" id="L68">                    case CUT -&gt; frame.getCurrentLibraryTab().cut();</span>
+<span class="nc" id="L69">                    case PASTE -&gt; frame.getCurrentLibraryTab().paste();</span>
+<span class="nc" id="L70">                    case DELETE_ENTRY -&gt; frame.getCurrentLibraryTab().delete(false);</span>
+<span class="nc" id="L71">                    default -&gt; throw new IllegalStateException(&quot;Only cut/copy/paste supported but got &quot; + action);</span>
+                }
+            }
+<span class="nc" id="L74">        });</span>
+<span class="nc" id="L75">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

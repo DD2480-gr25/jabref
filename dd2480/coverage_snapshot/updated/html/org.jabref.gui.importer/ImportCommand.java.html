@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ImportCommand.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.importer</a> &gt; <span class="el_source">ImportCommand.java</span></div><h1>ImportCommand.java</h1><pre class="source lang-java linenums">package org.jabref.gui.importer;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Collections;
+import java.util.Optional;
+import java.util.SortedSet;
+
+import javafx.stage.FileChooser;
+
+import org.jabref.gui.DialogService;
+import org.jabref.gui.Globals;
+import org.jabref.gui.JabRefFrame;
+import org.jabref.gui.StateManager;
+import org.jabref.gui.actions.SimpleCommand;
+import org.jabref.gui.util.FileDialogConfiguration;
+import org.jabref.gui.util.FileFilterConverter;
+import org.jabref.logic.importer.Importer;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.preferences.PreferencesService;
+
+import static org.jabref.gui.actions.ActionHelper.needsDatabase;
+
+/**
+ * Perform import operation
+ */
+public class ImportCommand extends SimpleCommand {
+
+    private final JabRefFrame frame;
+    private final boolean openInNew;
+    private final DialogService dialogService;
+    private final PreferencesService preferences;
+
+    /**
+     * @param openInNew Indicate whether the entries should import into a new database or into the currently open one.
+     */
+<span class="nc" id="L37">    public ImportCommand(JabRefFrame frame, boolean openInNew, PreferencesService preferences, StateManager stateManager) {</span>
+<span class="nc" id="L38">        this.frame = frame;</span>
+<span class="nc" id="L39">        this.openInNew = openInNew;</span>
+<span class="nc" id="L40">        this.preferences = preferences;</span>
+
+<span class="nc bnc" id="L42" title="All 2 branches missed.">        if (!openInNew) {</span>
+<span class="nc" id="L43">            this.executable.bind(needsDatabase(stateManager));</span>
+        }
+
+<span class="nc" id="L46">        this.dialogService = frame.getDialogService();</span>
+<span class="nc" id="L47">    }</span>
+
+    @Override
+    public void execute() {
+<span class="nc" id="L51">        SortedSet&lt;Importer&gt; importers = Globals.IMPORT_FORMAT_READER.getImportFormats();</span>
+
+<span class="nc" id="L53">        FileDialogConfiguration fileDialogConfiguration = new FileDialogConfiguration.Builder()</span>
+<span class="nc" id="L54">                .addExtensionFilter(FileFilterConverter.ANY_FILE)</span>
+<span class="nc" id="L55">                .addExtensionFilter(FileFilterConverter.forAllImporters(importers))</span>
+<span class="nc" id="L56">                .addExtensionFilter(FileFilterConverter.importerToExtensionFilter(importers))</span>
+<span class="nc" id="L57">                .withInitialDirectory(preferences.getImportExportPreferences().getImportWorkingDirectory())</span>
+<span class="nc" id="L58">                .build();</span>
+<span class="nc" id="L59">        dialogService.showFileOpenDialog(fileDialogConfiguration)</span>
+<span class="nc" id="L60">                     .ifPresent(path -&gt; doImport(path, importers, fileDialogConfiguration.getSelectedExtensionFilter()));</span>
+<span class="nc" id="L61">    }</span>
+
+    private void doImport(Path file, SortedSet&lt;Importer&gt; importers, FileChooser.ExtensionFilter selectedExtensionFilter) {
+<span class="nc bnc" id="L64" title="All 2 branches missed.">        if (!Files.exists(file)) {</span>
+<span class="nc" id="L65">            dialogService.showErrorDialogAndWait(Localization.lang(&quot;Import&quot;),</span>
+<span class="nc" id="L66">                    Localization.lang(&quot;File not found&quot;) + &quot;: '&quot; + file.getFileName() + &quot;'.&quot;);</span>
+
+<span class="nc" id="L68">            return;</span>
+        }
+<span class="nc" id="L70">        Optional&lt;Importer&gt; format = FileFilterConverter.getImporter(selectedExtensionFilter, importers);</span>
+<span class="nc" id="L71">        ImportAction importMenu = new ImportAction(frame, openInNew, format.orElse(null), preferences);</span>
+<span class="nc" id="L72">        importMenu.automatedImport(Collections.singletonList(file.toString()));</span>
+        // Set last working dir for import
+<span class="nc" id="L74">        preferences.getImportExportPreferences().setImportWorkingDirectory(file.getParent());</span>
+<span class="nc" id="L75">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CleanupPreset.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.cleanup</a> &gt; <span class="el_source">CleanupPreset.java</span></div><h1>CleanupPreset.java</h1><pre class="source lang-java linenums">package org.jabref.logic.cleanup;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.Objects;
+import java.util.Set;
+
+public class CleanupPreset {
+
+    private final Set&lt;CleanupStep&gt; activeJobs;
+    private final FieldFormatterCleanups formatterCleanups;
+
+    public CleanupPreset(Set&lt;CleanupStep&gt; activeJobs) {
+<span class="fc" id="L15">        this(activeJobs, new FieldFormatterCleanups(false, new ArrayList&lt;&gt;()));</span>
+<span class="fc" id="L16">    }</span>
+
+    public CleanupPreset(CleanupStep activeJob) {
+<span class="fc" id="L19">        this(EnumSet.of(activeJob));</span>
+<span class="fc" id="L20">    }</span>
+
+    public CleanupPreset(FieldFormatterCleanups formatterCleanups) {
+<span class="fc" id="L23">        this(EnumSet.noneOf(CleanupStep.class), formatterCleanups);</span>
+<span class="fc" id="L24">    }</span>
+
+<span class="fc" id="L26">    public CleanupPreset(Set&lt;CleanupStep&gt; activeJobs, FieldFormatterCleanups formatterCleanups) {</span>
+<span class="fc" id="L27">        this.activeJobs = activeJobs;</span>
+<span class="fc" id="L28">        this.formatterCleanups = Objects.requireNonNull(formatterCleanups);</span>
+<span class="fc" id="L29">    }</span>
+
+    public Set&lt;CleanupStep&gt; getActiveJobs() {
+<span class="fc" id="L32">        return Collections.unmodifiableSet(activeJobs);</span>
+    }
+
+    public boolean isRenamePDFActive() {
+<span class="nc bnc" id="L36" title="All 4 branches missed.">        return isActive(CleanupStep.RENAME_PDF) || isActive(CleanupStep.RENAME_PDF_ONLY_RELATIVE_PATHS);</span>
+    }
+
+    public Boolean isActive(CleanupStep step) {
+<span class="nc" id="L40">        return activeJobs.contains(step);</span>
+    }
+
+    public FieldFormatterCleanups getFormatterCleanups() {
+<span class="fc" id="L44">        return formatterCleanups;</span>
+    }
+
+<span class="fc" id="L47">    public enum CleanupStep {</span>
+        /**
+         * Removes the http://... for each DOI. Moves DOIs from URL and NOTE filed to DOI field.
+         */
+<span class="fc" id="L51">        CLEAN_UP_DOI,</span>
+<span class="fc" id="L52">        CLEANUP_EPRINT,</span>
+<span class="fc" id="L53">        MAKE_PATHS_RELATIVE,</span>
+<span class="fc" id="L54">        RENAME_PDF,</span>
+<span class="fc" id="L55">        RENAME_PDF_ONLY_RELATIVE_PATHS,</span>
+        /**
+         * Collects file links from the pdf or ps field, and adds them to the list contained in the file field.
+         */
+<span class="fc" id="L59">        CLEAN_UP_UPGRADE_EXTERNAL_LINKS,</span>
+        /**
+         * Converts to biblatex format
+         */
+<span class="fc" id="L63">        CONVERT_TO_BIBLATEX,</span>
+        /**
+         * Converts to bibtex format
+         */
+<span class="fc" id="L67">        CONVERT_TO_BIBTEX,</span>
+<span class="fc" id="L68">        CONVERT_TIMESTAMP_TO_CREATIONDATE,</span>
+<span class="fc" id="L69">        CONVERT_TIMESTAMP_TO_MODIFICATIONDATE,</span>
+<span class="fc" id="L70">        DO_NOT_CONVERT_TIMESTAMP,</span>
+<span class="fc" id="L71">        MOVE_PDF,</span>
+<span class="fc" id="L72">        FIX_FILE_LINKS,</span>
+<span class="fc" id="L73">        CLEAN_UP_ISSN</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RadioButtonCell.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.util</a> &gt; <span class="el_source">RadioButtonCell.java</span></div><h1>RadioButtonCell.java</h1><pre class="source lang-java linenums">package org.jabref.gui.util;
+
+import java.util.EnumSet;
+
+import javafx.geometry.Pos;
+import javafx.scene.control.RadioButton;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.ToggleGroup;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+
+public class RadioButtonCell&lt;S, T extends Enum&lt;T&gt;&gt; extends TableCell&lt;S, T&gt; {
+
+    private final EnumSet&lt;T&gt; enumeration;
+
+<span class="nc" id="L16">    public RadioButtonCell(EnumSet&lt;T&gt; enumeration) {</span>
+<span class="nc" id="L17">        this.enumeration = enumeration;</span>
+<span class="nc" id="L18">    }</span>
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+    @Override
+    protected void updateItem(T item, boolean empty) {
+<span class="nc" id="L23">        super.updateItem(item, empty);</span>
+<span class="nc bnc" id="L24" title="All 4 branches missed.">        if (empty || (item == null)) {</span>
+<span class="nc" id="L25">            setGraphic(null);</span>
+        } else {
+            // gui setup
+<span class="nc" id="L28">            HBox hb = new HBox(7);</span>
+<span class="nc" id="L29">            hb.setAlignment(Pos.CENTER);</span>
+<span class="nc" id="L30">            final ToggleGroup group = new ToggleGroup();</span>
+
+            // create a radio button for each 'element' of the enumeration
+<span class="nc bnc" id="L33" title="All 2 branches missed.">            for (Enum&lt;T&gt; enumElement : enumeration) {</span>
+<span class="nc" id="L34">                RadioButton radioButton = new RadioButton(enumElement.toString());</span>
+<span class="nc" id="L35">                radioButton.setUserData(enumElement);</span>
+<span class="nc" id="L36">                radioButton.setToggleGroup(group);</span>
+<span class="nc" id="L37">                radioButton.setMinWidth(USE_PREF_SIZE);</span>
+<span class="nc" id="L38">                hb.getChildren().add(radioButton);</span>
+<span class="nc bnc" id="L39" title="All 2 branches missed.">                if (enumElement.equals(item)) {</span>
+<span class="nc" id="L40">                    radioButton.setSelected(true);</span>
+                }
+<span class="nc" id="L42">                hb.setMinWidth(USE_PREF_SIZE);</span>
+<span class="nc" id="L43">                hb.setHgrow(radioButton, Priority.ALWAYS);</span>
+<span class="nc" id="L44">            }</span>
+
+            // issue events on change of the selected radio button
+<span class="nc" id="L47">            group.selectedToggleProperty().addListener((oservable, oldValue, newValue) -&gt; {</span>
+<span class="nc" id="L48">                getTableView().edit(getIndex(), getTableColumn());</span>
+<span class="nc" id="L49">                RadioButtonCell.this.commitEdit((T) newValue.getUserData());</span>
+<span class="nc" id="L50">            });</span>
+
+<span class="nc" id="L52">            setGraphic(hb);</span>
+        }
+<span class="nc" id="L54">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

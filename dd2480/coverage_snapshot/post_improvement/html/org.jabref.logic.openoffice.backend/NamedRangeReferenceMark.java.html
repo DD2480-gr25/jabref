@@ -1,0 +1,447 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NamedRangeReferenceMark.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.openoffice.backend</a> &gt; <span class="el_source">NamedRangeReferenceMark.java</span></div><h1>NamedRangeReferenceMark.java</h1><pre class="source lang-java linenums">package org.jabref.logic.openoffice.backend;
+
+import java.util.Optional;
+
+import org.jabref.model.openoffice.backend.NamedRange;
+import org.jabref.model.openoffice.uno.CreationException;
+import org.jabref.model.openoffice.uno.NoDocumentException;
+import org.jabref.model.openoffice.uno.UnoCursor;
+import org.jabref.model.openoffice.uno.UnoReferenceMark;
+
+import com.sun.star.lang.WrappedTargetException;
+import com.sun.star.text.XText;
+import com.sun.star.text.XTextContent;
+import com.sun.star.text.XTextCursor;
+import com.sun.star.text.XTextDocument;
+import com.sun.star.text.XTextRange;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+// was StorageBaseRefMark
+
+class NamedRangeReferenceMark implements NamedRange {
+
+    private static final String ZERO_WIDTH_SPACE = &quot;\u200b&quot;;
+
+    // for debugging we may want visible bracket
+    private static final boolean
+    REFERENCE_MARK_USE_INVISIBLE_BRACKETS = true; // !debug;
+
+    public static final String
+    REFERENCE_MARK_LEFT_BRACKET = REFERENCE_MARK_USE_INVISIBLE_BRACKETS ? ZERO_WIDTH_SPACE : &quot;&lt;&quot;;
+
+    public static final String
+    REFERENCE_MARK_RIGHT_BRACKET = REFERENCE_MARK_USE_INVISIBLE_BRACKETS ? ZERO_WIDTH_SPACE : &quot;&gt;&quot;;
+
+<span class="nc" id="L36">    private static final Logger LOGGER = LoggerFactory.getLogger(NamedRangeReferenceMark.class);</span>
+
+    private String rangeId; /* reference mark name */
+
+<span class="nc" id="L40">    private NamedRangeReferenceMark(String rangeId) {</span>
+<span class="nc" id="L41">        this.rangeId = rangeId;</span>
+<span class="nc" id="L42">    }</span>
+
+    String getId() {
+<span class="nc" id="L45">        return rangeId;</span>
+    }
+
+    /**
+     *  Insert {@code n} spaces in a way that reference marks just before or just after the cursor
+     *  are not affected.
+     *
+     *  This is based on the observation, that starting two new paragraphs separates us from
+     *  reference marks on either side.
+     *
+     *  The pattern used is:
+     *  {@code safeInsertSpaces(n): para, para, left, space(n), right-delete, left(n), left-delete}
+     *
+     *  @param position Where to insert (at position.getStart())
+     *  @param numSpaces  Number of spaces to insert.
+     *
+     *  @return a new cursor, covering the just-inserted spaces.
+     *
+     */
+    private static XTextCursor safeInsertSpacesBetweenReferenceMarks(XTextRange position, int numSpaces) {
+        // Start with an empty cursor at position.getStart();
+<span class="nc" id="L66">        XText text = position.getText();</span>
+<span class="nc" id="L67">        XTextCursor cursor = text.createTextCursorByRange(position.getStart());</span>
+<span class="nc" id="L68">        text.insertString(cursor, &quot;\r\r&quot;, false); // para, para</span>
+<span class="nc" id="L69">        cursor.goLeft((short) 1, false); // left</span>
+<span class="nc" id="L70">        text.insertString(cursor, &quot; &quot;.repeat(numSpaces), false); // space(numSpaces)</span>
+<span class="nc" id="L71">        cursor.goRight((short) 1, true);</span>
+<span class="nc" id="L72">        cursor.setString(&quot;&quot;); // right-delete</span>
+<span class="nc" id="L73">        cursor.goLeft((short) numSpaces, false); // left(numSpaces)</span>
+<span class="nc" id="L74">        cursor.goLeft((short) 1, true);</span>
+<span class="nc" id="L75">        cursor.setString(&quot;&quot;); // left-delete</span>
+<span class="nc" id="L76">        cursor.goRight((short) numSpaces, true); // select the newly inserted spaces</span>
+<span class="nc" id="L77">        return cursor;</span>
+    }
+
+    private static void createReprInDocument(XTextDocument doc,
+                                             String refMarkName,
+                                             XTextCursor position,
+                                             boolean insertSpaceAfter,
+                                             boolean withoutBrackets)
+        throws
+        CreationException {
+
+        // The cursor we received: we push it before us.
+<span class="nc" id="L89">        position.collapseToEnd();</span>
+
+<span class="nc" id="L91">        XTextCursor cursor = safeInsertSpacesBetweenReferenceMarks(position.getEnd(), 2);</span>
+
+        // cursors before the first and after the last space
+<span class="nc" id="L94">        XTextCursor cursorBefore = cursor.getText().createTextCursorByRange(cursor.getStart());</span>
+<span class="nc" id="L95">        XTextCursor cursorAfter = cursor.getText().createTextCursorByRange(cursor.getEnd());</span>
+
+<span class="nc" id="L97">        cursor.collapseToStart();</span>
+<span class="nc" id="L98">        cursor.goRight((short) 1, false);</span>
+        // now we are between two spaces
+
+<span class="nc" id="L101">        final String left = NamedRangeReferenceMark.REFERENCE_MARK_LEFT_BRACKET;</span>
+<span class="nc" id="L102">        final String right = NamedRangeReferenceMark.REFERENCE_MARK_RIGHT_BRACKET;</span>
+<span class="nc bnc" id="L103" title="All 2 branches missed.">        String bracketedContent = (withoutBrackets</span>
+<span class="nc" id="L104">                                   ? &quot;&quot;</span>
+<span class="nc" id="L105">                                   : left + right);</span>
+
+<span class="nc" id="L107">        cursor.getText().insertString(cursor, bracketedContent, true);</span>
+
+<span class="nc" id="L109">        UnoReferenceMark.create(doc, refMarkName, cursor, true /* absorb */);</span>
+
+        // eat the first inserted space
+<span class="nc" id="L112">        cursorBefore.goRight((short) 1, true);</span>
+<span class="nc" id="L113">        cursorBefore.setString(&quot;&quot;);</span>
+<span class="nc bnc" id="L114" title="All 2 branches missed.">        if (!insertSpaceAfter) {</span>
+            // eat the second inserted space
+<span class="nc" id="L116">            cursorAfter.goLeft((short) 1, true);</span>
+<span class="nc" id="L117">            cursorAfter.setString(&quot;&quot;);</span>
+        }
+<span class="nc" id="L119">    }</span>
+
+    static NamedRangeReferenceMark create(XTextDocument doc,
+                                          String refMarkName,
+                                          XTextCursor position,
+                                          boolean insertSpaceAfter,
+                                          boolean withoutBrackets)
+        throws
+        CreationException {
+
+<span class="nc" id="L129">        createReprInDocument(doc, refMarkName, position, insertSpaceAfter, withoutBrackets);</span>
+<span class="nc" id="L130">        return new NamedRangeReferenceMark(refMarkName);</span>
+    }
+
+    /**
+     * @return Optional.empty if there is no corresponding range.
+     */
+    static Optional&lt;NamedRangeReferenceMark&gt; getFromDocument(XTextDocument doc, String refMarkName)
+        throws
+        NoDocumentException,
+        WrappedTargetException {
+<span class="nc" id="L140">        return (UnoReferenceMark.getAnchor(doc, refMarkName)</span>
+<span class="nc" id="L141">                .map(e -&gt; new NamedRangeReferenceMark(refMarkName)));</span>
+    }
+
+    /**
+     * Remove it from the document.
+     *
+     * See: removeCitationGroups
+     */
+    @Override
+    public void removeFromDocument(XTextDocument doc)
+        throws
+        WrappedTargetException,
+        NoDocumentException {
+<span class="nc" id="L154">        UnoReferenceMark.removeIfExists(doc, this.getRangeName());</span>
+<span class="nc" id="L155">    }</span>
+
+    @Override
+    public String getRangeName() {
+<span class="nc" id="L159">        return rangeId;</span>
+    }
+
+    /**
+     *
+     * @return Optional.empty if the reference mark is missing.
+     *
+     * See: UnoReferenceMark.getAnchor
+     */
+    @Override
+    public Optional&lt;XTextRange&gt; getMarkRange(XTextDocument doc)
+        throws
+        NoDocumentException,
+        WrappedTargetException {
+<span class="nc" id="L173">        String name = this.getRangeName();</span>
+<span class="nc" id="L174">        return UnoReferenceMark.getAnchor(doc, name);</span>
+    }
+
+    /**
+     * Cursor for the reference marks as is, not prepared for filling, but does not need
+     * cleanFillCursor either.
+     *
+     * @return Optional.empty() if reference mark is missing from the document,
+     *                          otherwise an XTextCursor for getMarkRange
+     *
+     * See: getRawCursorForCitationGroup
+     */
+    @Override
+    public Optional&lt;XTextCursor&gt; getRawCursor(XTextDocument doc)
+        throws
+        NoDocumentException,
+        WrappedTargetException {
+
+<span class="nc" id="L192">        String name = this.getRangeName();</span>
+
+<span class="nc" id="L194">        Optional&lt;XTextContent&gt; markAsTextContent = UnoReferenceMark.getAsTextContent(doc, name);</span>
+
+<span class="nc bnc" id="L196" title="All 2 branches missed.">        if (markAsTextContent.isEmpty()) {</span>
+<span class="nc" id="L197">            LOGGER.warn(&quot;getRawCursor: markAsTextContent({}).isEmpty()&quot;, name);</span>
+        }
+
+<span class="nc" id="L200">        Optional&lt;XTextCursor&gt; full = UnoCursor.getTextCursorOfTextContentAnchor(markAsTextContent.get());</span>
+<span class="nc bnc" id="L201" title="All 2 branches missed.">        if (full.isEmpty()) {</span>
+<span class="nc" id="L202">            LOGGER.warn(&quot;getRawCursor: full.isEmpty()&quot;);</span>
+<span class="nc" id="L203">            return Optional.empty();</span>
+        }
+<span class="nc" id="L205">        return full;</span>
+    }
+
+    /**
+     * See: getFillCursorForCitationGroup
+     */
+    @Override
+    public XTextCursor getFillCursor(XTextDocument doc)
+        throws
+        NoDocumentException,
+        WrappedTargetException,
+        CreationException {
+
+<span class="nc" id="L218">        String name = this.getRangeName();</span>
+
+<span class="nc" id="L220">        final boolean debugThisFun = false;</span>
+
+<span class="nc" id="L222">        XTextCursor full = null;</span>
+<span class="nc" id="L223">        String fullText = null;</span>
+<span class="nc bnc" id="L224" title="All 2 branches missed.">        for (int i = 1; i &lt;= 2; i++) {</span>
+<span class="nc" id="L225">            Optional&lt;XTextContent&gt; markAsTextContent = UnoReferenceMark.getAsTextContent(doc, name);</span>
+
+<span class="nc bnc" id="L227" title="All 2 branches missed.">            if (markAsTextContent.isEmpty()) {</span>
+<span class="nc" id="L228">                String msg = String.format(&quot;getFillCursor: markAsTextContent(%s).isEmpty (attempt %d)&quot;, name, i);</span>
+<span class="nc" id="L229">                throw new IllegalStateException(msg);</span>
+            }
+
+<span class="nc" id="L232">            full = UnoCursor.getTextCursorOfTextContentAnchor(markAsTextContent.get()).orElse(null);</span>
+<span class="nc bnc" id="L233" title="All 2 branches missed.">            if (full == null) {</span>
+<span class="nc" id="L234">                String msg = String.format(&quot;getFillCursor: full == null (attempt %d)&quot;, i);</span>
+<span class="nc" id="L235">                throw new IllegalStateException(msg);</span>
+            }
+
+<span class="nc" id="L238">            fullText = full.getString();</span>
+
+<span class="nc" id="L240">            LOGGER.debug(&quot;getFillCursor: fulltext = '{}'&quot;, fullText);</span>
+
+<span class="nc bnc" id="L242" title="All 2 branches missed.">            if (fullText.length() &gt;= 2) {</span>
+<span class="nc" id="L243">                LOGGER.debug(&quot;getFillCursor: (attempt: {}) fulltext.length() &gt;= 2, break loop%n&quot;, i);</span>
+<span class="nc" id="L244">                break;</span>
+            } else {
+                // (fullText.length() &lt; 2)
+<span class="nc bnc" id="L247" title="All 2 branches missed.">                if (i == 2) {</span>
+<span class="nc" id="L248">                    String msg = String.format(&quot;getFillCursor: (fullText.length() &lt; 2) (attempt %d)&quot;, i);</span>
+<span class="nc" id="L249">                    throw new IllegalStateException(msg);</span>
+                }
+                // too short, recreate
+<span class="nc" id="L252">                LOGGER.warn(&quot;getFillCursor: too short, recreate&quot;);</span>
+
+<span class="nc" id="L254">                full.setString(&quot;&quot;);</span>
+<span class="nc" id="L255">                UnoReferenceMark.removeIfExists(doc, name);</span>
+
+<span class="nc" id="L257">                final boolean insertSpaceAfter = false;</span>
+<span class="nc" id="L258">                final boolean withoutBrackets = false;</span>
+<span class="nc" id="L259">                createReprInDocument(doc, name, full, insertSpaceAfter, withoutBrackets);</span>
+            }
+        }
+
+<span class="nc bnc" id="L263" title="All 2 branches missed.">        if (full == null) {</span>
+<span class="nc" id="L264">            throw new IllegalStateException(&quot;getFillCursorFor: full == null (after loop)&quot;);</span>
+        }
+<span class="nc bnc" id="L266" title="All 2 branches missed.">        if (fullText == null) {</span>
+<span class="nc" id="L267">            throw new IllegalStateException(&quot;getFillCursor: fullText == null (after loop)&quot;);</span>
+        }
+
+<span class="nc" id="L270">        fullText = full.getString();</span>
+<span class="nc bnc" id="L271" title="All 2 branches missed.">        if (fullText.length() &lt; 2) {</span>
+<span class="nc" id="L272">            throw new IllegalStateException(&quot;getFillCursor: fullText.length() &lt; 2 (after loop)'%n&quot;);</span>
+        }
+<span class="nc" id="L274">        XTextCursor beta = full.getText().createTextCursorByRange(full);</span>
+<span class="nc" id="L275">        beta.collapseToStart();</span>
+<span class="nc" id="L276">        beta.goRight((short) 1, false);</span>
+<span class="nc" id="L277">        beta.goRight((short) (fullText.length() - 2), true);</span>
+<span class="nc" id="L278">        LOGGER.debug(&quot;getFillCursor: beta(1) covers '{}'&quot;, beta.getString());</span>
+
+<span class="nc" id="L280">        final String left = NamedRangeReferenceMark.REFERENCE_MARK_LEFT_BRACKET;</span>
+<span class="nc" id="L281">        final String right = NamedRangeReferenceMark.REFERENCE_MARK_RIGHT_BRACKET;</span>
+<span class="nc" id="L282">        final short rightLength = (short) right.length();</span>
+<span class="nc bnc" id="L283" title="All 4 branches missed.">        if (fullText.startsWith(left) &amp;&amp; fullText.endsWith(right)) {</span>
+<span class="nc" id="L284">            beta.setString(&quot;&quot;);</span>
+        } else {
+<span class="nc" id="L286">            LOGGER.debug(&quot;getFillCursor: recreating brackets for '{}'&quot;, fullText);</span>
+
+            // we have at least two characters inside
+<span class="nc" id="L289">            XTextCursor alpha = full.getText().createTextCursorByRange(full);</span>
+<span class="nc" id="L290">            alpha.collapseToStart();</span>
+
+<span class="nc" id="L292">            XTextCursor omega = full.getText().createTextCursorByRange(full);</span>
+<span class="nc" id="L293">            omega.collapseToEnd();</span>
+
+            // beta now covers everything except first and last character
+            // Replace its content with brackets
+<span class="nc" id="L297">            String paddingx = &quot;x&quot;;</span>
+<span class="nc" id="L298">            String paddingy = &quot;y&quot;;</span>
+<span class="nc" id="L299">            String paddingz = &quot;z&quot;;</span>
+<span class="nc" id="L300">            beta.setString(paddingx + left + paddingy + right + paddingz);</span>
+<span class="nc" id="L301">            LOGGER.debug(&quot;getFillCursor: beta(2) covers '{}'&quot;, beta.getString());</span>
+
+            // move beta to before the right bracket
+<span class="nc" id="L304">            beta.collapseToEnd();</span>
+<span class="nc" id="L305">            beta.goLeft((short) (rightLength + 1), false);</span>
+            // remove middle padding
+<span class="nc" id="L307">            beta.goLeft((short) 1, true);</span>
+<span class="nc" id="L308">            LOGGER.debug(&quot;getFillCursor: beta(3) covers '{}'&quot;, beta.getString());</span>
+
+            // only drop paddingy later: beta.setString(&quot;&quot;);
+
+            // drop the initial character and paddingx
+<span class="nc" id="L313">            alpha.collapseToStart();</span>
+<span class="nc" id="L314">            alpha.goRight((short) (1 + 1), true);</span>
+<span class="nc" id="L315">            LOGGER.debug(&quot;getFillCursor: alpha(4) covers '{}'&quot;, alpha.getString());</span>
+
+<span class="nc" id="L317">            alpha.setString(&quot;&quot;);</span>
+            // drop the last character and paddingz
+<span class="nc" id="L319">            omega.collapseToEnd();</span>
+<span class="nc" id="L320">            omega.goLeft((short) (1 + 1), true);</span>
+<span class="nc" id="L321">            LOGGER.debug(&quot;getFillCursor: omega(5) covers '{}'&quot;, omega.getString());</span>
+
+<span class="nc" id="L323">            omega.setString(&quot;&quot;);</span>
+
+            // drop paddingy now
+<span class="nc" id="L326">            LOGGER.debug(&quot;getFillCursor: beta(6) covers '{}'&quot;, beta.getString());</span>
+
+<span class="nc" id="L328">            beta.setString(&quot;&quot;);</span>
+            // should be OK now.
+            if (debugThisFun) {
+                final short leftLength = (short) left.length();
+                alpha.goRight(leftLength, true);
+                LOGGER.debug(&quot;getFillCursor: alpha(7) covers '{}', should be '{}'&quot;, alpha.getString(), left);
+                omega.goLeft(rightLength, true);
+                LOGGER.debug(&quot;getFillCursor: omega(8) covers '{}', should be '{}'&quot;, omega.getString(), right);
+            }
+        }
+
+        // NamedRangeReferenceMark.checkFillCursor(beta);
+<span class="nc" id="L340">        return beta;</span>
+    }
+
+    /*
+     * Throw IllegalStateException if the brackets are not there.
+     */
+    public static void checkFillCursor(XTextCursor cursor) {
+<span class="nc" id="L347">        final String left = REFERENCE_MARK_LEFT_BRACKET;</span>
+
+<span class="nc" id="L349">        XTextCursor alpha = cursor.getText().createTextCursorByRange(cursor);</span>
+<span class="nc" id="L350">        alpha.collapseToStart();</span>
+
+<span class="nc" id="L352">        XTextCursor omega = cursor.getText().createTextCursorByRange(cursor);</span>
+<span class="nc" id="L353">        omega.collapseToEnd();</span>
+
+<span class="nc" id="L355">        final short leftLength = (short) left.length();</span>
+<span class="nc bnc" id="L356" title="All 2 branches missed.">        if (leftLength &gt; 0) {</span>
+<span class="nc" id="L357">            alpha.goLeft(leftLength, true);</span>
+<span class="nc bnc" id="L358" title="All 2 branches missed.">            if (!left.equals(alpha.getString())) {</span>
+<span class="nc" id="L359">                String msg = String.format(&quot;checkFillCursor:&quot;</span>
+                                           + &quot; ('%s') is not prefixed with REFERENCE_MARK_LEFT_BRACKET, has '%s'&quot;,
+<span class="nc" id="L361">                                           cursor.getString(), alpha.getString());</span>
+<span class="nc" id="L362">                throw new IllegalStateException(msg);</span>
+            }
+        }
+
+<span class="nc" id="L366">        final String right = REFERENCE_MARK_RIGHT_BRACKET;</span>
+<span class="nc" id="L367">        final short rightLength = (short) right.length();</span>
+<span class="nc bnc" id="L368" title="All 2 branches missed.">        if (rightLength &gt; 0) {</span>
+<span class="nc" id="L369">            omega.goRight(rightLength, true);</span>
+<span class="nc bnc" id="L370" title="All 2 branches missed.">            if (!right.equals(omega.getString())) {</span>
+<span class="nc" id="L371">                String msg = String.format(&quot;checkFillCursor:&quot;</span>
+                                           + &quot; ('%s') is not followed by REFERENCE_MARK_RIGHT_BRACKET, has '%s'&quot;,
+<span class="nc" id="L373">                                           cursor.getString(), omega.getString());</span>
+<span class="nc" id="L374">                throw new IllegalStateException(msg);</span>
+            }
+        }
+<span class="nc" id="L377">    }</span>
+
+    /**
+     * Remove brackets, but if the result would become empty, leave them; if the result would be a
+     * single characer, leave the left bracket.
+     *
+     * See: cleanFillCursorForCitationGroup
+     */
+    @Override
+    public void cleanFillCursor(XTextDocument doc)
+        throws
+        NoDocumentException,
+        WrappedTargetException {
+
+        // alwaysRemoveBrackets : full compatibility with JabRef 5.2: brackets are temporary, only
+        // exist between getFillCursor and cleanFillCursor.
+<span class="nc" id="L393">        final boolean alwaysRemoveBrackets = false;</span>
+
+        // removeBracketsFromEmpty is intended to force removal if we are working on an &quot;Empty citation&quot; (INVISIBLE_CIT).
+<span class="nc" id="L396">        final boolean removeBracketsFromEmpty = false;</span>
+
+<span class="nc" id="L398">        String name = this.getRangeName();</span>
+
+<span class="nc" id="L400">        XTextCursor full = this.getRawCursor(doc).orElseThrow(IllegalStateException::new);</span>
+<span class="nc" id="L401">        final String fullText = full.getString();</span>
+
+<span class="nc" id="L403">        final String left = REFERENCE_MARK_LEFT_BRACKET;</span>
+<span class="nc bnc" id="L404" title="All 2 branches missed.">        if (!fullText.startsWith(left)) {</span>
+<span class="nc" id="L405">            String msg = String.format(&quot;cleanFillCursor: (%s) does not start with REFERENCE_MARK_LEFT_BRACKET&quot;, name);</span>
+<span class="nc" id="L406">            throw new IllegalStateException(msg);</span>
+        }
+
+<span class="nc" id="L409">        final String right = REFERENCE_MARK_RIGHT_BRACKET;</span>
+<span class="nc bnc" id="L410" title="All 2 branches missed.">        if (!fullText.endsWith(right)) {</span>
+<span class="nc" id="L411">            String msg = String.format(&quot;cleanFillCursor: (%s) does not end with REFERENCE_MARK_RIGHT_BRACKET&quot;, name);</span>
+<span class="nc" id="L412">            throw new IllegalStateException(msg);</span>
+        }
+
+<span class="nc" id="L415">        final int fullTextLength = fullText.length();</span>
+<span class="nc" id="L416">        final short leftLength = (short) left.length();</span>
+<span class="nc" id="L417">        final short rightLength = (short) right.length();</span>
+<span class="nc" id="L418">        final int contentLength = (fullTextLength - (leftLength + rightLength));</span>
+<span class="nc bnc" id="L419" title="All 2 branches missed.">        if (contentLength &lt; 0) {</span>
+<span class="nc" id="L420">            String msg = String.format(&quot;cleanFillCursor: length(%s) &lt; 0&quot;, name);</span>
+<span class="nc" id="L421">            throw new IllegalStateException(msg);</span>
+        }
+
+<span class="nc bnc" id="L424" title="All 4 branches missed.">        boolean removeRight = ((contentLength &gt;= 1)</span>
+                               || ((contentLength == 0) &amp;&amp; removeBracketsFromEmpty)
+                               || alwaysRemoveBrackets);
+
+<span class="nc bnc" id="L428" title="All 4 branches missed.">        boolean removeLeft = ((contentLength &gt;= 2)</span>
+                              || ((contentLength == 0) &amp;&amp; removeBracketsFromEmpty)
+                              || alwaysRemoveBrackets);
+
+<span class="nc bnc" id="L432" title="All 2 branches missed.">        if (removeRight) {</span>
+<span class="nc" id="L433">            XTextCursor omega = full.getText().createTextCursorByRange(full);</span>
+<span class="nc" id="L434">            omega.collapseToEnd();</span>
+<span class="nc" id="L435">            omega.goLeft(rightLength, true);</span>
+<span class="nc" id="L436">            omega.setString(&quot;&quot;);</span>
+        }
+
+<span class="nc bnc" id="L439" title="All 2 branches missed.">        if (removeLeft) {</span>
+<span class="nc" id="L440">            XTextCursor alpha = full.getText().createTextCursorByRange(full);</span>
+<span class="nc" id="L441">            alpha.collapseToStart();</span>
+<span class="nc" id="L442">            alpha.goRight(leftLength, true);</span>
+<span class="nc" id="L443">            alpha.setString(&quot;&quot;);</span>
+        }
+<span class="nc" id="L445">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

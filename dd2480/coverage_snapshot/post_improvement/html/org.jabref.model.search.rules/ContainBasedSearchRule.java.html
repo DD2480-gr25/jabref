@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ContainBasedSearchRule.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.model.search.rules</a> &gt; <span class="el_source">ContainBasedSearchRule.java</span></div><h1>ContainBasedSearchRule.java</h1><pre class="source lang-java linenums">package org.jabref.model.search.rules;
+
+import java.io.IOException;
+import java.util.EnumSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Vector;
+import java.util.stream.Collectors;
+
+import org.jabref.architecture.AllowedToUseLogic;
+import org.jabref.gui.Globals;
+import org.jabref.gui.LibraryTab;
+import org.jabref.logic.pdf.search.retrieval.PdfSearcher;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.field.Field;
+import org.jabref.model.pdf.search.PdfSearchResults;
+import org.jabref.model.pdf.search.SearchResult;
+import org.jabref.model.search.rules.SearchRules.SearchFlags;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Search rule for contain-based search.
+ */
+@AllowedToUseLogic(&quot;Because access to the lucene index is needed&quot;)
+public class ContainBasedSearchRule implements SearchRule {
+
+<span class="fc" id="L31">    private static final Logger LOGGER = LoggerFactory.getLogger(LibraryTab.class);</span>
+
+    private final EnumSet&lt;SearchFlags&gt; searchFlags;
+
+    private String lastQuery;
+    private List&lt;SearchResult&gt; lastSearchResults;
+
+    private final BibDatabaseContext databaseContext;
+
+<span class="fc" id="L40">    public ContainBasedSearchRule(EnumSet&lt;SearchFlags&gt; searchFlags) {</span>
+<span class="fc" id="L41">        this.searchFlags = searchFlags;</span>
+<span class="fc" id="L42">        this.lastQuery = &quot;&quot;;</span>
+<span class="fc" id="L43">        lastSearchResults = new Vector&lt;&gt;();</span>
+
+<span class="fc" id="L45">        databaseContext = Globals.stateManager.getActiveDatabase().orElse(null);</span>
+<span class="fc" id="L46">    }</span>
+
+    @Override
+    public boolean validateSearchStrings(String query) {
+<span class="fc" id="L50">        return true;</span>
+    }
+
+    @Override
+    public boolean applyRule(String query, BibEntry bibEntry) {
+
+<span class="fc" id="L56">        String searchString = query;</span>
+<span class="fc bfc" id="L57" title="All 2 branches covered.">        if (!searchFlags.contains(SearchRules.SearchFlags.CASE_SENSITIVE)) {</span>
+<span class="fc" id="L58">            searchString = searchString.toLowerCase(Locale.ROOT);</span>
+        }
+
+<span class="fc" id="L61">        List&lt;String&gt; unmatchedWords = new SentenceAnalyzer(searchString).getWords();</span>
+
+<span class="fc bfc" id="L63" title="All 2 branches covered.">        for (Field fieldKey : bibEntry.getFields()) {</span>
+<span class="fc" id="L64">            String formattedFieldContent = bibEntry.getLatexFreeField(fieldKey).get();</span>
+<span class="fc bfc" id="L65" title="All 2 branches covered.">            if (!searchFlags.contains(SearchRules.SearchFlags.CASE_SENSITIVE)) {</span>
+<span class="fc" id="L66">                formattedFieldContent = formattedFieldContent.toLowerCase(Locale.ROOT);</span>
+            }
+
+<span class="fc" id="L69">            Iterator&lt;String&gt; unmatchedWordsIterator = unmatchedWords.iterator();</span>
+<span class="fc bfc" id="L70" title="All 2 branches covered.">            while (unmatchedWordsIterator.hasNext()) {</span>
+<span class="fc" id="L71">                String word = unmatchedWordsIterator.next();</span>
+<span class="fc bfc" id="L72" title="All 2 branches covered.">                if (formattedFieldContent.contains(word)) {</span>
+<span class="fc" id="L73">                    unmatchedWordsIterator.remove();</span>
+                }
+<span class="fc" id="L75">            }</span>
+
+<span class="fc bfc" id="L77" title="All 2 branches covered.">            if (unmatchedWords.isEmpty()) {</span>
+<span class="fc" id="L78">                return true;</span>
+            }
+<span class="fc" id="L80">        }</span>
+
+<span class="pc bpc" id="L82" title="1 of 2 branches missed.">        return getFulltextResults(query, bibEntry).numSearchResults() &gt; 0; // Didn't match all words.</span>
+    }
+
+    @Override
+    public PdfSearchResults getFulltextResults(String query, BibEntry bibEntry) {
+
+<span class="pc bpc" id="L88" title="3 of 4 branches missed.">        if (!searchFlags.contains(SearchRules.SearchFlags.FULLTEXT) || databaseContext == null) {</span>
+<span class="fc" id="L89">            return new PdfSearchResults(List.of());</span>
+        }
+
+<span class="nc bnc" id="L92" title="All 2 branches missed.">        if (!query.equals(this.lastQuery)) {</span>
+<span class="nc" id="L93">            this.lastQuery = query;</span>
+<span class="nc" id="L94">            lastSearchResults = List.of();</span>
+            try {
+<span class="nc" id="L96">                PdfSearcher searcher = PdfSearcher.of(databaseContext);</span>
+<span class="nc" id="L97">                PdfSearchResults results = searcher.search(query, 5);</span>
+<span class="nc" id="L98">                lastSearchResults = results.getSortedByScore();</span>
+<span class="nc" id="L99">            } catch (IOException e) {</span>
+<span class="nc" id="L100">                LOGGER.error(&quot;Could not retrieve search results!&quot;, e);</span>
+<span class="nc" id="L101">            }</span>
+        }
+
+<span class="nc" id="L104">        return new PdfSearchResults(lastSearchResults.stream().filter(searchResult -&gt; searchResult.isResultFor(bibEntry)).collect(Collectors.toList()));</span>
+    }
+
+    public EnumSet&lt;SearchFlags&gt; getSearchFlags() {
+<span class="nc" id="L108">        return searchFlags;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

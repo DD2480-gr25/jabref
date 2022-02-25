@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CleanupAction.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.cleanup</a> &gt; <span class="el_source">CleanupAction.java</span></div><h1>CleanupAction.java</h1><pre class="source lang-java linenums">package org.jabref.gui.cleanup;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.jabref.gui.DialogService;
+import org.jabref.gui.Globals;
+import org.jabref.gui.JabRefFrame;
+import org.jabref.gui.StateManager;
+import org.jabref.gui.actions.ActionHelper;
+import org.jabref.gui.actions.SimpleCommand;
+import org.jabref.gui.undo.NamedCompound;
+import org.jabref.gui.undo.UndoableFieldChange;
+import org.jabref.gui.util.BackgroundTask;
+import org.jabref.logic.cleanup.CleanupPreset;
+import org.jabref.logic.cleanup.CleanupWorker;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.model.FieldChange;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.preferences.PreferencesService;
+
+public class CleanupAction extends SimpleCommand {
+
+    private final JabRefFrame frame;
+    private final PreferencesService preferences;
+    private final DialogService dialogService;
+    private final StateManager stateManager;
+
+    private boolean isCanceled;
+    private int modifiedEntriesCount;
+
+<span class="nc" id="L33">    public CleanupAction(JabRefFrame frame, PreferencesService preferences, DialogService dialogService, StateManager stateManager) {</span>
+<span class="nc" id="L34">        this.frame = frame;</span>
+<span class="nc" id="L35">        this.preferences = preferences;</span>
+<span class="nc" id="L36">        this.dialogService = dialogService;</span>
+<span class="nc" id="L37">        this.stateManager = stateManager;</span>
+
+<span class="nc" id="L39">        this.executable.bind(ActionHelper.needsEntriesSelected(stateManager));</span>
+<span class="nc" id="L40">    }</span>
+
+    @Override
+    public void execute() {
+<span class="nc bnc" id="L44" title="All 2 branches missed.">        if (stateManager.getActiveDatabase().isEmpty()) {</span>
+<span class="nc" id="L45">            return;</span>
+        }
+
+<span class="nc bnc" id="L48" title="All 2 branches missed.">        if (stateManager.getSelectedEntries().isEmpty()) { // None selected. Inform the user to select entries first.</span>
+<span class="nc" id="L49">            dialogService.showInformationDialogAndWait(Localization.lang(&quot;Cleanup entry&quot;), Localization.lang(&quot;First select entries to clean up.&quot;));</span>
+<span class="nc" id="L50">            return;</span>
+        }
+
+<span class="nc" id="L53">        dialogService.notify(Localization.lang(&quot;Doing a cleanup for %0 entries...&quot;,</span>
+<span class="nc" id="L54">                Integer.toString(stateManager.getSelectedEntries().size())));</span>
+
+<span class="nc" id="L56">        isCanceled = false;</span>
+<span class="nc" id="L57">        modifiedEntriesCount = 0;</span>
+
+<span class="nc" id="L59">        CleanupDialog cleanupDialog = new CleanupDialog(</span>
+<span class="nc" id="L60">                stateManager.getActiveDatabase().get(),</span>
+<span class="nc" id="L61">                preferences.getCleanupPreset(),</span>
+<span class="nc" id="L62">                preferences.getFilePreferences()</span>
+        );
+
+<span class="nc" id="L65">        Optional&lt;CleanupPreset&gt; chosenPreset = dialogService.showCustomDialogAndWait(cleanupDialog);</span>
+
+<span class="nc" id="L67">        chosenPreset.ifPresent(preset -&gt; {</span>
+<span class="nc bnc" id="L68" title="All 4 branches missed.">            if (preset.isRenamePDFActive() &amp;&amp; preferences.getAutoLinkPreferences().shouldAskAutoNamingPdfs()) {</span>
+<span class="nc" id="L69">                boolean confirmed = dialogService.showConfirmationDialogWithOptOutAndWait(Localization.lang(&quot;Autogenerate PDF Names&quot;),</span>
+<span class="nc" id="L70">                        Localization.lang(&quot;Auto-generating PDF-Names does not support undo. Continue?&quot;),</span>
+<span class="nc" id="L71">                        Localization.lang(&quot;Autogenerate PDF Names&quot;),</span>
+<span class="nc" id="L72">                        Localization.lang(&quot;Cancel&quot;),</span>
+<span class="nc" id="L73">                        Localization.lang(&quot;Do not ask again&quot;),</span>
+<span class="nc bnc" id="L74" title="All 2 branches missed.">                        optOut -&gt; preferences.getAutoLinkPreferences().setAskAutoNamingPdfs(!optOut));</span>
+<span class="nc bnc" id="L75" title="All 2 branches missed.">                if (!confirmed) {</span>
+<span class="nc" id="L76">                    isCanceled = true;</span>
+<span class="nc" id="L77">                    return;</span>
+                }
+            }
+
+<span class="nc" id="L81">            preferences.setCleanupPreset(preset);</span>
+
+<span class="nc" id="L83">            BackgroundTask.wrap(() -&gt; cleanup(stateManager.getActiveDatabase().get(), preset))</span>
+<span class="nc" id="L84">                          .onSuccess(result -&gt; showResults())</span>
+<span class="nc" id="L85">                          .executeWith(Globals.TASK_EXECUTOR);</span>
+<span class="nc" id="L86">        });</span>
+<span class="nc" id="L87">    }</span>
+
+    /**
+     * Runs the cleanup on the entry and records the change.
+     */
+    private void doCleanup(BibDatabaseContext databaseContext, CleanupPreset preset, BibEntry entry, NamedCompound ce) {
+        // Create and run cleaner
+<span class="nc" id="L94">        CleanupWorker cleaner = new CleanupWorker(</span>
+                databaseContext,
+<span class="nc" id="L96">                preferences.getCleanupPreferences(Globals.journalAbbreviationRepository),</span>
+<span class="nc" id="L97">                preferences.getTimestampPreferences());</span>
+
+<span class="nc" id="L99">        List&lt;FieldChange&gt; changes = cleaner.cleanup(preset, entry);</span>
+
+        // Register undo action
+<span class="nc bnc" id="L102" title="All 2 branches missed.">        for (FieldChange change : changes) {</span>
+<span class="nc" id="L103">            ce.addEdit(new UndoableFieldChange(change));</span>
+<span class="nc" id="L104">        }</span>
+<span class="nc" id="L105">    }</span>
+
+    private void showResults() {
+<span class="nc bnc" id="L108" title="All 2 branches missed.">        if (isCanceled) {</span>
+<span class="nc" id="L109">            return;</span>
+        }
+
+<span class="nc bnc" id="L112" title="All 2 branches missed.">        if (modifiedEntriesCount &gt; 0) {</span>
+<span class="nc" id="L113">            frame.getCurrentLibraryTab().updateEntryEditorIfShowing();</span>
+<span class="nc" id="L114">            frame.getCurrentLibraryTab().markBaseChanged();</span>
+        }
+
+<span class="nc bnc" id="L117" title="All 2 branches missed.">        if (modifiedEntriesCount == 0) {</span>
+<span class="nc" id="L118">            dialogService.notify(Localization.lang(&quot;No entry needed a clean up&quot;));</span>
+<span class="nc bnc" id="L119" title="All 2 branches missed.">        } else if (modifiedEntriesCount == 1) {</span>
+<span class="nc" id="L120">            dialogService.notify(Localization.lang(&quot;One entry needed a clean up&quot;));</span>
+        } else {
+<span class="nc" id="L122">            dialogService.notify(Localization.lang(&quot;%0 entries needed a clean up&quot;, Integer.toString(modifiedEntriesCount)));</span>
+        }
+<span class="nc" id="L124">    }</span>
+
+    private void cleanup(BibDatabaseContext databaseContext, CleanupPreset cleanupPreset) {
+<span class="nc" id="L127">        preferences.setCleanupPreset(cleanupPreset);</span>
+
+<span class="nc bnc" id="L129" title="All 2 branches missed.">        for (BibEntry entry : stateManager.getSelectedEntries()) {</span>
+            // undo granularity is on entry level
+<span class="nc" id="L131">            NamedCompound ce = new NamedCompound(Localization.lang(&quot;Cleanup entry&quot;));</span>
+
+<span class="nc" id="L133">            doCleanup(databaseContext, cleanupPreset, entry, ce);</span>
+
+<span class="nc" id="L135">            ce.end();</span>
+<span class="nc bnc" id="L136" title="All 2 branches missed.">            if (ce.hasEdits()) {</span>
+<span class="nc" id="L137">                modifiedEntriesCount++;</span>
+<span class="nc" id="L138">                frame.getUndoManager().addEdit(ce);</span>
+            }
+<span class="nc" id="L140">        }</span>
+<span class="nc" id="L141">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

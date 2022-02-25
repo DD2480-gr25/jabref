@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Abbreviation.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.journals</a> &gt; <span class="el_source">Abbreviation.java</span></div><h1>Abbreviation.java</h1><pre class="source lang-java linenums">package org.jabref.logic.journals;
+
+import java.util.Objects;
+
+public class Abbreviation implements Comparable&lt;Abbreviation&gt; {
+
+    private final String name;
+    private final String abbreviation;
+    private final String shortestUniqueAbbreviation;
+
+    public Abbreviation(String name, String abbreviation) {
+<span class="fc" id="L12">        this(name, abbreviation, &quot;&quot;);</span>
+<span class="fc" id="L13">    }</span>
+
+<span class="fc" id="L15">    public Abbreviation(String name, String abbreviation, String shortestUniqueAbbreviation) {</span>
+<span class="fc" id="L16">        this.name = name;</span>
+<span class="fc" id="L17">        this.abbreviation = abbreviation;</span>
+<span class="fc" id="L18">        this.shortestUniqueAbbreviation = shortestUniqueAbbreviation.trim();</span>
+<span class="fc" id="L19">    }</span>
+
+    public String getName() {
+<span class="fc" id="L22">        return name;</span>
+    }
+
+    public String getAbbreviation() {
+<span class="fc" id="L26">        return abbreviation;</span>
+    }
+
+    public String getShortestUniqueAbbreviation() {
+<span class="fc" id="L30">        String result = shortestUniqueAbbreviation;</span>
+<span class="fc bfc" id="L31" title="All 2 branches covered.">        if (result.isEmpty()) {</span>
+<span class="fc" id="L32">            return getAbbreviation();</span>
+        }
+<span class="fc" id="L34">        return result;</span>
+    }
+
+    public String getMedlineAbbreviation() {
+<span class="fc" id="L38">        return getAbbreviation().replace(&quot;.&quot;, &quot; &quot;).replace(&quot;  &quot;, &quot; &quot;).trim();</span>
+    }
+
+    @Override
+    public int compareTo(Abbreviation toCompare) {
+<span class="nc" id="L43">        return getName().compareTo(toCompare.getName());</span>
+    }
+
+    public String getNext(String current) {
+<span class="fc" id="L47">        String currentTrimmed = current.trim();</span>
+
+<span class="fc bfc" id="L49" title="All 2 branches covered.">        if (getMedlineAbbreviation().equals(currentTrimmed)) {</span>
+<span class="fc bfc" id="L50" title="All 2 branches covered.">            return getShortestUniqueAbbreviation().equals(getAbbreviation()) ? getName() : getShortestUniqueAbbreviation();</span>
+<span class="fc bfc" id="L51" title="All 4 branches covered.">        } else if (getShortestUniqueAbbreviation().equals(currentTrimmed) &amp;&amp; !getShortestUniqueAbbreviation().equals(getAbbreviation())) {</span>
+<span class="fc" id="L52">            return getName();</span>
+<span class="fc bfc" id="L53" title="All 2 branches covered.">        } else if (getName().equals(currentTrimmed)) {</span>
+<span class="fc" id="L54">            return getAbbreviation();</span>
+        } else {
+<span class="fc" id="L56">            return getMedlineAbbreviation();</span>
+        }
+    }
+
+    @Override
+    public String toString() {
+<span class="nc" id="L62">        return String.format(&quot;Abbreviation{name=%s, abbreviation=%s, medlineAbbreviation=%s, shortestUniqueAbbreviation=%s}&quot;,</span>
+                this.name,
+                this.abbreviation,
+<span class="nc" id="L65">                this.getMedlineAbbreviation(),</span>
+                this.shortestUniqueAbbreviation);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+<span class="pc bpc" id="L71" title="1 of 2 branches missed.">        if (this == obj) {</span>
+<span class="nc" id="L72">            return true;</span>
+        }
+
+<span class="pc bpc" id="L75" title="1 of 4 branches missed.">        if (obj == null || getClass() != obj.getClass()) {</span>
+<span class="fc" id="L76">            return false;</span>
+        }
+
+<span class="fc" id="L79">        Abbreviation that = (Abbreviation) obj;</span>
+
+<span class="fc" id="L81">        return Objects.equals(getName(), that.getName());</span>
+    }
+
+    @Override
+    public int hashCode() {
+<span class="fc" id="L86">        return Objects.hash(getName());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

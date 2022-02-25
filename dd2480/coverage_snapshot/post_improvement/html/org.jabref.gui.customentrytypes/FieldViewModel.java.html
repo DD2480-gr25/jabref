@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FieldViewModel.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.customentrytypes</a> &gt; <span class="el_source">FieldViewModel.java</span></div><h1>FieldViewModel.java</h1><pre class="source lang-java linenums">package org.jabref.gui.customentrytypes;
+
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+
+import org.jabref.gui.customentrytypes.CustomEntryTypeDialogViewModel.FieldType;
+import org.jabref.model.entry.field.Field;
+import org.jabref.model.entry.field.FieldPriority;
+
+public class FieldViewModel {
+
+    private final ObjectProperty&lt;FieldType&gt; fieldType;
+<span class="nc" id="L15">    private final StringProperty fieldName = new SimpleStringProperty(&quot;&quot;);</span>
+    private final Field field;
+    private final FieldPriority fieldPriority;
+
+<span class="nc" id="L19">    public FieldViewModel(Field field, FieldType fieldType, FieldPriority fieldPriority) {</span>
+<span class="nc" id="L20">        this.field = field;</span>
+<span class="nc" id="L21">        this.fieldName.setValue(field.getDisplayName());</span>
+<span class="nc" id="L22">        this.fieldType = new SimpleObjectProperty&lt;&gt;(fieldType);</span>
+<span class="nc" id="L23">        this.fieldPriority = fieldPriority;</span>
+<span class="nc" id="L24">    }</span>
+
+    public FieldViewModel(Field field, boolean required, FieldPriority fieldPriority) {
+<span class="nc bnc" id="L27" title="All 2 branches missed.">        this(field, required ? FieldType.REQUIRED : FieldType.OPTIONAL, fieldPriority);</span>
+<span class="nc" id="L28">    }</span>
+
+    public ObjectProperty&lt;FieldType&gt; fieldType() {
+<span class="nc" id="L31">        return this.fieldType;</span>
+    }
+
+    public StringProperty fieldName() {
+<span class="nc" id="L35">        return this.fieldName;</span>
+    }
+
+    public Field getField() {
+<span class="nc" id="L39">        return this.field;</span>
+    }
+
+    public FieldPriority getFieldPriority() {
+<span class="nc" id="L43">        return this.fieldPriority;</span>
+    }
+
+    public FieldType getFieldType() {
+<span class="nc" id="L47">        return this.fieldType.getValue();</span>
+    }
+
+    public void setFieldType(FieldType type) {
+<span class="nc" id="L51">        this.fieldType.setValue(type);</span>
+<span class="nc" id="L52">    }</span>
+
+    @Override
+    public String toString() {
+<span class="nc" id="L56">        return this.field.getDisplayName();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

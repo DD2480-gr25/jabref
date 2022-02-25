@@ -1,0 +1,496 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GvkParser.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.importer.fileformat</a> &gt; <span class="el_source">GvkParser.java</span></div><h1>GvkParser.java</h1><pre class="source lang-java linenums">package org.jabref.logic.importer.fileformat;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.LinkedList;
+import java.util.List;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+
+import org.jabref.logic.importer.ParseException;
+import org.jabref.logic.importer.Parser;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.field.StandardField;
+import org.jabref.model.entry.field.UnknownField;
+import org.jabref.model.entry.types.EntryType;
+import org.jabref.model.entry.types.StandardEntryType;
+
+import com.google.common.base.Strings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
+
+<span class="fc" id="L29">public class GvkParser implements Parser {</span>
+<span class="fc" id="L30">    private static final Logger LOGGER = LoggerFactory.getLogger(GvkParser.class);</span>
+
+    @Override
+    public List&lt;BibEntry&gt; parseEntries(InputStream inputStream) throws ParseException {
+        try {
+<span class="fc" id="L35">            DocumentBuilder dbuild = DocumentBuilderFactory.newInstance().newDocumentBuilder();</span>
+<span class="fc" id="L36">            Document content = dbuild.parse(inputStream);</span>
+<span class="fc" id="L37">            return this.parseEntries(content);</span>
+<span class="nc" id="L38">        } catch (ParserConfigurationException | SAXException | IOException exception) {</span>
+<span class="nc" id="L39">            throw new ParseException(exception);</span>
+        }
+    }
+
+    private List&lt;BibEntry&gt; parseEntries(Document content) {
+<span class="fc" id="L44">        List&lt;BibEntry&gt; result = new LinkedList&lt;&gt;();</span>
+
+        // used for creating test cases
+        // XMLUtil.printDocument(content);
+
+        // Namespace srwNamespace = Namespace.getNamespace(&quot;srw&quot;,&quot;http://www.loc.gov/zing/srw/&quot;);
+
+        // Schleife ueber alle Teilergebnisse
+        // Element root = content.getDocumentElement();
+<span class="fc" id="L53">        Element root = (Element) content.getElementsByTagName(&quot;zs:searchRetrieveResponse&quot;).item(0);</span>
+<span class="fc" id="L54">        Element srwrecords = getChild(&quot;zs:records&quot;, root);</span>
+<span class="fc bfc" id="L55" title="All 2 branches covered.">        if (srwrecords == null) {</span>
+            // no records found -&gt; return empty list
+<span class="fc" id="L57">            return result;</span>
+        }
+<span class="fc" id="L59">        List&lt;Element&gt; records = getChildren(&quot;zs:record&quot;, srwrecords);</span>
+<span class="fc bfc" id="L60" title="All 2 branches covered.">        for (Element record : records) {</span>
+<span class="fc" id="L61">            Element e = getChild(&quot;zs:recordData&quot;, record);</span>
+<span class="pc bpc" id="L62" title="1 of 2 branches missed.">            if (e != null) {</span>
+<span class="fc" id="L63">                e = getChild(&quot;record&quot;, e);</span>
+<span class="pc bpc" id="L64" title="1 of 2 branches missed.">                if (e != null) {</span>
+<span class="fc" id="L65">                    BibEntry bibEntry = parseEntry(e);</span>
+                    // TODO: Add filtering on years (based on org.jabref.logic.importer.fetcher.transformers.YearRangeByFilteringQueryTransformer.getStartYear)
+<span class="fc" id="L67">                    result.add(bibEntry);</span>
+                }
+            }
+<span class="fc" id="L70">        }</span>
+<span class="fc" id="L71">        return result;</span>
+    }
+
+    private BibEntry parseEntry(Element e) {
+<span class="fc" id="L75">        String author = null;</span>
+<span class="fc" id="L76">        String editor = null;</span>
+<span class="fc" id="L77">        String title = null;</span>
+<span class="fc" id="L78">        String publisher = null;</span>
+<span class="fc" id="L79">        String year = null;</span>
+<span class="fc" id="L80">        String address = null;</span>
+<span class="fc" id="L81">        String series = null;</span>
+<span class="fc" id="L82">        String edition = null;</span>
+<span class="fc" id="L83">        String isbn = null;</span>
+<span class="fc" id="L84">        String issn = null;</span>
+<span class="fc" id="L85">        String number = null;</span>
+<span class="fc" id="L86">        String pagetotal = null;</span>
+<span class="fc" id="L87">        String volume = null;</span>
+<span class="fc" id="L88">        String pages = null;</span>
+<span class="fc" id="L89">        String journal = null;</span>
+<span class="fc" id="L90">        String ppn = null;</span>
+<span class="fc" id="L91">        String booktitle = null;</span>
+<span class="fc" id="L92">        String url = null;</span>
+<span class="fc" id="L93">        String note = null;</span>
+
+<span class="fc" id="L95">        String quelle = &quot;&quot;;</span>
+<span class="fc" id="L96">        String mak = &quot;&quot;;</span>
+<span class="fc" id="L97">        String subtitle = &quot;&quot;;</span>
+
+<span class="fc" id="L99">        EntryType entryType = StandardEntryType.Book; // Default</span>
+
+        // Alle relevanten Informationen einsammeln
+
+<span class="fc" id="L103">        List&lt;Element&gt; datafields = getChildren(&quot;datafield&quot;, e);</span>
+<span class="fc bfc" id="L104" title="All 2 branches covered.">        for (Element datafield : datafields) {</span>
+<span class="fc" id="L105">            String tag = datafield.getAttribute(&quot;tag&quot;);</span>
+<span class="fc" id="L106">            LOGGER.debug(&quot;tag: &quot; + tag);</span>
+
+            // mak
+<span class="fc bfc" id="L109" title="All 2 branches covered.">            if (&quot;002@&quot;.equals(tag)) {</span>
+<span class="fc" id="L110">                mak = getSubfield(&quot;0&quot;, datafield);</span>
+<span class="pc bpc" id="L111" title="1 of 2 branches missed.">                if (mak == null) {</span>
+<span class="nc" id="L112">                    mak = &quot;&quot;;</span>
+                }
+            }
+
+            // ppn
+<span class="fc bfc" id="L117" title="All 2 branches covered.">            if (&quot;003@&quot;.equals(tag)) {</span>
+<span class="fc" id="L118">                ppn = getSubfield(&quot;0&quot;, datafield);</span>
+            }
+
+            // author
+<span class="fc bfc" id="L122" title="All 2 branches covered.">            if (&quot;028A&quot;.equals(tag)) {</span>
+<span class="fc" id="L123">                String vorname = getSubfield(&quot;d&quot;, datafield);</span>
+<span class="fc" id="L124">                String nachname = getSubfield(&quot;a&quot;, datafield);</span>
+
+<span class="pc bpc" id="L126" title="1 of 2 branches missed.">                if (author == null) {</span>
+<span class="fc" id="L127">                    author = &quot;&quot;;</span>
+                } else {
+<span class="nc" id="L129">                    author = author.concat(&quot; and &quot;);</span>
+                }
+<span class="fc" id="L131">                author = author.concat(vorname + &quot; &quot; + nachname);</span>
+            }
+            // author (weiterer)
+<span class="fc bfc" id="L134" title="All 2 branches covered.">            if (&quot;028B&quot;.equals(tag)) {</span>
+<span class="fc" id="L135">                String vorname = getSubfield(&quot;d&quot;, datafield);</span>
+<span class="fc" id="L136">                String nachname = getSubfield(&quot;a&quot;, datafield);</span>
+
+<span class="pc bpc" id="L138" title="1 of 2 branches missed.">                if (author == null) {</span>
+<span class="nc" id="L139">                    author = &quot;&quot;;</span>
+                } else {
+<span class="fc" id="L141">                    author = author.concat(&quot; and &quot;);</span>
+                }
+<span class="fc" id="L143">                author = author.concat(vorname + &quot; &quot; + nachname);</span>
+            }
+
+            // editor
+<span class="fc bfc" id="L147" title="All 2 branches covered.">            if (&quot;028C&quot;.equals(tag)) {</span>
+<span class="fc" id="L148">                String vorname = getSubfield(&quot;d&quot;, datafield);</span>
+<span class="fc" id="L149">                String nachname = getSubfield(&quot;a&quot;, datafield);</span>
+
+<span class="fc bfc" id="L151" title="All 2 branches covered.">                if (editor == null) {</span>
+<span class="fc" id="L152">                    editor = &quot;&quot;;</span>
+                } else {
+<span class="fc" id="L154">                    editor = editor.concat(&quot; and &quot;);</span>
+                }
+<span class="fc" id="L156">                editor = editor.concat(vorname + &quot; &quot; + nachname);</span>
+            }
+
+            // title and subtitle
+<span class="fc bfc" id="L160" title="All 2 branches covered.">            if (&quot;021A&quot;.equals(tag)) {</span>
+<span class="fc" id="L161">                title = getSubfield(&quot;a&quot;, datafield);</span>
+<span class="fc" id="L162">                subtitle = getSubfield(&quot;d&quot;, datafield);</span>
+            }
+
+            // publisher and address
+<span class="fc bfc" id="L166" title="All 2 branches covered.">            if (&quot;033A&quot;.equals(tag)) {</span>
+<span class="fc" id="L167">                publisher = getSubfield(&quot;n&quot;, datafield);</span>
+<span class="fc" id="L168">                address = getSubfield(&quot;p&quot;, datafield);</span>
+            }
+
+            // year
+<span class="fc bfc" id="L172" title="All 2 branches covered.">            if (&quot;011@&quot;.equals(tag)) {</span>
+<span class="fc" id="L173">                year = getSubfield(&quot;a&quot;, datafield);</span>
+            }
+
+            // year, volume, number, pages (year bei Zeitschriften (evtl. redundant mit 011@))
+<span class="pc bpc" id="L177" title="1 of 2 branches missed.">            if (&quot;031A&quot;.equals(tag)) {</span>
+<span class="nc" id="L178">                year = getSubfield(&quot;j&quot;, datafield);</span>
+
+<span class="nc" id="L180">                volume = getSubfield(&quot;e&quot;, datafield);</span>
+<span class="nc" id="L181">                number = getSubfield(&quot;a&quot;, datafield);</span>
+<span class="nc" id="L182">                pages = getSubfield(&quot;h&quot;, datafield);</span>
+            }
+
+            // 036D seems to contain more information than the other fields
+            // overwrite information using that field
+            // 036D also contains information normally found in 036E
+<span class="fc bfc" id="L188" title="All 2 branches covered.">            if (&quot;036D&quot;.equals(tag)) {</span>
+                // 021 might have been present
+<span class="pc bpc" id="L190" title="1 of 2 branches missed.">                if (title != null) {</span>
+                    // convert old title (contained in &quot;a&quot; of 021A) to volume
+<span class="pc bpc" id="L192" title="1 of 2 branches missed.">                    if (title.startsWith(&quot;@&quot;)) {</span>
+                        // &quot;@&quot; indicates a number
+<span class="fc" id="L194">                        title = title.substring(1);</span>
+                    }
+<span class="fc" id="L196">                    number = title;</span>
+                }
+                // title and subtitle
+<span class="fc" id="L199">                title = getSubfield(&quot;a&quot;, datafield);</span>
+<span class="fc" id="L200">                subtitle = getSubfield(&quot;d&quot;, datafield);</span>
+<span class="fc" id="L201">                volume = getSubfield(&quot;l&quot;, datafield);</span>
+            }
+
+            // series and number
+<span class="fc bfc" id="L205" title="All 2 branches covered.">            if (&quot;036E&quot;.equals(tag)) {</span>
+<span class="fc" id="L206">                series = getSubfield(&quot;a&quot;, datafield);</span>
+<span class="fc" id="L207">                number = getSubfield(&quot;l&quot;, datafield);</span>
+<span class="fc" id="L208">                String kor = getSubfield(&quot;b&quot;, datafield);</span>
+
+<span class="fc bfc" id="L210" title="All 2 branches covered.">                if (kor != null) {</span>
+<span class="fc" id="L211">                    series = series + &quot; / &quot; + kor;</span>
+                }
+            }
+
+            // note
+<span class="fc bfc" id="L216" title="All 2 branches covered.">            if (&quot;037A&quot;.equals(tag)) {</span>
+<span class="fc" id="L217">                note = getSubfield(&quot;a&quot;, datafield);</span>
+            }
+
+            // edition
+<span class="fc bfc" id="L221" title="All 2 branches covered.">            if (&quot;032@&quot;.equals(tag)) {</span>
+<span class="fc" id="L222">                edition = getSubfield(&quot;a&quot;, datafield);</span>
+            }
+
+            // isbn
+<span class="fc bfc" id="L226" title="All 2 branches covered.">            if (&quot;004A&quot;.equals(tag)) {</span>
+<span class="fc" id="L227">                final String isbn10 = getSubfield(&quot;0&quot;, datafield);</span>
+<span class="fc" id="L228">                final String isbn13 = getSubfield(&quot;A&quot;, datafield);</span>
+
+<span class="fc bfc" id="L230" title="All 2 branches covered.">                if (isbn10 != null) {</span>
+<span class="fc" id="L231">                    isbn = isbn10;</span>
+                }
+
+<span class="fc bfc" id="L234" title="All 2 branches covered.">                if (isbn13 != null) {</span>
+<span class="fc" id="L235">                    isbn = isbn13;</span>
+                }
+            }
+
+            // Hochschulschriftenvermerk
+            // Bei einer Verlagsdissertation ist der Ort schon eingetragen
+<span class="pc bpc" id="L241" title="1 of 2 branches missed.">            if (&quot;037C&quot;.equals(tag)) {</span>
+<span class="nc bnc" id="L242" title="All 2 branches missed.">                if (address == null) {</span>
+<span class="nc" id="L243">                    address = getSubfield(&quot;b&quot;, datafield);</span>
+<span class="nc bnc" id="L244" title="All 2 branches missed.">                    if (address != null) {</span>
+<span class="nc" id="L245">                        address = removeSortCharacters(address);</span>
+                    }
+                }
+
+<span class="nc" id="L249">                String st = getSubfield(&quot;a&quot;, datafield);</span>
+<span class="nc bnc" id="L250" title="All 4 branches missed.">                if ((st != null) &amp;&amp; st.contains(&quot;Diss&quot;)) {</span>
+<span class="nc" id="L251">                    entryType = StandardEntryType.PhdThesis;</span>
+                }
+            }
+
+            // journal oder booktitle
+
+            /* Problematiken hier: Sowohl fÃ¼r Artikel in
+             * Zeitschriften als fÃ¼r BeitrÃ¤ge in BÃ¼chern
+             * wird 027D verwendet. Der Titel muÃŸ je nach
+             * Fall booktitle oder journal zugeordnet
+             * werden. Auch bei Zeitschriften werden hier
+             * ggf. Verlag und Ort angegeben (sind dann
+             * eigentlich Ã¼berflÃ¼ssig), wÃ¤hrend bei
+             * BuchbeitrÃ¤gen Verlag und Ort wichtig sind
+             * (sonst in Kategorie 033A).
+             */
+<span class="pc bpc" id="L267" title="1 of 2 branches missed.">            if (&quot;027D&quot;.equals(tag)) {</span>
+<span class="nc" id="L268">                journal = getSubfield(&quot;a&quot;, datafield);</span>
+<span class="nc" id="L269">                booktitle = getSubfield(&quot;a&quot;, datafield);</span>
+<span class="nc" id="L270">                address = getSubfield(&quot;p&quot;, datafield);</span>
+<span class="nc" id="L271">                publisher = getSubfield(&quot;n&quot;, datafield);</span>
+            }
+
+            // pagetotal
+<span class="fc bfc" id="L275" title="All 2 branches covered.">            if (&quot;034D&quot;.equals(tag)) {</span>
+<span class="fc" id="L276">                pagetotal = getSubfield(&quot;a&quot;, datafield);</span>
+
+<span class="pc bpc" id="L278" title="1 of 2 branches missed.">                if (pagetotal != null) {</span>
+                    // S, S. etc. entfernen
+<span class="fc" id="L280">                    pagetotal = pagetotal.replaceAll(&quot; S\\.?$&quot;, &quot;&quot;);</span>
+                }
+            }
+
+            // Behandlung von Konferenzen
+<span class="fc bfc" id="L285" title="All 2 branches covered.">            if (&quot;030F&quot;.equals(tag)) {</span>
+<span class="fc" id="L286">                address = getSubfield(&quot;k&quot;, datafield);</span>
+
+<span class="pc bpc" id="L288" title="1 of 2 branches missed.">                if (!&quot;proceedings&quot;.equals(entryType)) {</span>
+<span class="fc" id="L289">                    subtitle = getSubfield(&quot;a&quot;, datafield);</span>
+                }
+
+<span class="fc" id="L292">                entryType = StandardEntryType.Proceedings;</span>
+            }
+
+            // Wenn eine Verlagsdiss vorliegt
+<span class="pc bpc" id="L296" title="3 of 4 branches missed.">            if (entryType.equals(StandardEntryType.PhdThesis) &amp;&amp; (isbn != null)) {</span>
+<span class="nc" id="L297">                entryType = StandardEntryType.Book;</span>
+            }
+
+            // Hilfskategorien zur Entscheidung @article
+            // oder @incollection; hier kÃ¶nnte man auch die
+            // ISBN herausparsen als Erleichterung fÃ¼r das
+            // Auffinden der Quelle, die Ã¼ber die
+            // SRU-Schnittstelle gelieferten Daten zur
+            // Quelle unvollstÃ¤ndig sind (z.B. nicht Serie
+            // und Nummer angegeben werden)
+<span class="pc bpc" id="L307" title="1 of 2 branches missed.">            if (&quot;039B&quot;.equals(tag)) {</span>
+<span class="nc" id="L308">                quelle = getSubfield(&quot;8&quot;, datafield);</span>
+            }
+<span class="pc bpc" id="L310" title="5 of 6 branches missed.">            if (&quot;046R&quot;.equals(tag) &amp;&amp; ((quelle == null) || quelle.isEmpty())) {</span>
+<span class="nc" id="L311">                quelle = getSubfield(&quot;a&quot;, datafield);</span>
+            }
+
+            // URLs behandeln
+<span class="fc bfc" id="L315" title="All 4 branches covered.">            if (&quot;009P&quot;.equals(tag) &amp;&amp; (&quot;03&quot;.equals(datafield.getAttribute(&quot;occurrence&quot;))</span>
+<span class="fc bfc" id="L316" title="All 4 branches covered.">                    || &quot;05&quot;.equals(datafield.getAttribute(&quot;occurrence&quot;))) &amp;&amp; (url == null)) {</span>
+<span class="fc" id="L317">                url = getSubfield(&quot;a&quot;, datafield);</span>
+            }
+<span class="fc" id="L319">        }</span>
+
+        // Abfangen von Nulleintraegen
+<span class="pc bpc" id="L322" title="1 of 2 branches missed.">        if (quelle == null) {</span>
+<span class="nc" id="L323">            quelle = &quot;&quot;;</span>
+        }
+
+        // Nichtsortierzeichen entfernen
+<span class="fc bfc" id="L327" title="All 2 branches covered.">        if (author != null) {</span>
+<span class="fc" id="L328">            author = removeSortCharacters(author);</span>
+        }
+<span class="fc bfc" id="L330" title="All 2 branches covered.">        if (editor != null) {</span>
+<span class="fc" id="L331">            editor = removeSortCharacters(editor);</span>
+        }
+<span class="fc bfc" id="L333" title="All 2 branches covered.">        if (title != null) {</span>
+<span class="fc" id="L334">            title = removeSortCharacters(title);</span>
+        }
+<span class="fc bfc" id="L336" title="All 2 branches covered.">        if (subtitle != null) {</span>
+<span class="fc" id="L337">            subtitle = removeSortCharacters(subtitle);</span>
+        }
+
+        // Dokumenttyp bestimmen und Eintrag anlegen
+
+<span class="pc bpc" id="L342" title="1 of 2 branches missed.">        if (mak.startsWith(&quot;As&quot;)) {</span>
+<span class="nc" id="L343">            entryType = BibEntry.DEFAULT_TYPE;</span>
+
+<span class="nc bnc" id="L345" title="All 2 branches missed.">            if (quelle.contains(&quot;ISBN&quot;)) {</span>
+<span class="nc" id="L346">                entryType = StandardEntryType.InCollection;</span>
+            }
+<span class="nc bnc" id="L348" title="All 2 branches missed.">            if (quelle.contains(&quot;ZDB-ID&quot;)) {</span>
+<span class="nc" id="L349">                entryType = StandardEntryType.Article;</span>
+            }
+<span class="fc bfc" id="L351" title="All 2 branches covered.">        } else if (mak.isEmpty()) {</span>
+<span class="fc" id="L352">            entryType = BibEntry.DEFAULT_TYPE;</span>
+<span class="fc bfc" id="L353" title="All 2 branches covered.">        } else if (mak.startsWith(&quot;O&quot;)) {</span>
+<span class="fc" id="L354">            entryType = BibEntry.DEFAULT_TYPE;</span>
+            // FIXME: online only available in Biblatex
+            // entryType = &quot;online&quot;;
+        }
+
+        /*
+         * Wahrscheinlichkeit, dass ZDB-ID
+         * vorhanden ist, ist grÃ¶ÃŸer als ISBN bei
+         * BuchbeitrÃ¤gen. Daher bei As?-SÃ¤tzen am besten immer
+         * dann @incollection annehmen, wenn weder ISBN noch
+         * ZDB-ID vorhanden sind.
+         */
+<span class="fc" id="L366">        BibEntry result = new BibEntry(entryType);</span>
+
+        // Zuordnung der Felder in AbhÃ¤ngigkeit vom Dokumenttyp
+<span class="fc bfc" id="L369" title="All 2 branches covered.">        if (author != null) {</span>
+<span class="fc" id="L370">            result.setField(StandardField.AUTHOR, author);</span>
+        }
+<span class="fc bfc" id="L372" title="All 2 branches covered.">        if (editor != null) {</span>
+<span class="fc" id="L373">            result.setField(StandardField.EDITOR, editor);</span>
+        }
+<span class="fc bfc" id="L375" title="All 2 branches covered.">        if (title != null) {</span>
+<span class="fc" id="L376">            result.setField(StandardField.TITLE, title);</span>
+        }
+<span class="fc bfc" id="L378" title="All 2 branches covered.">        if (!Strings.isNullOrEmpty(subtitle)) {</span>
+            // ensure that first letter is an upper case letter
+            // there could be the edge case that the string is only one character long, therefore, this special treatment
+            // this is Apache commons lang StringUtils.capitalize (https://commons.apache.org/proper/commons-lang/javadocs/api-release/org/apache/commons/lang3/StringUtils.html#capitalize%28java.lang.String%29), but we don't want to add an additional dependency  ('org.apache.commons:commons-lang3:3.4')
+<span class="fc" id="L382">            StringBuilder newSubtitle = new StringBuilder(</span>
+<span class="fc" id="L383">                    Character.toString(Character.toUpperCase(subtitle.charAt(0))));</span>
+<span class="fc bfc" id="L384" title="All 2 branches covered.">            if (subtitle.length() &gt; 1) {</span>
+<span class="fc" id="L385">                newSubtitle.append(subtitle.substring(1));</span>
+            }
+<span class="fc" id="L387">            result.setField(StandardField.SUBTITLE, newSubtitle.toString());</span>
+        }
+<span class="fc bfc" id="L389" title="All 2 branches covered.">        if (publisher != null) {</span>
+<span class="fc" id="L390">            result.setField(StandardField.PUBLISHER, publisher);</span>
+        }
+<span class="fc bfc" id="L392" title="All 2 branches covered.">        if (year != null) {</span>
+<span class="fc" id="L393">            result.setField(StandardField.YEAR, year);</span>
+        }
+<span class="fc bfc" id="L395" title="All 2 branches covered.">        if (address != null) {</span>
+<span class="fc" id="L396">            result.setField(StandardField.ADDRESS, address);</span>
+        }
+<span class="fc bfc" id="L398" title="All 2 branches covered.">        if (series != null) {</span>
+<span class="fc" id="L399">            result.setField(StandardField.SERIES, series);</span>
+        }
+<span class="fc bfc" id="L401" title="All 2 branches covered.">        if (edition != null) {</span>
+<span class="fc" id="L402">            result.setField(StandardField.EDITION, edition);</span>
+        }
+<span class="fc bfc" id="L404" title="All 2 branches covered.">        if (isbn != null) {</span>
+<span class="fc" id="L405">            result.setField(StandardField.ISBN, isbn);</span>
+        }
+<span class="pc bpc" id="L407" title="1 of 2 branches missed.">        if (issn != null) {</span>
+<span class="nc" id="L408">            result.setField(StandardField.ISSN, issn);</span>
+        }
+<span class="fc bfc" id="L410" title="All 2 branches covered.">        if (number != null) {</span>
+<span class="fc" id="L411">            result.setField(StandardField.NUMBER, number);</span>
+        }
+<span class="fc bfc" id="L413" title="All 2 branches covered.">        if (pagetotal != null) {</span>
+<span class="fc" id="L414">            result.setField(StandardField.PAGETOTAL, pagetotal);</span>
+        }
+<span class="pc bpc" id="L416" title="1 of 2 branches missed.">        if (pages != null) {</span>
+<span class="nc" id="L417">            result.setField(StandardField.PAGES, pages);</span>
+        }
+<span class="fc bfc" id="L419" title="All 2 branches covered.">        if (volume != null) {</span>
+<span class="fc" id="L420">            result.setField(StandardField.VOLUME, volume);</span>
+        }
+<span class="pc bpc" id="L422" title="1 of 2 branches missed.">        if (journal != null) {</span>
+<span class="nc" id="L423">            result.setField(StandardField.JOURNAL, journal);</span>
+        }
+<span class="fc bfc" id="L425" title="All 2 branches covered.">        if (ppn != null) {</span>
+<span class="fc" id="L426">            result.setField(new UnknownField(&quot;ppn_GVK&quot;), ppn);</span>
+        }
+<span class="fc bfc" id="L428" title="All 2 branches covered.">        if (url != null) {</span>
+<span class="fc" id="L429">            result.setField(StandardField.URL, url);</span>
+        }
+<span class="fc bfc" id="L431" title="All 2 branches covered.">        if (note != null) {</span>
+<span class="fc" id="L432">            result.setField(StandardField.NOTE, note);</span>
+        }
+
+<span class="pc bpc" id="L435" title="3 of 4 branches missed.">        if (&quot;article&quot;.equals(entryType) &amp;&amp; (journal != null)) {</span>
+<span class="nc" id="L436">            result.setField(StandardField.JOURNAL, journal);</span>
+<span class="pc bpc" id="L437" title="3 of 4 branches missed.">        } else if (&quot;incollection&quot;.equals(entryType) &amp;&amp; (booktitle != null)) {</span>
+<span class="nc" id="L438">            result.setField(StandardField.BOOKTITLE, booktitle);</span>
+        }
+
+<span class="fc" id="L441">        return result;</span>
+    }
+
+    private String getSubfield(String a, Element datafield) {
+<span class="fc" id="L445">        List&lt;Element&gt; liste = getChildren(&quot;subfield&quot;, datafield);</span>
+
+<span class="fc bfc" id="L447" title="All 2 branches covered.">        for (Element subfield : liste) {</span>
+<span class="fc bfc" id="L448" title="All 2 branches covered.">            if (subfield.getAttribute(&quot;code&quot;).equals(a)) {</span>
+<span class="fc" id="L449">                return (subfield.getTextContent());</span>
+            }
+<span class="fc" id="L451">        }</span>
+<span class="fc" id="L452">        return null;</span>
+    }
+
+    private Element getChild(String name, Element e) {
+<span class="pc bpc" id="L456" title="1 of 2 branches missed.">        if (e == null) {</span>
+<span class="nc" id="L457">            return null;</span>
+        }
+<span class="fc" id="L459">        NodeList children = e.getChildNodes();</span>
+
+<span class="fc" id="L461">        int j = children.getLength();</span>
+<span class="fc bfc" id="L462" title="All 2 branches covered.">        for (int i = 0; i &lt; j; i++) {</span>
+<span class="fc" id="L463">            Node test = children.item(i);</span>
+<span class="fc bfc" id="L464" title="All 2 branches covered.">            if (test.getNodeType() == Node.ELEMENT_NODE) {</span>
+<span class="fc" id="L465">                Element entry = (Element) test;</span>
+<span class="fc bfc" id="L466" title="All 2 branches covered.">                if (entry.getTagName().equals(name)) {</span>
+<span class="fc" id="L467">                    return entry;</span>
+                }
+            }
+        }
+<span class="fc" id="L471">        return null;</span>
+    }
+
+    private List&lt;Element&gt; getChildren(String name, Element e) {
+<span class="fc" id="L475">        List&lt;Element&gt; result = new LinkedList&lt;&gt;();</span>
+<span class="fc" id="L476">        NodeList children = e.getChildNodes();</span>
+
+<span class="fc" id="L478">        int j = children.getLength();</span>
+<span class="fc bfc" id="L479" title="All 2 branches covered.">        for (int i = 0; i &lt; j; i++) {</span>
+<span class="fc" id="L480">            Node test = children.item(i);</span>
+<span class="fc bfc" id="L481" title="All 2 branches covered.">            if (test.getNodeType() == Node.ELEMENT_NODE) {</span>
+<span class="fc" id="L482">                Element entry = (Element) test;</span>
+<span class="pc bpc" id="L483" title="1 of 2 branches missed.">                if (entry.getTagName().equals(name)) {</span>
+<span class="fc" id="L484">                    result.add(entry);</span>
+                }
+            }
+        }
+
+<span class="fc" id="L489">        return result;</span>
+    }
+
+    private String removeSortCharacters(String input) {
+<span class="fc" id="L493">        return input.replaceAll(&quot;\\@&quot;, &quot;&quot;);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

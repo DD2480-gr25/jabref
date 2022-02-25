@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MassSetFieldsAction.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.edit</a> &gt; <span class="el_source">MassSetFieldsAction.java</span></div><h1>MassSetFieldsAction.java</h1><pre class="source lang-java linenums">package org.jabref.gui.edit;
+
+import javax.swing.undo.UndoManager;
+
+import org.jabref.gui.DialogService;
+import org.jabref.gui.StateManager;
+import org.jabref.gui.actions.SimpleCommand;
+import org.jabref.model.database.BibDatabaseContext;
+
+import static org.jabref.gui.actions.ActionHelper.needsDatabase;
+import static org.jabref.gui.actions.ActionHelper.needsEntriesSelected;
+
+/**
+ * An Action for launching mass field.
+ * &lt;p&gt;
+ * Functionality:
+ * &lt;ul&gt;
+ *     &lt;li&gt;Defaults to selected entries, or all entries if none are selected.&lt;/li&gt;
+ *     &lt;li&gt;Input field name&lt;/li&gt;
+ *     &lt;li&gt;Either set field, or clear field.&lt;/li&gt;
+ * &lt;/ul&gt;
+ */
+public class MassSetFieldsAction extends SimpleCommand {
+
+    private final StateManager stateManager;
+    private DialogService dialogService;
+    private UndoManager undoManager;
+
+<span class="nc" id="L29">    public MassSetFieldsAction(StateManager stateManager, DialogService dialogService, UndoManager undoManager) {</span>
+<span class="nc" id="L30">        this.stateManager = stateManager;</span>
+<span class="nc" id="L31">        this.dialogService = dialogService;</span>
+<span class="nc" id="L32">        this.undoManager = undoManager;</span>
+
+<span class="nc" id="L34">        this.executable.bind(needsDatabase(stateManager).and(needsEntriesSelected(stateManager)));</span>
+<span class="nc" id="L35">    }</span>
+
+    @Override
+    public void execute() {
+<span class="nc" id="L39">        BibDatabaseContext database = stateManager.getActiveDatabase().orElseThrow(() -&gt; new NullPointerException(&quot;Database null&quot;));</span>
+<span class="nc" id="L40">        dialogService.showCustomDialogAndWait(new MassSetFieldsDialog(stateManager.getSelectedEntries(), database, dialogService, undoManager));</span>
+<span class="nc" id="L41">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

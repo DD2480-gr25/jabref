@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>INSPIREFetcher.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.importer.fetcher</a> &gt; <span class="el_source">INSPIREFetcher.java</span></div><h1>INSPIREFetcher.java</h1><pre class="source lang-java linenums">package org.jabref.logic.importer.fetcher;
+
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.util.Optional;
+
+import org.jabref.logic.cleanup.FieldFormatterCleanup;
+import org.jabref.logic.formatter.bibtexfields.ClearFormatter;
+import org.jabref.logic.formatter.bibtexfields.RemoveBracesFormatter;
+import org.jabref.logic.help.HelpFile;
+import org.jabref.logic.importer.FetcherException;
+import org.jabref.logic.importer.ImportFormatPreferences;
+import org.jabref.logic.importer.Parser;
+import org.jabref.logic.importer.SearchBasedParserFetcher;
+import org.jabref.logic.importer.fetcher.transformers.DefaultLuceneQueryTransformer;
+import org.jabref.logic.importer.fileformat.BibtexParser;
+import org.jabref.logic.importer.util.MediaTypes;
+import org.jabref.logic.layout.format.LatexToUnicodeFormatter;
+import org.jabref.logic.net.URLDownload;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.field.StandardField;
+import org.jabref.model.entry.field.UnknownField;
+import org.jabref.model.util.DummyFileUpdateMonitor;
+
+import org.apache.http.client.utils.URIBuilder;
+import org.apache.lucene.queryparser.flexible.core.nodes.QueryNode;
+
+/**
+ * Fetches data from the INSPIRE database.
+ */
+public class INSPIREFetcher implements SearchBasedParserFetcher {
+
+    private static final String INSPIRE_HOST = &quot;https://inspirehep.net/api/literature/&quot;;
+
+    private final ImportFormatPreferences importFormatPreferences;
+
+<span class="fc" id="L38">    public INSPIREFetcher(ImportFormatPreferences preferences) {</span>
+<span class="fc" id="L39">        this.importFormatPreferences = preferences;</span>
+<span class="fc" id="L40">    }</span>
+
+    @Override
+    public String getName() {
+<span class="fc" id="L44">        return &quot;INSPIRE&quot;;</span>
+    }
+
+    @Override
+    public Optional&lt;HelpFile&gt; getHelpPage() {
+<span class="nc" id="L49">        return Optional.of(HelpFile.FETCHER_INSPIRE);</span>
+    }
+
+    @Override
+    public URL getURLForQuery(QueryNode luceneQuery) throws URISyntaxException, MalformedURLException, FetcherException {
+<span class="fc" id="L54">        URIBuilder uriBuilder = new URIBuilder(INSPIRE_HOST);</span>
+<span class="fc" id="L55">        uriBuilder.addParameter(&quot;q&quot;, new DefaultLuceneQueryTransformer().transformLuceneQuery(luceneQuery).orElse(&quot;&quot;));</span>
+<span class="fc" id="L56">        return uriBuilder.build().toURL();</span>
+    }
+
+    @Override
+    public URLDownload getUrlDownload(URL url) {
+<span class="fc" id="L61">        URLDownload download = new URLDownload(url);</span>
+<span class="fc" id="L62">        download.addHeader(&quot;Accept&quot;, MediaTypes.APPLICATION_BIBTEX);</span>
+<span class="fc" id="L63">        return download;</span>
+    }
+
+    @Override
+    public void doPostCleanup(BibEntry entry) {
+        // Remove strange &quot;SLACcitation&quot; field
+<span class="fc" id="L69">        new FieldFormatterCleanup(new UnknownField(&quot;SLACcitation&quot;), new ClearFormatter()).cleanup(entry);</span>
+
+        // Remove braces around content of &quot;title&quot; field
+<span class="fc" id="L72">        new FieldFormatterCleanup(StandardField.TITLE, new RemoveBracesFormatter()).cleanup(entry);</span>
+
+<span class="fc" id="L74">        new FieldFormatterCleanup(StandardField.TITLE, new LatexToUnicodeFormatter()).cleanup(entry);</span>
+<span class="fc" id="L75">    }</span>
+
+    @Override
+    public Parser getParser() {
+<span class="fc" id="L79">        return new BibtexParser(importFormatPreferences, new DummyFileUpdateMonitor());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

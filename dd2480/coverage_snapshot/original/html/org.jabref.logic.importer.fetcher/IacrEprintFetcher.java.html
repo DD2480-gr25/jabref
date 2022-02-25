@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IacrEprintFetcher.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.importer.fetcher</a> &gt; <span class="el_source">IacrEprintFetcher.java</span></div><h1>IacrEprintFetcher.java</h1><pre class="source lang-java linenums">package org.jabref.logic.importer.fetcher;
+
+import java.io.IOException;
+import java.time.DateTimeException;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.TemporalAccessor;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.jabref.logic.importer.FetcherException;
+import org.jabref.logic.importer.IdBasedFetcher;
+import org.jabref.logic.importer.ImportFormatPreferences;
+import org.jabref.logic.importer.ParseException;
+import org.jabref.logic.importer.fileformat.BibtexParser;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.logic.net.URLDownload;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.field.StandardField;
+import org.jabref.model.strings.StringUtil;
+import org.jabref.model.util.DummyFileUpdateMonitor;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class IacrEprintFetcher implements IdBasedFetcher {
+
+    public static final String NAME = &quot;IACR eprints&quot;;
+
+<span class="fc" id="L36">    private static final Logger LOGGER = LoggerFactory.getLogger(IacrEprintFetcher.class);</span>
+<span class="fc" id="L37">    private static final Pattern DATE_FROM_WEBSITE_AFTER_2000_PATTERN = Pattern.compile(&quot;[a-z ]+(\\d{1,2} [A-Za-z][a-z]{2} \\d{4})&quot;);</span>
+<span class="fc" id="L38">    private static final Pattern DATE_FROM_WEBSITE_BEFORE_2000_PATTERN = Pattern.compile(&quot;[A-Za-z ]+? ([A-Za-z][a-z]{2,10} \\d{1,2}(th|st|nd|rd)?, \\d{4})\\.?&quot;);</span>
+<span class="fc" id="L39">    private static final Pattern WITHOUT_LETTERS_SPACE = Pattern.compile(&quot;[^0-9/]&quot;);</span>
+
+<span class="fc" id="L41">    private static final DateTimeFormatter DATE_FORMAT_WEBSITE_AFTER_2000 = DateTimeFormatter.ofPattern(&quot;d MMM yyyy&quot;, Locale.US);</span>
+<span class="fc" id="L42">    private static final DateTimeFormatter DATE_FORMAT_WEBSITE_BEFORE_2000_LONG_MONTHS = DateTimeFormatter.ofPattern(&quot;MMMM d['th']['st']['nd']['rd'] yyyy&quot;, Locale.US);</span>
+<span class="fc" id="L43">    private static final DateTimeFormatter DATE_FORMAT_WEBSITE_BEFORE_2000_SHORT_MONTHS = DateTimeFormatter.ofPattern(&quot;MMM d['th']['st']['nd']['rd'] yyyy&quot;, Locale.US);</span>
+<span class="fc" id="L44">    private static final DateTimeFormatter DATE_FORMAT_BIBTEX = DateTimeFormatter.ISO_LOCAL_DATE;</span>
+<span class="fc" id="L45">    private static final Predicate&lt;String&gt; IDENTIFIER_PREDICATE = Pattern.compile(&quot;\\d{4}/\\d{3,5}&quot;).asPredicate();</span>
+    private static final String CITATION_URL_PREFIX = &quot;https://eprint.iacr.org/eprint-bin/cite.pl?entry=&quot;;
+    private static final String DESCRIPTION_URL_PREFIX = &quot;https://eprint.iacr.org/&quot;;
+
+    private final ImportFormatPreferences prefs;
+
+<span class="fc" id="L51">    public IacrEprintFetcher(ImportFormatPreferences prefs) {</span>
+<span class="fc" id="L52">        this.prefs = prefs;</span>
+<span class="fc" id="L53">    }</span>
+
+    @Override
+    public Optional&lt;BibEntry&gt; performSearchById(String identifier) throws FetcherException {
+<span class="fc" id="L57">        String identifierWithoutLettersAndSpaces = WITHOUT_LETTERS_SPACE.matcher(identifier).replaceAll(&quot; &quot;).trim();</span>
+
+<span class="fc bfc" id="L59" title="All 2 branches covered.">        if (!IDENTIFIER_PREDICATE.test(identifierWithoutLettersAndSpaces)) {</span>
+<span class="fc" id="L60">            throw new FetcherException(Localization.lang(&quot;Invalid identifier: '%0'.&quot;, identifier));</span>
+        }
+
+<span class="fc" id="L63">        Optional&lt;BibEntry&gt; entry = createEntryFromIacrCitation(identifierWithoutLettersAndSpaces);</span>
+
+<span class="pc bpc" id="L65" title="1 of 2 branches missed.">        if (entry.isPresent()) {</span>
+<span class="fc" id="L66">            setAdditionalFields(entry.get(), identifierWithoutLettersAndSpaces);</span>
+        }
+
+<span class="fc" id="L69">        return entry;</span>
+    }
+
+    private Optional&lt;BibEntry&gt; createEntryFromIacrCitation(String validIdentifier) throws FetcherException {
+<span class="fc" id="L73">        String bibtexCitationHtml = getHtml(CITATION_URL_PREFIX + validIdentifier);</span>
+<span class="fc bfc" id="L74" title="All 2 branches covered.">        if (bibtexCitationHtml.contains(&quot;No such report found&quot;)) {</span>
+<span class="fc" id="L75">            throw new FetcherException(Localization.lang(&quot;No results found.&quot;));</span>
+        }
+<span class="fc" id="L77">        String actualEntry = getRequiredValueBetween(&quot;&lt;pre&gt;&quot;, &quot;&lt;/pre&gt;&quot;, bibtexCitationHtml);</span>
+
+        try {
+<span class="fc" id="L80">            return BibtexParser.singleFromString(actualEntry, prefs, new DummyFileUpdateMonitor());</span>
+<span class="nc" id="L81">        } catch (ParseException e) {</span>
+<span class="nc" id="L82">            throw new FetcherException(Localization.lang(&quot;Entry from %0 could not be parsed.&quot;, &quot;IACR&quot;), e);</span>
+        }
+    }
+
+    private void setAdditionalFields(BibEntry entry, String identifier) throws FetcherException {
+<span class="fc" id="L87">        String entryUrl = DESCRIPTION_URL_PREFIX + identifier;</span>
+<span class="fc" id="L88">        String descriptiveHtml = getHtml(entryUrl);</span>
+<span class="fc" id="L89">        entry.setField(StandardField.ABSTRACT, getAbstract(descriptiveHtml));</span>
+<span class="fc" id="L90">        String dateStringAsInHtml = getRequiredValueBetween(&quot;&lt;b&gt;Date: &lt;/b&gt;&quot;, &quot;&lt;p /&gt;&quot;, descriptiveHtml);</span>
+<span class="fc" id="L91">        entry.setField(StandardField.DATE, getLatestDate(dateStringAsInHtml));</span>
+
+<span class="fc bfc" id="L93" title="All 2 branches covered.">        if (isFromOrAfterYear2000(entry)) {</span>
+<span class="fc" id="L94">            String version = getVersion(identifier, descriptiveHtml);</span>
+<span class="fc" id="L95">            entry.setField(StandardField.VERSION, version);</span>
+<span class="fc" id="L96">            entry.setField(StandardField.URL, entryUrl + &quot;/&quot; + version);</span>
+<span class="fc" id="L97">        } else {</span>
+            // No version information for entries before year 2000
+<span class="fc" id="L99">            entry.setField(StandardField.URL, entryUrl);</span>
+        }
+<span class="fc" id="L101">    }</span>
+
+    private String getVersion(String identifier, String descriptiveHtml) throws FetcherException {
+<span class="fc" id="L104">        String startOfVersionString = &quot;&lt;b&gt;Version: &lt;/b&gt;&lt;a href=\&quot;/&quot; + identifier + &quot;/&quot;;</span>
+<span class="fc" id="L105">        String version = getRequiredValueBetween(startOfVersionString, &quot;\&quot;&quot;, descriptiveHtml);</span>
+<span class="fc" id="L106">        return version;</span>
+    }
+
+    private String getAbstract(String descriptiveHtml) throws FetcherException {
+<span class="fc" id="L110">        String abstractText = getRequiredValueBetween(&quot;&lt;b&gt;Abstract: &lt;/b&gt;&quot;, &quot;&lt;p /&gt;&quot;, descriptiveHtml);</span>
+        // for some reason, all spaces are doubled...
+<span class="fc" id="L112">        abstractText = abstractText.replaceAll(&quot;\\s(\\s)&quot;, &quot;$1&quot;);</span>
+<span class="fc" id="L113">        return abstractText;</span>
+    }
+
+    private String getLatestDate(String dateStringAsInHtml) throws FetcherException {
+<span class="fc bfc" id="L117" title="All 2 branches covered.">        if (dateStringAsInHtml.contains(&quot;withdrawn&quot;)) {</span>
+<span class="fc" id="L118">            throw new FetcherException(Localization.lang(&quot;This paper has been withdrawn.&quot;));</span>
+        }
+<span class="fc" id="L120">        String[] rawDates = dateStringAsInHtml.split(&quot;, \\D&quot;);</span>
+<span class="fc" id="L121">        List&lt;String&gt; formattedDates = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L122" title="All 2 branches covered.">        for (String rawDate : rawDates) {</span>
+<span class="fc" id="L123">            TemporalAccessor date = parseSingleDateFromWebsite(rawDate);</span>
+<span class="pc bpc" id="L124" title="1 of 2 branches missed.">            if (date != null) {</span>
+<span class="fc" id="L125">                formattedDates.add(DATE_FORMAT_BIBTEX.format(date));</span>
+            }
+        }
+
+<span class="pc bpc" id="L129" title="1 of 2 branches missed.">        if (formattedDates.isEmpty()) {</span>
+<span class="nc" id="L130">            throw new FetcherException(Localization.lang(&quot;Entry from %0 could not be parsed.&quot;, &quot;IACR&quot;));</span>
+        }
+
+<span class="fc" id="L133">        Collections.sort(formattedDates, Collections.reverseOrder());</span>
+<span class="fc" id="L134">        return formattedDates.get(0);</span>
+    }
+
+    private TemporalAccessor parseSingleDateFromWebsite(String dateStringFromWebsite) {
+<span class="fc" id="L138">        TemporalAccessor date = null;</span>
+        // Some entries contain double spaces in the date string (which would break our regexs below)
+<span class="fc" id="L140">        String dateStringWithoutDoubleSpaces = dateStringFromWebsite.replaceAll(&quot;\\s\\s+&quot;, &quot; &quot;);</span>
+
+<span class="fc" id="L142">        Matcher dateMatcherAfter2000 = DATE_FROM_WEBSITE_AFTER_2000_PATTERN.matcher(dateStringWithoutDoubleSpaces.trim());</span>
+<span class="fc bfc" id="L143" title="All 2 branches covered.">        if (dateMatcherAfter2000.find()) {</span>
+            try {
+<span class="fc" id="L145">                date = DATE_FORMAT_WEBSITE_AFTER_2000.parse(dateMatcherAfter2000.group(1));</span>
+<span class="nc" id="L146">            } catch (DateTimeParseException e) {</span>
+<span class="nc" id="L147">                LOGGER.warn(&quot;Date from IACR could not be parsed&quot;, e);</span>
+<span class="fc" id="L148">            }</span>
+        }
+
+        // Entries before year 2000 use a variety of date formats - fortunately, we can match them with only two different
+        // date formats (each of which differ from the unified format of post-2000 entries).
+<span class="fc" id="L153">        Matcher dateMatcherBefore2000 = DATE_FROM_WEBSITE_BEFORE_2000_PATTERN.matcher(dateStringWithoutDoubleSpaces.trim());</span>
+<span class="fc bfc" id="L154" title="All 2 branches covered.">        if (dateMatcherBefore2000.find()) {</span>
+<span class="fc" id="L155">            String dateWithoutComma = dateMatcherBefore2000.group(1).replace(&quot;,&quot;, &quot;&quot;);</span>
+            try {
+<span class="fc" id="L157">                date = DATE_FORMAT_WEBSITE_BEFORE_2000_LONG_MONTHS.parse(dateWithoutComma);</span>
+<span class="nc" id="L158">            } catch (DateTimeParseException e) {</span>
+                try {
+<span class="nc" id="L160">                    date = DATE_FORMAT_WEBSITE_BEFORE_2000_SHORT_MONTHS.parse(dateWithoutComma);</span>
+<span class="nc" id="L161">                } catch (DateTimeException e1) {</span>
+<span class="nc" id="L162">                    LOGGER.warn(&quot;Date from IACR could not be parsed&quot;, e);</span>
+<span class="nc" id="L163">                    LOGGER.warn(&quot;Date from IACR could not be parsed&quot;, e1);</span>
+<span class="nc" id="L164">                }</span>
+<span class="fc" id="L165">            }</span>
+        }
+
+<span class="fc" id="L168">        return date;</span>
+    }
+
+    private String getHtml(String url) throws FetcherException {
+        try {
+<span class="fc" id="L173">            URLDownload download = new URLDownload(url);</span>
+<span class="fc" id="L174">            return download.asString();</span>
+<span class="nc" id="L175">        } catch (IOException e) {</span>
+<span class="nc" id="L176">            throw new FetcherException(Localization.lang(&quot;Could not retrieve entry data from '%0'.&quot;, url), e);</span>
+        }
+    }
+
+    private String getRequiredValueBetween(String from, String to, String haystack) throws FetcherException {
+<span class="fc" id="L181">        String value = StringUtil.substringBetween(haystack, from, to);</span>
+<span class="pc bpc" id="L182" title="1 of 2 branches missed.">        if (value == null) {</span>
+<span class="nc" id="L183">            throw new FetcherException(Localization.lang(&quot;Entry from %0 could not be parsed.&quot;, &quot;IACR&quot;));</span>
+        } else {
+<span class="fc" id="L185">            return value;</span>
+        }
+    }
+
+    private boolean isFromOrAfterYear2000(BibEntry entry) throws FetcherException {
+<span class="fc" id="L190">        Optional&lt;String&gt; yearField = entry.getField(StandardField.YEAR);</span>
+<span class="pc bpc" id="L191" title="1 of 2 branches missed.">        if (yearField.isPresent()) {</span>
+<span class="fc bfc" id="L192" title="All 2 branches covered.">            return Integer.parseInt(yearField.get()) &gt; 2000;</span>
+        }
+<span class="nc" id="L194">        throw new FetcherException(Localization.lang(&quot;Entry from %0 could not be parsed.&quot;, &quot;IACR&quot;));</span>
+    }
+
+    @Override
+    public String getName() {
+<span class="fc" id="L199">        return NAME;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

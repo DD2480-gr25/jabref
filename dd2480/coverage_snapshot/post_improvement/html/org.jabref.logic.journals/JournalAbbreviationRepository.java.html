@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JournalAbbreviationRepository.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.journals</a> &gt; <span class="el_source">JournalAbbreviationRepository.java</span></div><h1>JournalAbbreviationRepository.java</h1><pre class="source lang-java linenums">package org.jabref.logic.journals;
+
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.h2.mvstore.MVMap;
+import org.h2.mvstore.MVStore;
+
+/**
+ * A repository for all journal abbreviations, including add and find methods.
+ */
+public class JournalAbbreviationRepository {
+
+    private final MVMap&lt;String, String&gt; fullToAbbreviation;
+    private final MVMap&lt;String, String&gt; abbreviationToFull;
+    private final List&lt;Abbreviation&gt; customAbbreviations;
+
+<span class="fc" id="L24">    public JournalAbbreviationRepository(Path journalList) {</span>
+<span class="fc" id="L25">        MVStore store = new MVStore.Builder().readOnly().fileName(journalList.toAbsolutePath().toString()).open();</span>
+<span class="fc" id="L26">        this.fullToAbbreviation = store.openMap(&quot;FullToAbbreviation&quot;);</span>
+<span class="fc" id="L27">        this.abbreviationToFull = store.openMap(&quot;AbbreviationToFull&quot;);</span>
+<span class="fc" id="L28">        this.customAbbreviations = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L29">    }</span>
+
+    private static boolean isMatched(String name, Abbreviation abbreviation) {
+<span class="fc bfc" id="L32" title="All 2 branches covered.">        return name.equalsIgnoreCase(abbreviation.getName())</span>
+<span class="fc bfc" id="L33" title="All 2 branches covered.">                || name.equalsIgnoreCase(abbreviation.getAbbreviation())</span>
+<span class="fc bfc" id="L34" title="All 2 branches covered.">                || name.equalsIgnoreCase(abbreviation.getMedlineAbbreviation())</span>
+<span class="fc bfc" id="L35" title="All 2 branches covered.">                || name.equalsIgnoreCase(abbreviation.getShortestUniqueAbbreviation());</span>
+    }
+
+    private static boolean isMatchedAbbreviated(String name, Abbreviation abbreviation) {
+<span class="fc bfc" id="L39" title="All 2 branches covered.">        boolean isAbbreviated = name.equalsIgnoreCase(abbreviation.getAbbreviation())</span>
+<span class="pc bpc" id="L40" title="1 of 2 branches missed.">                || name.equalsIgnoreCase(abbreviation.getMedlineAbbreviation())</span>
+<span class="pc bpc" id="L41" title="1 of 2 branches missed.">                || name.equalsIgnoreCase(abbreviation.getShortestUniqueAbbreviation());</span>
+<span class="fc" id="L42">        boolean isExpanded = name.equalsIgnoreCase(abbreviation.getName());</span>
+<span class="fc bfc" id="L43" title="All 4 branches covered.">        return isAbbreviated &amp;&amp; !isExpanded;</span>
+    }
+
+    /**
+     * Returns true if the given journal name is contained in the list either in its full form (e.g Physical Review
+     * Letters) or its abbreviated form (e.g. Phys. Rev. Lett.).
+     */
+    public boolean isKnownName(String journalName) {
+<span class="fc" id="L51">        String journal = journalName.trim();</span>
+
+<span class="fc" id="L53">        boolean isKnown = customAbbreviations.stream().anyMatch(abbreviation -&gt; isMatched(journal, abbreviation));</span>
+<span class="fc bfc" id="L54" title="All 2 branches covered.">        if (isKnown) {</span>
+<span class="fc" id="L55">            return true;</span>
+        }
+
+<span class="pc bpc" id="L58" title="2 of 4 branches missed.">        return fullToAbbreviation.containsKey(journal) || abbreviationToFull.containsKey(journal);</span>
+    }
+
+    /**
+     * Returns true if the given journal name is in its abbreviated form (e.g. Phys. Rev. Lett.). The test is strict,
+     * i.e. journals whose abbreviation is the same as the full name are not considered
+     */
+    public boolean isAbbreviatedName(String journalName) {
+<span class="fc" id="L66">        String journal = journalName.trim();</span>
+
+<span class="fc bfc" id="L68" title="All 2 branches covered.">        return customAbbreviations.stream().anyMatch(abbreviation -&gt; isMatchedAbbreviated(journal, abbreviation))</span>
+<span class="pc bpc" id="L69" title="1 of 2 branches missed.">                || abbreviationToFull.containsKey(journal);</span>
+    }
+
+    /**
+     * Attempts to get the abbreviation of the journal given.
+     *
+     * @param input The journal name (either abbreviated or full name).
+     */
+    public Optional&lt;Abbreviation&gt; get(String input) {
+<span class="fc" id="L78">        String journal = input.trim();</span>
+
+<span class="fc" id="L80">        Optional&lt;Abbreviation&gt; customAbbreviation = customAbbreviations.stream()</span>
+<span class="fc" id="L81">                                                                       .filter(abbreviation -&gt; isMatched(journal, abbreviation))</span>
+<span class="fc" id="L82">                                                                       .findAny();</span>
+<span class="fc bfc" id="L83" title="All 2 branches covered.">        if (customAbbreviation.isPresent()) {</span>
+<span class="fc" id="L84">            return customAbbreviation;</span>
+        }
+
+<span class="fc" id="L87">        return Optional.ofNullable(fullToAbbreviation.get(journal))</span>
+<span class="fc" id="L88">                       .map(abbreviation -&gt; new Abbreviation(journal, abbreviation))</span>
+<span class="fc" id="L89">                       .or(() -&gt; Optional.ofNullable(abbreviationToFull.get(journal)).map(fullName -&gt; new Abbreviation(fullName, journal)));</span>
+    }
+
+    public void addCustomAbbreviation(Abbreviation abbreviation) {
+<span class="fc" id="L93">        Objects.requireNonNull(abbreviation);</span>
+
+        // We do not want to keep duplicates, thus remove the old abbreviation
+        // (abbreviation equality is tested on name only, so we cannot use a Set instead)
+<span class="fc" id="L97">        customAbbreviations.remove(abbreviation);</span>
+<span class="fc" id="L98">        customAbbreviations.add(abbreviation);</span>
+<span class="fc" id="L99">    }</span>
+
+    public List&lt;Abbreviation&gt; getCustomAbbreviations() {
+<span class="fc" id="L102">        return customAbbreviations;</span>
+    }
+
+    public void addCustomAbbreviations(Collection&lt;Abbreviation&gt; abbreviationsToAdd) {
+<span class="nc" id="L106">        abbreviationsToAdd.forEach(this::addCustomAbbreviation);</span>
+<span class="nc" id="L107">    }</span>
+
+    public Optional&lt;String&gt; getNextAbbreviation(String text) {
+<span class="fc" id="L110">        return get(text).map(abbreviation -&gt; abbreviation.getNext(text));</span>
+    }
+
+    public Optional&lt;String&gt; getDefaultAbbreviation(String text) {
+<span class="fc" id="L114">        return get(text).map(Abbreviation::getAbbreviation);</span>
+    }
+
+    public Optional&lt;String&gt; getMedlineAbbreviation(String text) {
+<span class="fc" id="L118">        return get(text).map(Abbreviation::getMedlineAbbreviation);</span>
+    }
+
+    public Optional&lt;String&gt; getShortestUniqueAbbreviation(String text) {
+<span class="fc" id="L122">        return get(text).map(Abbreviation::getShortestUniqueAbbreviation);</span>
+    }
+
+    public Set&lt;String&gt; getFullNames() {
+<span class="nc" id="L126">        return fullToAbbreviation.keySet();</span>
+    }
+
+    public List&lt;Abbreviation&gt; getAllLoaded() {
+<span class="fc" id="L130">        return fullToAbbreviation.entrySet().stream().map(entry -&gt;</span>
+<span class="fc" id="L131">                new Abbreviation(entry.getKey(), entry.getValue())).collect(Collectors.toList());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

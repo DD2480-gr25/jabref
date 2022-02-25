@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EditExternalFileTypeViewModel.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.externalfiletype</a> &gt; <span class="el_source">EditExternalFileTypeViewModel.java</span></div><h1>EditExternalFileTypeViewModel.java</h1><pre class="source lang-java linenums">package org.jabref.gui.externalfiletype;
+
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+import javafx.scene.Node;
+
+public class EditExternalFileTypeViewModel {
+
+<span class="nc" id="L11">    private final StringProperty extensionProperty = new SimpleStringProperty(&quot;&quot;);</span>
+<span class="nc" id="L12">    private final StringProperty nameProperty = new SimpleStringProperty(&quot;&quot;);</span>
+<span class="nc" id="L13">    private final StringProperty mimeTypeProperty = new SimpleStringProperty(&quot;&quot;);</span>
+<span class="nc" id="L14">    private final StringProperty selectedApplicationProperty = new SimpleStringProperty(&quot;&quot;);</span>
+<span class="nc" id="L15">    private final BooleanProperty defaultApplicationSelectedProperty = new SimpleBooleanProperty(false);</span>
+<span class="nc" id="L16">    private final BooleanProperty customApplicationSelectedProperty = new SimpleBooleanProperty(false);</span>
+    private final Node icon;
+    private final CustomExternalFileType fileType;
+
+<span class="nc" id="L20">    public EditExternalFileTypeViewModel(CustomExternalFileType fileType) {</span>
+<span class="nc" id="L21">        this.fileType = fileType;</span>
+<span class="nc" id="L22">        extensionProperty.setValue(fileType.getExtension());</span>
+<span class="nc" id="L23">        nameProperty.setValue(fileType.getName());</span>
+<span class="nc" id="L24">        mimeTypeProperty.setValue(fileType.getMimeType());</span>
+<span class="nc" id="L25">        selectedApplicationProperty.setValue(fileType.getOpenWithApplication());</span>
+<span class="nc" id="L26">        icon = fileType.getIcon().getGraphicNode();</span>
+
+<span class="nc bnc" id="L28" title="All 2 branches missed.">        if (fileType.getOpenWithApplication().isEmpty()) {</span>
+<span class="nc" id="L29">            defaultApplicationSelectedProperty.setValue(true);</span>
+        } else {
+<span class="nc" id="L31">            customApplicationSelectedProperty.setValue(true);</span>
+        }
+<span class="nc" id="L33">    }</span>
+
+    public StringProperty extensionProperty() {
+<span class="nc" id="L36">        return extensionProperty;</span>
+    }
+
+    public StringProperty nameProperty() {
+<span class="nc" id="L40">        return nameProperty;</span>
+    }
+
+    public StringProperty mimeTypeProperty() {
+<span class="nc" id="L44">        return mimeTypeProperty;</span>
+    }
+
+    public StringProperty selectedApplicationProperty() {
+<span class="nc" id="L48">        return selectedApplicationProperty;</span>
+    }
+
+    public BooleanProperty defaultApplicationSelectedProperty() {
+<span class="nc" id="L52">        return defaultApplicationSelectedProperty;</span>
+    }
+
+    public BooleanProperty customApplicationSelectedProperty() {
+<span class="nc" id="L56">        return customApplicationSelectedProperty;</span>
+    }
+
+    public Node getIcon() {
+<span class="nc" id="L60">        return icon;</span>
+    }
+
+    public void storeSettings() {
+
+<span class="nc" id="L65">        fileType.setName(nameProperty.getValue().trim());</span>
+<span class="nc" id="L66">        fileType.setMimeType(mimeTypeProperty.getValue().trim());</span>
+
+<span class="nc" id="L68">        String ext = extensionProperty.getValue().trim();</span>
+<span class="nc bnc" id="L69" title="All 4 branches missed.">        if (!ext.isEmpty() &amp;&amp; (ext.charAt(0) == '.')) {</span>
+<span class="nc" id="L70">            fileType.setExtension(ext.substring(1));</span>
+        } else {
+<span class="nc" id="L72">            fileType.setExtension(ext);</span>
+        }
+
+<span class="nc" id="L75">        String application = selectedApplicationProperty.getValue().trim();</span>
+
+        // store application as empty if the &quot;Default&quot; option is selected, or if the application name is empty:
+<span class="nc bnc" id="L78" title="All 4 branches missed.">        if (defaultApplicationSelectedProperty.getValue() || application.isEmpty()) {</span>
+<span class="nc" id="L79">            fileType.setOpenWith(&quot;&quot;);</span>
+<span class="nc" id="L80">            selectedApplicationProperty.setValue(&quot;&quot;);</span>
+        } else {
+<span class="nc" id="L82">            fileType.setOpenWith(application);</span>
+        }
+<span class="nc" id="L84">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

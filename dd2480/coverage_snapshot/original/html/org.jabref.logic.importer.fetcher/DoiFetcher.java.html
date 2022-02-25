@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DoiFetcher.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.importer.fetcher</a> &gt; <span class="el_source">DoiFetcher.java</span></div><h1>DoiFetcher.java</h1><pre class="source lang-java linenums">package org.jabref.logic.importer.fetcher;
+
+import java.io.IOException;
+import java.net.URL;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.regex.Pattern;
+
+import org.jabref.logic.cleanup.FieldFormatterCleanup;
+import org.jabref.logic.formatter.bibtexfields.ClearFormatter;
+import org.jabref.logic.formatter.bibtexfields.NormalizePagesFormatter;
+import org.jabref.logic.help.HelpFile;
+import org.jabref.logic.importer.EntryBasedFetcher;
+import org.jabref.logic.importer.FetcherException;
+import org.jabref.logic.importer.IdBasedFetcher;
+import org.jabref.logic.importer.ImportFormatPreferences;
+import org.jabref.logic.importer.ParseException;
+import org.jabref.logic.importer.fileformat.BibtexParser;
+import org.jabref.logic.importer.util.MediaTypes;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.logic.net.URLDownload;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.field.StandardField;
+import org.jabref.model.entry.identifier.DOI;
+import org.jabref.model.entry.types.StandardEntryType;
+import org.jabref.model.util.DummyFileUpdateMonitor;
+import org.jabref.model.util.OptionalUtil;
+
+import kong.unirest.json.JSONArray;
+import kong.unirest.json.JSONException;
+import kong.unirest.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class DoiFetcher implements IdBasedFetcher, EntryBasedFetcher {
+
+    public static final String NAME = &quot;DOI&quot;;
+
+    private static final String APS_JOURNAL_ORG_DOI_ID = &quot;1103&quot;;
+    private static final String APS_SUFFIX = &quot;([\\w]+\\.)([\\w]+\\.)([\\w]+)&quot;;
+<span class="fc" id="L42">    private static final Pattern APS_SUFFIX_PATTERN = Pattern.compile(APS_SUFFIX);</span>
+
+<span class="fc" id="L44">    private static final Logger LOGGER = LoggerFactory.getLogger(DoiFetcher.class);</span>
+
+    private final ImportFormatPreferences preferences;
+
+<span class="fc" id="L48">    public DoiFetcher(ImportFormatPreferences preferences) {</span>
+<span class="fc" id="L49">        this.preferences = preferences;</span>
+<span class="fc" id="L50">    }</span>
+
+    @Override
+    public String getName() {
+<span class="fc" id="L54">        return DoiFetcher.NAME;</span>
+    }
+
+    @Override
+    public Optional&lt;HelpFile&gt; getHelpPage() {
+<span class="nc" id="L59">        return Optional.of(HelpFile.FETCHER_DOI);</span>
+    }
+
+    @Override
+    public Optional&lt;BibEntry&gt; performSearchById(String identifier) throws FetcherException {
+<span class="fc" id="L64">        Optional&lt;DOI&gt; doi = DOI.parse(identifier);</span>
+
+        try {
+<span class="fc bfc" id="L67" title="All 2 branches covered.">            if (doi.isPresent()) {</span>
+                Optional&lt;BibEntry&gt; fetchedEntry;
+
+                // mEDRA does not return a parsable bibtex string
+<span class="pc bpc" id="L71" title="1 of 4 branches missed.">                if (getAgency(doi.get()).isPresent() &amp;&amp; &quot;medra&quot;.equalsIgnoreCase(getAgency(doi.get()).get())) {</span>
+<span class="fc" id="L72">                    return new Medra().performSearchById(identifier);</span>
+                }
+<span class="fc" id="L74">                URL doiURL = new URL(doi.get().getURIAsASCIIString());</span>
+
+                // BibTeX data
+<span class="fc" id="L77">                URLDownload download = getUrlDownload(doiURL);</span>
+<span class="fc" id="L78">                download.addHeader(&quot;Accept&quot;, MediaTypes.APPLICATION_BIBTEX);</span>
+                String bibtexString;
+                try {
+<span class="fc" id="L81">                    bibtexString = download.asString();</span>
+<span class="fc" id="L82">                } catch (IOException e) {</span>
+                    // an IOException will be thrown if download is unable to download from the doiURL
+<span class="fc" id="L84">                    throw new FetcherException(Localization.lang(&quot;No DOI data exists&quot;), e);</span>
+<span class="fc" id="L85">                }</span>
+
+                // BibTeX entry
+<span class="fc" id="L88">                fetchedEntry = BibtexParser.singleFromString(bibtexString, preferences, new DummyFileUpdateMonitor());</span>
+<span class="fc" id="L89">                fetchedEntry.ifPresent(this::doPostCleanup);</span>
+
+                // Check if the entry is an APS journal and add the article id as the page count if page field is missing
+<span class="pc bpc" id="L92" title="2 of 4 branches missed.">                if (fetchedEntry.isPresent() &amp;&amp; fetchedEntry.get().hasField(StandardField.DOI)) {</span>
+<span class="fc" id="L93">                    BibEntry entry = fetchedEntry.get();</span>
+<span class="pc bpc" id="L94" title="1 of 4 branches missed.">                    if (isAPSJournal(entry, entry.getField(StandardField.DOI).get()) &amp;&amp; !entry.hasField(StandardField.PAGES)) {</span>
+<span class="fc" id="L95">                        setPageCountToArticleId(entry, entry.getField(StandardField.DOI).get());</span>
+                    }
+                }
+
+<span class="fc" id="L99">                return fetchedEntry;</span>
+            } else {
+<span class="fc" id="L101">                throw new FetcherException(Localization.lang(&quot;Invalid DOI: '%0'.&quot;, identifier));</span>
+            }
+<span class="nc" id="L103">        } catch (IOException e) {</span>
+<span class="nc" id="L104">            throw new FetcherException(Localization.lang(&quot;Connection error&quot;), e);</span>
+<span class="nc" id="L105">        } catch (ParseException e) {</span>
+<span class="nc" id="L106">            throw new FetcherException(&quot;Could not parse BibTeX entry&quot;, e);</span>
+<span class="nc" id="L107">        } catch (JSONException e) {</span>
+<span class="nc" id="L108">            throw new FetcherException(&quot;Could not retrieve Registration Agency&quot;, e);</span>
+        }
+    }
+
+    private void doPostCleanup(BibEntry entry) {
+<span class="fc" id="L113">        new FieldFormatterCleanup(StandardField.PAGES, new NormalizePagesFormatter()).cleanup(entry);</span>
+<span class="fc" id="L114">        new FieldFormatterCleanup(StandardField.URL, new ClearFormatter()).cleanup(entry);</span>
+<span class="fc" id="L115">    }</span>
+
+    @Override
+    public List&lt;BibEntry&gt; performSearch(BibEntry entry) throws FetcherException {
+<span class="nc" id="L119">        Optional&lt;String&gt; doi = entry.getField(StandardField.DOI);</span>
+<span class="nc bnc" id="L120" title="All 2 branches missed.">        if (doi.isPresent()) {</span>
+<span class="nc" id="L121">            return OptionalUtil.toList(performSearchById(doi.get()));</span>
+        } else {
+<span class="nc" id="L123">            return Collections.emptyList();</span>
+        }
+    }
+
+    /**
+     * Returns registration agency. Optional.empty() if no agency is found.
+     *
+     * @param doi the DOI to be searched
+     */
+    public Optional&lt;String&gt; getAgency(DOI doi) throws IOException {
+<span class="fc" id="L133">        Optional&lt;String&gt; agency = Optional.empty();</span>
+        try {
+<span class="fc" id="L135">            URLDownload download = getUrlDownload(new URL(DOI.AGENCY_RESOLVER + &quot;/&quot; + doi.getDOI()));</span>
+<span class="fc" id="L136">            JSONObject response = new JSONArray(download.asString()).getJSONObject(0);</span>
+<span class="pc bpc" id="L137" title="1 of 2 branches missed.">            if (response != null) {</span>
+<span class="fc" id="L138">                agency = Optional.ofNullable(response.optString(&quot;RA&quot;));</span>
+            }
+<span class="nc" id="L140">        } catch (JSONException e) {</span>
+<span class="nc" id="L141">            LOGGER.error(&quot;Cannot parse agency fetcher repsonse to JSON&quot;);</span>
+<span class="nc" id="L142">            return Optional.empty();</span>
+<span class="fc" id="L143">        }</span>
+
+<span class="fc" id="L145">        return agency;</span>
+    }
+
+    private void setPageCountToArticleId(BibEntry entry, String doiAsString) {
+<span class="fc" id="L149">        String articleId = doiAsString.substring(doiAsString.lastIndexOf('.') + 1);</span>
+<span class="fc" id="L150">        entry.setField(StandardField.PAGES, articleId);</span>
+<span class="fc" id="L151">    }</span>
+
+    // checks if the entry is an APS journal by comparing the organization id and the suffix format
+    private boolean isAPSJournal(BibEntry entry, String doiAsString) {
+<span class="fc bfc" id="L155" title="All 2 branches covered.">        if (!entry.getType().equals(StandardEntryType.Article)) {</span>
+<span class="fc" id="L156">            return false;</span>
+        }
+<span class="fc" id="L158">        String suffix = doiAsString.substring(doiAsString.lastIndexOf('/') + 1);</span>
+<span class="fc" id="L159">        String organizationId = doiAsString.substring(doiAsString.indexOf('.') + 1, doiAsString.indexOf('/'));</span>
+<span class="pc bpc" id="L160" title="2 of 4 branches missed.">        return organizationId.equals(APS_JOURNAL_ORG_DOI_ID) &amp;&amp; APS_SUFFIX_PATTERN.matcher(suffix).matches();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DocumentViewerViewModel.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.documentviewer</a> &gt; <span class="el_source">DocumentViewerViewModel.java</span></div><h1>DocumentViewerViewModel.java</h1><pre class="source lang-java linenums">package org.jabref.gui.documentviewer;
+
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Objects;
+
+import javafx.application.Platform;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ListProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleListProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
+
+import org.jabref.gui.AbstractViewModel;
+import org.jabref.gui.StateManager;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.LinkedFile;
+import org.jabref.preferences.PreferencesService;
+
+import com.tobiasdiez.easybind.EasyBind;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class DocumentViewerViewModel extends AbstractViewModel {
+
+<span class="nc" id="L33">    private static final Logger LOGGER = LoggerFactory.getLogger(DocumentViewerViewModel.class);</span>
+
+    private final StateManager stateManager;
+    private final PreferencesService preferencesService;
+<span class="nc" id="L37">    private final ObjectProperty&lt;DocumentViewModel&gt; currentDocument = new SimpleObjectProperty&lt;&gt;();</span>
+<span class="nc" id="L38">    private final ListProperty&lt;LinkedFile&gt; files = new SimpleListProperty&lt;&gt;();</span>
+<span class="nc" id="L39">    private final BooleanProperty liveMode = new SimpleBooleanProperty();</span>
+<span class="nc" id="L40">    private final ObjectProperty&lt;Integer&gt; currentPage = new SimpleObjectProperty&lt;&gt;();</span>
+<span class="nc" id="L41">    private final IntegerProperty maxPages = new SimpleIntegerProperty();</span>
+
+<span class="nc" id="L43">    public DocumentViewerViewModel(StateManager stateManager, PreferencesService preferencesService) {</span>
+<span class="nc" id="L44">        this.stateManager = Objects.requireNonNull(stateManager);</span>
+<span class="nc" id="L45">        this.preferencesService = Objects.requireNonNull(preferencesService);</span>
+
+<span class="nc" id="L47">        this.stateManager.getSelectedEntries().addListener((ListChangeListener&lt;? super BibEntry&gt;) c -&gt; {</span>
+            // Switch to currently selected entry in live mode
+<span class="nc bnc" id="L49" title="All 2 branches missed.">            if (isLiveMode()) {</span>
+<span class="nc" id="L50">                setCurrentEntries(this.stateManager.getSelectedEntries());</span>
+            }
+<span class="nc" id="L52">        });</span>
+
+<span class="nc" id="L54">        this.liveMode.addListener((observable, oldValue, newValue) -&gt; {</span>
+            // Switch to currently selected entry if mode is changed to live
+<span class="nc bnc" id="L56" title="All 4 branches missed.">            if ((oldValue != newValue) &amp;&amp; newValue) {</span>
+<span class="nc" id="L57">                setCurrentEntries(this.stateManager.getSelectedEntries());</span>
+            }
+<span class="nc" id="L59">        });</span>
+
+        // we need to wrap this in run later so that the max pages number is correctly shown
+<span class="nc" id="L62">        Platform.runLater(() -&gt; maxPages.bindBidirectional(</span>
+<span class="nc" id="L63">            EasyBind.wrapNullable(currentDocument).selectProperty(DocumentViewModel::maxPagesProperty)));</span>
+<span class="nc" id="L64">        setCurrentEntries(this.stateManager.getSelectedEntries());</span>
+<span class="nc" id="L65">    }</span>
+
+    private int getCurrentPage() {
+<span class="nc" id="L68">        return currentPage.get();</span>
+    }
+
+    public ObjectProperty&lt;Integer&gt; currentPageProperty() {
+<span class="nc" id="L72">        return currentPage;</span>
+    }
+
+    public IntegerProperty maxPagesProperty() {
+<span class="nc" id="L76">        return maxPages;</span>
+    }
+
+    private boolean isLiveMode() {
+<span class="nc" id="L80">        return liveMode.get();</span>
+    }
+
+    public ObjectProperty&lt;DocumentViewModel&gt; currentDocumentProperty() {
+<span class="nc" id="L84">        return currentDocument;</span>
+    }
+
+    public ListProperty&lt;LinkedFile&gt; filesProperty() {
+<span class="nc" id="L88">        return files;</span>
+    }
+
+    private void setCurrentEntries(List&lt;BibEntry&gt; entries) {
+<span class="nc bnc" id="L92" title="All 2 branches missed.">        if (!entries.isEmpty()) {</span>
+<span class="nc" id="L93">            BibEntry firstSelectedEntry = entries.get(0);</span>
+<span class="nc" id="L94">            setCurrentEntry(firstSelectedEntry);</span>
+        }
+<span class="nc" id="L96">    }</span>
+
+    private void setCurrentEntry(BibEntry entry) {
+<span class="nc" id="L99">        stateManager.getActiveDatabase().ifPresent(database -&gt; {</span>
+<span class="nc" id="L100">            List&lt;LinkedFile&gt; linkedFiles = entry.getFiles();</span>
+            // We don't need to switch to the first file, this is done automatically in the UI part
+<span class="nc" id="L102">            files.setValue(FXCollections.observableArrayList(linkedFiles));</span>
+<span class="nc" id="L103">        });</span>
+<span class="nc" id="L104">    }</span>
+
+    private void setCurrentDocument(Path path) {
+        try {
+<span class="nc" id="L108">            currentDocument.set(new PdfDocumentViewModel(PDDocument.load(path.toFile())));</span>
+<span class="nc" id="L109">        } catch (IOException e) {</span>
+<span class="nc" id="L110">            LOGGER.error(&quot;Could not set Document Viewer&quot;, e);</span>
+<span class="nc" id="L111">        }</span>
+<span class="nc" id="L112">    }</span>
+
+    public void switchToFile(LinkedFile file) {
+<span class="nc bnc" id="L115" title="All 2 branches missed.">        if (file != null) {</span>
+<span class="nc" id="L116">            stateManager.getActiveDatabase()</span>
+<span class="nc" id="L117">                        .flatMap(database -&gt; file.findIn(database, preferencesService.getFilePreferences()))</span>
+<span class="nc" id="L118">                        .ifPresent(this::setCurrentDocument);</span>
+        }
+<span class="nc" id="L120">    }</span>
+
+    public BooleanProperty liveModeProperty() {
+<span class="nc" id="L123">        return liveMode;</span>
+    }
+
+    public void showPage(int pageNumber) {
+<span class="nc" id="L127">        currentPage.set(pageNumber);</span>
+<span class="nc" id="L128">    }</span>
+
+    public void showNextPage() {
+<span class="nc" id="L131">        currentPage.set(getCurrentPage() + 1);</span>
+<span class="nc" id="L132">    }</span>
+
+    public void showPreviousPage() {
+<span class="nc" id="L135">        currentPage.set(getCurrentPage() - 1);</span>
+<span class="nc" id="L136">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

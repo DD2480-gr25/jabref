@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SidePaneContentFactory.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.sidepane</a> &gt; <span class="el_source">SidePaneContentFactory.java</span></div><h1>SidePaneContentFactory.java</h1><pre class="source lang-java linenums">package org.jabref.gui.sidepane;
+
+import javax.swing.undo.UndoManager;
+
+import javafx.scene.Node;
+
+import org.jabref.gui.DialogService;
+import org.jabref.gui.StateManager;
+import org.jabref.gui.groups.GroupTreeView;
+import org.jabref.gui.importer.fetcher.WebSearchPaneView;
+import org.jabref.gui.openoffice.OpenOfficePanel;
+import org.jabref.gui.util.TaskExecutor;
+import org.jabref.preferences.PreferencesService;
+
+public class SidePaneContentFactory {
+    private final PreferencesService preferences;
+    private final TaskExecutor taskExecutor;
+    private final DialogService dialogService;
+    private final StateManager stateManager;
+    private final UndoManager undoManager;
+
+    public SidePaneContentFactory(PreferencesService preferences,
+                                  TaskExecutor taskExecutor,
+                                  DialogService dialogService,
+                                  StateManager stateManager,
+<span class="fc" id="L26">                                  UndoManager undoManager) {</span>
+<span class="fc" id="L27">        this.preferences = preferences;</span>
+<span class="fc" id="L28">        this.taskExecutor = taskExecutor;</span>
+<span class="fc" id="L29">        this.dialogService = dialogService;</span>
+<span class="fc" id="L30">        this.stateManager = stateManager;</span>
+<span class="fc" id="L31">        this.undoManager = undoManager;</span>
+<span class="fc" id="L32">    }</span>
+
+    public Node create(SidePaneType sidePaneType) {
+<span class="nc bnc" id="L35" title="All 4 branches missed.">        return switch (sidePaneType) {</span>
+<span class="nc" id="L36">            case GROUPS -&gt; new GroupTreeView(</span>
+                    taskExecutor,
+                    stateManager,
+                    preferences,
+                    dialogService);
+<span class="nc" id="L41">            case OPEN_OFFICE -&gt; new OpenOfficePanel(</span>
+                    preferences,
+<span class="nc" id="L43">                    preferences.getOpenOfficePreferences(),</span>
+<span class="nc" id="L44">                    preferences.getKeyBindingRepository(),</span>
+                    taskExecutor,
+                    dialogService,
+                    stateManager,
+<span class="nc" id="L48">                    undoManager).getContent();</span>
+<span class="nc" id="L49">            case WEB_SEARCH -&gt; new WebSearchPaneView(</span>
+                    preferences,
+                    dialogService,
+                    stateManager);
+        };
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

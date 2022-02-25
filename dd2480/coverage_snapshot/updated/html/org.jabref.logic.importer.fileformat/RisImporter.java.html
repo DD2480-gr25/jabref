@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RisImporter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.importer.fileformat</a> &gt; <span class="el_source">RisImporter.java</span></div><h1>RisImporter.java</h1><pre class="source lang-java linenums">package org.jabref.logic.importer.fileformat;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.time.Year;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.regex.Pattern;
+
+import org.jabref.logic.importer.Importer;
+import org.jabref.logic.importer.ParserResult;
+import org.jabref.logic.util.OS;
+import org.jabref.logic.util.StandardFileType;
+import org.jabref.model.entry.AuthorList;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.Month;
+import org.jabref.model.entry.field.Field;
+import org.jabref.model.entry.field.StandardField;
+import org.jabref.model.entry.field.UnknownField;
+import org.jabref.model.entry.identifier.DOI;
+import org.jabref.model.entry.types.EntryType;
+import org.jabref.model.entry.types.IEEETranEntryType;
+import org.jabref.model.entry.types.StandardEntryType;
+
+<span class="fc" id="L31">public class RisImporter extends Importer {</span>
+
+<span class="fc" id="L33">    private static final Pattern RECOGNIZED_FORMAT_PATTERN = Pattern.compile(&quot;TY  - .*&quot;);</span>
+<span class="fc" id="L34">    private static DateTimeFormatter formatter = DateTimeFormatter.ofPattern(&quot;yyyy&quot;);</span>
+
+    @Override
+    public String getName() {
+<span class="fc" id="L38">        return &quot;RIS&quot;;</span>
+    }
+
+    @Override
+    public StandardFileType getFileType() {
+<span class="fc" id="L43">        return StandardFileType.RIS;</span>
+    }
+
+    @Override
+    public String getDescription() {
+<span class="fc" id="L48">        return &quot;Imports a Biblioscape Tag File.&quot;;</span>
+    }
+
+    @Override
+    public boolean isRecognizedFormat(BufferedReader reader) throws IOException {
+        // Our strategy is to look for the &quot;TY  - *&quot; line.
+<span class="fc" id="L54">        return reader.lines().anyMatch(line -&gt; RECOGNIZED_FORMAT_PATTERN.matcher(line).find());</span>
+    }
+
+    @Override
+    public ParserResult importDatabase(BufferedReader reader) throws IOException {
+<span class="fc" id="L59">        List&lt;BibEntry&gt; bibitems = new ArrayList&lt;&gt;();</span>
+
+        // use optional here, so that no exception will be thrown if the file is empty
+<span class="fc" id="L62">        String linesAsString = reader.lines().reduce((line, nextline) -&gt; line + &quot;\n&quot; + nextline).orElse(&quot;&quot;);</span>
+
+<span class="fc" id="L64">        String[] entries = linesAsString.replace(&quot;\u2013&quot;, &quot;-&quot;).replace(&quot;\u2014&quot;, &quot;--&quot;).replace(&quot;\u2015&quot;, &quot;--&quot;)</span>
+<span class="fc" id="L65">                                        .split(&quot;ER  -.*(\\n)*&quot;);</span>
+
+        // stores all the date tags from highest to lowest priority
+<span class="fc" id="L68">        List&lt;String&gt; dateTags = Arrays.asList(&quot;Y1&quot;, &quot;PY&quot;, &quot;DA&quot;, &quot;Y2&quot;);</span>
+
+<span class="fc bfc" id="L70" title="All 2 branches covered.">        for (String entry1 : entries) {</span>
+
+<span class="fc" id="L72">            String dateTag = &quot;&quot;;</span>
+<span class="fc" id="L73">            String dateValue = &quot;&quot;;</span>
+<span class="fc" id="L74">            int datePriority = dateTags.size();</span>
+            int tagPriority;
+
+<span class="fc" id="L77">            EntryType type = StandardEntryType.Misc;</span>
+<span class="fc" id="L78">            String author = &quot;&quot;;</span>
+<span class="fc" id="L79">            String editor = &quot;&quot;;</span>
+<span class="fc" id="L80">            String startPage = &quot;&quot;;</span>
+<span class="fc" id="L81">            String endPage = &quot;&quot;;</span>
+<span class="fc" id="L82">            String comment = &quot;&quot;;</span>
+<span class="fc" id="L83">            Optional&lt;Month&gt; month = Optional.empty();</span>
+<span class="fc" id="L84">            Map&lt;Field, String&gt; fields = new HashMap&lt;&gt;();</span>
+
+<span class="fc" id="L86">            String[] lines = entry1.split(&quot;\n&quot;);</span>
+
+<span class="fc bfc" id="L88" title="All 2 branches covered.">            for (int j = 0; j &lt; lines.length; j++) {</span>
+<span class="fc" id="L89">                StringBuilder current = new StringBuilder(lines[j]);</span>
+<span class="fc" id="L90">                boolean done = false;</span>
+<span class="fc bfc" id="L91" title="All 4 branches covered.">                while (!done &amp;&amp; (j &lt; (lines.length - 1))) {</span>
+<span class="fc bfc" id="L92" title="All 4 branches covered.">                    if ((lines[j + 1].length() &gt;= 6) &amp;&amp; !&quot;  - &quot;.equals(lines[j + 1].substring(2, 6))) {</span>
+<span class="pc bpc" id="L93" title="1 of 4 branches missed.">                        if ((current.length() &gt; 0) &amp;&amp; !Character.isWhitespace(current.charAt(current.length() - 1))</span>
+<span class="fc bfc" id="L94" title="All 2 branches covered.">                                &amp;&amp; !Character.isWhitespace(lines[j + 1].charAt(0))) {</span>
+<span class="fc" id="L95">                            current.append(' ');</span>
+                        }
+<span class="fc" id="L97">                        current.append(lines[j + 1]);</span>
+<span class="fc" id="L98">                        j++;</span>
+                    } else {
+<span class="fc" id="L100">                        done = true;</span>
+                    }
+                }
+<span class="fc" id="L103">                String entry = current.toString();</span>
+<span class="fc bfc" id="L104" title="All 2 branches covered.">                if (entry.length() &lt; 6) {</span>
+<span class="fc" id="L105">                    continue;</span>
+                } else {
+<span class="fc" id="L107">                    String tag = entry.substring(0, 2);</span>
+<span class="fc" id="L108">                    String value = entry.substring(6).trim();</span>
+<span class="fc bfc" id="L109" title="All 2 branches covered.">                    if (&quot;TY&quot;.equals(tag)) {</span>
+<span class="fc bfc" id="L110" title="All 2 branches covered.">                        if (&quot;BOOK&quot;.equals(value)) {</span>
+<span class="fc" id="L111">                            type = StandardEntryType.Book;</span>
+<span class="fc bfc" id="L112" title="All 4 branches covered.">                        } else if (&quot;JOUR&quot;.equals(value) || &quot;MGZN&quot;.equals(value)) {</span>
+<span class="fc" id="L113">                            type = StandardEntryType.Article;</span>
+<span class="fc bfc" id="L114" title="All 2 branches covered.">                        } else if (&quot;THES&quot;.equals(value)) {</span>
+<span class="fc" id="L115">                            type = StandardEntryType.PhdThesis;</span>
+<span class="fc bfc" id="L116" title="All 2 branches covered.">                        } else if (&quot;UNPB&quot;.equals(value)) {</span>
+<span class="fc" id="L117">                            type = StandardEntryType.Unpublished;</span>
+<span class="fc bfc" id="L118" title="All 2 branches covered.">                        } else if (&quot;RPRT&quot;.equals(value)) {</span>
+<span class="fc" id="L119">                            type = StandardEntryType.TechReport;</span>
+<span class="fc bfc" id="L120" title="All 2 branches covered.">                        } else if (&quot;CONF&quot;.equals(value)) {</span>
+<span class="fc" id="L121">                            type = StandardEntryType.InProceedings;</span>
+<span class="fc bfc" id="L122" title="All 2 branches covered.">                        } else if (&quot;CHAP&quot;.equals(value)) {</span>
+<span class="fc" id="L123">                            type = StandardEntryType.InCollection;</span>
+<span class="fc bfc" id="L124" title="All 2 branches covered.">                        } else if (&quot;PAT&quot;.equals(value)) {</span>
+<span class="fc" id="L125">                            type = IEEETranEntryType.Patent;</span>
+                        } else {
+<span class="fc" id="L127">                            type = StandardEntryType.Misc;</span>
+                        }
+<span class="fc bfc" id="L129" title="All 4 branches covered.">                    } else if (&quot;T1&quot;.equals(tag) || &quot;TI&quot;.equals(tag)) {</span>
+<span class="fc" id="L130">                        String oldVal = fields.get(StandardField.TITLE);</span>
+<span class="fc bfc" id="L131" title="All 2 branches covered.">                        if (oldVal == null) {</span>
+<span class="fc" id="L132">                            fields.put(StandardField.TITLE, value);</span>
+                        } else {
+<span class="fc bfc" id="L134" title="All 6 branches covered.">                            if (oldVal.endsWith(&quot;:&quot;) || oldVal.endsWith(&quot;.&quot;) || oldVal.endsWith(&quot;?&quot;)) {</span>
+<span class="fc" id="L135">                                fields.put(StandardField.TITLE, oldVal + &quot; &quot; + value);</span>
+                            } else {
+<span class="fc" id="L137">                                fields.put(StandardField.TITLE, oldVal + &quot;: &quot; + value);</span>
+                            }
+                        }
+<span class="fc" id="L140">                        fields.put(StandardField.TITLE, fields.get(StandardField.TITLE).replaceAll(&quot;\\s+&quot;, &quot; &quot;)); // Normalize whitespaces</span>
+<span class="fc bfc" id="L141" title="All 2 branches covered.">                    } else if (&quot;BT&quot;.equals(tag)) {</span>
+<span class="fc" id="L142">                        fields.put(StandardField.BOOKTITLE, value);</span>
+<span class="pc bpc" id="L143" title="1 of 10 branches missed.">                    } else if ((&quot;T2&quot;.equals(tag) || &quot;J2&quot;.equals(tag) || &quot;JA&quot;.equals(tag)) &amp;&amp; ((fields.get(StandardField.JOURNAL) == null) || &quot;&quot;.equals(fields.get(StandardField.JOURNAL)))) {</span>
+                        // if there is no journal title, then put second title as journal title
+<span class="fc" id="L145">                        fields.put(StandardField.JOURNAL, value);</span>
+<span class="fc bfc" id="L146" title="All 6 branches covered.">                    } else if (&quot;JO&quot;.equals(tag) || &quot;J1&quot;.equals(tag) || &quot;JF&quot;.equals(tag)) {</span>
+                        // if this field appears then this should be the journal title
+<span class="fc" id="L148">                        fields.put(StandardField.JOURNAL, value);</span>
+<span class="fc bfc" id="L149" title="All 2 branches covered.">                    } else if (&quot;T3&quot;.equals(tag)) {</span>
+<span class="fc" id="L150">                        fields.put(StandardField.SERIES, value);</span>
+<span class="pc bpc" id="L151" title="2 of 10 branches missed.">                    } else if (&quot;AU&quot;.equals(tag) || &quot;A1&quot;.equals(tag) || &quot;A2&quot;.equals(tag) || &quot;A3&quot;.equals(tag) || &quot;A4&quot;.equals(tag)) {</span>
+<span class="fc bfc" id="L152" title="All 2 branches covered.">                        if (&quot;&quot;.equals(author)) {</span>
+<span class="fc" id="L153">                            author = value;</span>
+                        } else {
+<span class="fc" id="L155">                            author += &quot; and &quot; + value;</span>
+                        }
+<span class="fc bfc" id="L157" title="All 2 branches covered.">                    } else if (&quot;ED&quot;.equals(tag)) {</span>
+<span class="fc bfc" id="L158" title="All 2 branches covered.">                        if (editor.isEmpty()) {</span>
+<span class="fc" id="L159">                            editor = value;</span>
+                        } else {
+<span class="fc" id="L161">                            editor += &quot; and &quot; + value;</span>
+                        }
+<span class="pc bpc" id="L163" title="1 of 4 branches missed.">                    } else if (&quot;JA&quot;.equals(tag) || &quot;JF&quot;.equals(tag)) {</span>
+<span class="fc bfc" id="L164" title="All 2 branches covered.">                        if (type.equals(StandardEntryType.InProceedings)) {</span>
+<span class="fc" id="L165">                            fields.put(StandardField.BOOKTITLE, value);</span>
+                        } else {
+<span class="fc" id="L167">                            fields.put(StandardField.JOURNAL, value);</span>
+                        }
+<span class="fc bfc" id="L169" title="All 2 branches covered.">                    } else if (&quot;LA&quot;.equals(tag)) {</span>
+<span class="fc" id="L170">                        fields.put(StandardField.LANGUAGE, value);</span>
+<span class="fc bfc" id="L171" title="All 2 branches covered.">                    } else if (&quot;CA&quot;.equals(tag)) {</span>
+<span class="fc" id="L172">                        fields.put(new UnknownField(&quot;caption&quot;), value);</span>
+<span class="fc bfc" id="L173" title="All 2 branches covered.">                    } else if (&quot;DB&quot;.equals(tag)) {</span>
+<span class="fc" id="L174">                        fields.put(new UnknownField(&quot;database&quot;), value);</span>
+<span class="pc bpc" id="L175" title="1 of 8 branches missed.">                    } else if (&quot;IS&quot;.equals(tag) || &quot;AN&quot;.equals(tag) || &quot;C7&quot;.equals(tag) || &quot;M1&quot;.equals(tag)) {</span>
+<span class="fc" id="L176">                        fields.put(StandardField.NUMBER, value);</span>
+<span class="fc bfc" id="L177" title="All 2 branches covered.">                    } else if (&quot;SP&quot;.equals(tag)) {</span>
+<span class="fc" id="L178">                        startPage = value;</span>
+<span class="fc bfc" id="L179" title="All 2 branches covered.">                    } else if (&quot;PB&quot;.equals(tag)) {</span>
+<span class="fc bfc" id="L180" title="All 2 branches covered.">                        if (type.equals(StandardEntryType.PhdThesis)) {</span>
+<span class="fc" id="L181">                            fields.put(StandardField.SCHOOL, value);</span>
+                        } else {
+<span class="fc" id="L183">                            fields.put(StandardField.PUBLISHER, value);</span>
+                        }
+<span class="pc bpc" id="L185" title="1 of 6 branches missed.">                    } else if (&quot;AD&quot;.equals(tag) || &quot;CY&quot;.equals(tag) || &quot;PP&quot;.equals(tag)) {</span>
+<span class="fc" id="L186">                        fields.put(StandardField.ADDRESS, value);</span>
+<span class="fc bfc" id="L187" title="All 2 branches covered.">                    } else if (&quot;EP&quot;.equals(tag)) {</span>
+<span class="fc" id="L188">                        endPage = value;</span>
+<span class="pc bpc" id="L189" title="1 of 2 branches missed.">                        if (!endPage.isEmpty()) {</span>
+<span class="fc" id="L190">                            endPage = &quot;--&quot; + endPage;</span>
+                        }
+<span class="fc bfc" id="L192" title="All 2 branches covered.">                    } else if (&quot;ET&quot;.equals(tag)) {</span>
+<span class="fc" id="L193">                        fields.put(StandardField.EDITION, value);</span>
+<span class="fc bfc" id="L194" title="All 2 branches covered.">                    } else if (&quot;SN&quot;.equals(tag)) {</span>
+<span class="fc" id="L195">                        fields.put(StandardField.ISSN, value);</span>
+<span class="fc bfc" id="L196" title="All 2 branches covered.">                    } else if (&quot;VL&quot;.equals(tag)) {</span>
+<span class="fc" id="L197">                        fields.put(StandardField.VOLUME, value);</span>
+<span class="fc bfc" id="L198" title="All 4 branches covered.">                    } else if (&quot;N2&quot;.equals(tag) || &quot;AB&quot;.equals(tag)) {</span>
+<span class="fc" id="L199">                        String oldAb = fields.get(StandardField.ABSTRACT);</span>
+<span class="fc bfc" id="L200" title="All 2 branches covered.">                        if (oldAb == null) {</span>
+<span class="fc" id="L201">                            fields.put(StandardField.ABSTRACT, value);</span>
+<span class="pc bpc" id="L202" title="1 of 4 branches missed.">                        } else if (!oldAb.equals(value) &amp;&amp; !value.isEmpty()) {</span>
+<span class="fc" id="L203">                            fields.put(StandardField.ABSTRACT, oldAb + OS.NEWLINE + value);</span>
+                        }
+<span class="pc bpc" id="L205" title="1 of 6 branches missed.">                    } else if (&quot;UR&quot;.equals(tag) || &quot;L2&quot;.equals(tag) || &quot;LK&quot;.equals(tag)) {</span>
+<span class="fc" id="L206">                        fields.put(StandardField.URL, value);</span>
+<span class="fc bfc" id="L207" title="All 4 branches covered.">                    } else if (((tagPriority = dateTags.indexOf(tag)) != -1) &amp;&amp; (value.length() &gt;= 4)) {</span>
+
+<span class="fc bfc" id="L209" title="All 2 branches covered.">                        if (tagPriority &lt; datePriority) {</span>
+<span class="fc" id="L210">                            String year = value.substring(0, 4);</span>
+
+                            try {
+<span class="fc" id="L213">                                Year.parse(year, formatter);</span>
+                                // if the year is parsebale we have found a higher priority date
+<span class="fc" id="L215">                                dateTag = tag;</span>
+<span class="fc" id="L216">                                dateValue = value;</span>
+<span class="fc" id="L217">                                datePriority = tagPriority;</span>
+<span class="fc" id="L218">                            } catch (DateTimeParseException ex) {</span>
+                                // We can't parse the year, we ignore it
+<span class="fc" id="L220">                            }</span>
+<span class="fc" id="L221">                        }</span>
+<span class="fc bfc" id="L222" title="All 2 branches covered.">                    } else if (&quot;KW&quot;.equals(tag)) {</span>
+<span class="fc bfc" id="L223" title="All 2 branches covered.">                        if (fields.containsKey(StandardField.KEYWORDS)) {</span>
+<span class="fc" id="L224">                            String kw = fields.get(StandardField.KEYWORDS);</span>
+<span class="fc" id="L225">                            fields.put(StandardField.KEYWORDS, kw + &quot;, &quot; + value);</span>
+<span class="fc" id="L226">                        } else {</span>
+<span class="fc" id="L227">                            fields.put(StandardField.KEYWORDS, value);</span>
+                        }
+<span class="fc bfc" id="L229" title="All 6 branches covered.">                    } else if (&quot;U1&quot;.equals(tag) || &quot;U2&quot;.equals(tag) || &quot;N1&quot;.equals(tag)) {</span>
+<span class="fc bfc" id="L230" title="All 2 branches covered.">                        if (!comment.isEmpty()) {</span>
+<span class="fc" id="L231">                            comment = comment + OS.NEWLINE;</span>
+                        }
+<span class="fc" id="L233">                        comment = comment + value;</span>
+<span class="fc bfc" id="L234" title="All 4 branches covered.">                    } else if (&quot;M3&quot;.equals(tag) || &quot;DO&quot;.equals(tag)) {</span>
+<span class="fc" id="L235">                        addDoi(fields, value);</span>
+<span class="fc bfc" id="L236" title="All 2 branches covered.">                    } else if (&quot;C3&quot;.equals(tag)) {</span>
+<span class="fc" id="L237">                        fields.put(StandardField.EVENTTITLE, value);</span>
+<span class="pc bpc" id="L238" title="1 of 4 branches missed.">                    } else if (&quot;N1&quot;.equals(tag) || &quot;RN&quot;.equals(tag)) {</span>
+<span class="fc" id="L239">                        fields.put(StandardField.NOTE, value);</span>
+<span class="fc bfc" id="L240" title="All 2 branches covered.">                    } else if (&quot;ST&quot;.equals(tag)) {</span>
+<span class="fc" id="L241">                        fields.put(StandardField.SHORTTITLE, value);</span>
+<span class="fc bfc" id="L242" title="All 2 branches covered.">                    } else if (&quot;C2&quot;.equals(tag)) {</span>
+<span class="fc" id="L243">                        fields.put(StandardField.EPRINT, value);</span>
+<span class="fc" id="L244">                        fields.put(StandardField.EPRINTTYPE, &quot;pubmed&quot;);</span>
+<span class="fc bfc" id="L245" title="All 2 branches covered.">                    } else if (&quot;TA&quot;.equals(tag)) {</span>
+<span class="fc" id="L246">                        fields.put(StandardField.TRANSLATOR, value);</span>
+
+                        // fields for which there is no direct mapping in the bibtext standard
+<span class="fc bfc" id="L249" title="All 2 branches covered.">                    } else if (&quot;AV&quot;.equals(tag)) {</span>
+<span class="fc" id="L250">                        fields.put(new UnknownField(&quot;archive_location&quot;), value);</span>
+<span class="pc bpc" id="L251" title="1 of 4 branches missed.">                    } else if (&quot;CN&quot;.equals(tag) || &quot;VO&quot;.equals(tag)) {</span>
+<span class="fc" id="L252">                        fields.put(new UnknownField(&quot;call-number&quot;), value);</span>
+<span class="pc bpc" id="L253" title="1 of 2 branches missed.">                    } else if (&quot;DB&quot;.equals(tag)) {</span>
+<span class="nc" id="L254">                        fields.put(new UnknownField(&quot;archive&quot;), value);</span>
+<span class="fc bfc" id="L255" title="All 2 branches covered.">                    } else if (&quot;NV&quot;.equals(tag)) {</span>
+<span class="fc" id="L256">                        fields.put(new UnknownField(&quot;number-of-volumes&quot;), value);</span>
+<span class="fc bfc" id="L257" title="All 2 branches covered.">                    } else if (&quot;OP&quot;.equals(tag)) {</span>
+<span class="fc" id="L258">                        fields.put(new UnknownField(&quot;original-title&quot;), value);</span>
+<span class="fc bfc" id="L259" title="All 2 branches covered.">                    } else if (&quot;RI&quot;.equals(tag)) {</span>
+<span class="fc" id="L260">                        fields.put(new UnknownField(&quot;reviewed-title&quot;), value);</span>
+<span class="fc bfc" id="L261" title="All 2 branches covered.">                    } else if (&quot;RP&quot;.equals(tag)) {</span>
+<span class="fc" id="L262">                        fields.put(new UnknownField(&quot;status&quot;), value);</span>
+<span class="fc bfc" id="L263" title="All 2 branches covered.">                    } else if (&quot;SE&quot;.equals(tag)) {</span>
+<span class="fc" id="L264">                        fields.put(new UnknownField(&quot;section&quot;), value);</span>
+<span class="fc bfc" id="L265" title="All 2 branches covered.">                    } else if (&quot;ID&quot;.equals(tag)) {</span>
+<span class="fc" id="L266">                        fields.put(new UnknownField(&quot;refid&quot;), value);</span>
+                    }
+                }
+                // fix authors
+<span class="fc bfc" id="L270" title="All 2 branches covered.">                if (!author.isEmpty()) {</span>
+<span class="fc" id="L271">                    author = AuthorList.fixAuthorLastNameFirst(author);</span>
+<span class="fc" id="L272">                    fields.put(StandardField.AUTHOR, author);</span>
+                }
+<span class="fc bfc" id="L274" title="All 2 branches covered.">                if (!editor.isEmpty()) {</span>
+<span class="fc" id="L275">                    editor = AuthorList.fixAuthorLastNameFirst(editor);</span>
+<span class="fc" id="L276">                    fields.put(StandardField.EDITOR, editor);</span>
+                }
+<span class="fc bfc" id="L278" title="All 2 branches covered.">                if (!comment.isEmpty()) {</span>
+<span class="fc" id="L279">                    fields.put(StandardField.COMMENT, comment);</span>
+                }
+
+<span class="fc" id="L282">                fields.put(StandardField.PAGES, startPage + endPage);</span>
+            }
+
+            // if we found a date
+<span class="pc bpc" id="L286" title="1 of 2 branches missed.">            if (dateTag.length() &gt; 0) {</span>
+<span class="fc" id="L287">                fields.put(StandardField.YEAR, dateValue.substring(0, 4));</span>
+
+<span class="fc" id="L289">                String[] parts = dateValue.split(&quot;/&quot;);</span>
+<span class="pc bpc" id="L290" title="1 of 4 branches missed.">                if ((parts.length &gt; 1) &amp;&amp; !parts[1].isEmpty()) {</span>
+                    try {
+<span class="fc" id="L292">                        int monthNumber = Integer.parseInt(parts[1]);</span>
+<span class="fc" id="L293">                        month = Month.getMonthByNumber(monthNumber);</span>
+<span class="fc" id="L294">                    } catch (NumberFormatException ex) {</span>
+                        // The month part is unparseable, so we ignore it.
+<span class="fc" id="L296">                    }</span>
+                }
+            }
+
+            // Remove empty fields:
+<span class="pc bpc" id="L301" title="1 of 4 branches missed.">            fields.entrySet().removeIf(key -&gt; (key.getValue() == null) || key.getValue().trim().isEmpty());</span>
+
+            // create one here
+            // type is set in the loop above
+<span class="fc" id="L305">            BibEntry entry = new BibEntry(type);</span>
+<span class="fc" id="L306">            entry.setField(fields);</span>
+            // month has a special treatment as we use the separate method &quot;setMonth&quot; of BibEntry instead of directly setting the value
+<span class="fc" id="L308">            month.ifPresent(entry::setMonth);</span>
+<span class="fc" id="L309">            bibitems.add(entry);</span>
+        }
+<span class="fc" id="L311">        return new ParserResult(bibitems);</span>
+    }
+
+  private void addDoi(Map&lt;Field, String&gt; hm, String val) {
+<span class="fc" id="L315">      Optional&lt;DOI&gt; parsedDoi = DOI.parse(val);</span>
+<span class="fc" id="L316">      parsedDoi.ifPresent(doi -&gt; hm.put(StandardField.DOI, doi.getDOI()));</span>
+<span class="fc" id="L317">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

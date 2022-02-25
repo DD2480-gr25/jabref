@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FileFieldWriter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.bibtex</a> &gt; <span class="el_source">FileFieldWriter.java</span></div><h1>FileFieldWriter.java</h1><pre class="source lang-java linenums">package org.jabref.logic.bibtex;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.jabref.model.entry.LinkedFile;
+
+public class FileFieldWriter {
+
+    private FileFieldWriter() {
+    }
+
+    public static String getStringRepresentation(List&lt;LinkedFile&gt; fields) {
+<span class="fc" id="L16">        String[][] array = new String[fields.size()][];</span>
+<span class="fc" id="L17">        int i = 0;</span>
+<span class="fc bfc" id="L18" title="All 2 branches covered.">        for (LinkedFile entry : fields) {</span>
+<span class="fc" id="L19">            array[i] = new String[] {entry.getDescription(), entry.getLink(), entry.getFileType()};</span>
+<span class="fc" id="L20">            i++;</span>
+<span class="fc" id="L21">        }</span>
+<span class="fc" id="L22">        return encodeStringArray(array);</span>
+    }
+
+    public static String getStringRepresentation(LinkedFile field) {
+<span class="fc" id="L26">        return getStringRepresentation(Collections.singletonList(field));</span>
+    }
+
+    /**
+     * Encodes a two-dimensional String array into a single string, using ':' and
+     * ';' as separators. The characters ':' and ';' are escaped with '\'.
+     * @param values The String array.
+     * @return The encoded String.
+     */
+    public static String encodeStringArray(String[][] values) {
+<span class="fc" id="L36">        return Arrays.stream(values)</span>
+<span class="fc" id="L37">                     .map(FileFieldWriter::encodeStringArray)</span>
+<span class="fc" id="L38">                     .collect(Collectors.joining(&quot;;&quot;));</span>
+    }
+
+    /**
+     * Encodes a String array into a single string, using ':' as separator.
+     * The characters ':' and ';' are escaped with '\'.
+     * @param entry The String array.
+     * @return The encoded String.
+     */
+    private static String encodeStringArray(String[] entry) {
+<span class="fc" id="L48">        return Arrays.stream(entry)</span>
+<span class="fc" id="L49">                     .map(FileFieldWriter::quote)</span>
+<span class="fc" id="L50">                     .collect(Collectors.joining(&quot;:&quot;));</span>
+    }
+
+    public static String quote(String s) {
+<span class="fc bfc" id="L54" title="All 2 branches covered.">        if (s == null) {</span>
+<span class="fc" id="L55">            return null;</span>
+        }
+<span class="fc" id="L57">        StringBuilder sb = new StringBuilder();</span>
+<span class="fc bfc" id="L58" title="All 2 branches covered.">        for (int i = 0; i &lt; s.length(); i++) {</span>
+<span class="fc" id="L59">            char c = s.charAt(i);</span>
+<span class="fc bfc" id="L60" title="All 6 branches covered.">            if ((c == ';') || (c == ':') || (c == '\\')) {</span>
+<span class="fc" id="L61">                sb.append('\\');</span>
+            }
+<span class="fc" id="L63">            sb.append(c);</span>
+        }
+<span class="fc" id="L65">        return sb.toString();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>
