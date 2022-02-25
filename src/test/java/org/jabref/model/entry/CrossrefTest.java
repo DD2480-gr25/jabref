@@ -167,6 +167,24 @@ class CrossrefTest {
         );
     }
 
+    @ParameterizedTest
+    @MethodSource("journalTitleInheritanceSource")
+    void getSFReturnsEmptyOnUnavailableFields(EntryType parentType, EntryType childType) {
+        parent.setType(parentType);
+        child.setType(childType);
+
+        assertEquals(Optional.empty(), child.getResolvedFieldOrAlias(StandardField.SUBTITLE, db));
+    }
+
+    @ParameterizedTest
+    @MethodSource("journalTitleInheritanceSource")
+    void getSFRReturnsEmptyOnUnallowedInheritance(EntryType parentType, EntryType childType) {
+        parent.setType(parentType);
+        child.setType(childType);
+
+        assertEquals(Optional.empty(), child.getResolvedFieldOrAlias(StandardField.SHORTTITLE, db));
+    }
+
     private static Stream<Arguments> journalTitleInheritanceSource() {
         return Stream.of(
                 Arguments.of(IEEETranEntryType.Periodical, StandardEntryType.Article),

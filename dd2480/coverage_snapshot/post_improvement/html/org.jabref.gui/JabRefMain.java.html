@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JabRefMain.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui</a> &gt; <span class="el_source">JabRefMain.java</span></div><h1>JabRefMain.java</h1><pre class="source lang-java linenums">package org.jabref.gui;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.Authenticator;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Comparator;
+
+import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.stage.Stage;
+
+import org.jabref.cli.ArgumentProcessor;
+import org.jabref.cli.JabRefCLI;
+import org.jabref.gui.remote.JabRefMessageHandler;
+import org.jabref.logic.exporter.ExporterFactory;
+import org.jabref.logic.journals.JournalAbbreviationLoader;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.logic.net.ProxyAuthenticator;
+import org.jabref.logic.net.ProxyPreferences;
+import org.jabref.logic.net.ProxyRegisterer;
+import org.jabref.logic.net.URLDownload;
+import org.jabref.logic.protectedterms.ProtectedTermsLoader;
+import org.jabref.logic.remote.RemotePreferences;
+import org.jabref.logic.remote.client.RemoteClient;
+import org.jabref.migrations.PreferencesMigrations;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.database.BibDatabaseMode;
+import org.jabref.preferences.JabRefPreferences;
+import org.jabref.preferences.PreferencesService;
+
+import org.apache.commons.cli.ParseException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * JabRef's main class to process command line options and to start the UI
+ */
+<span class="nc" id="L41">public class JabRefMain extends Application {</span>
+
+<span class="nc" id="L43">    private static final Logger LOGGER = LoggerFactory.getLogger(JabRefMain.class);</span>
+
+    private static String[] arguments;
+
+    public static void main(String[] args) {
+<span class="nc" id="L48">        arguments = args;</span>
+<span class="nc" id="L49">        launch(arguments);</span>
+<span class="nc" id="L50">    }</span>
+
+    @Override
+    public void start(Stage mainStage) {
+<span class="nc" id="L54">        URLDownload.bypassSSLVerification();</span>
+        try {
+<span class="nc" id="L56">            FallbackExceptionHandler.installExceptionHandler();</span>
+
+            // Init preferences
+<span class="nc" id="L59">            final JabRefPreferences preferences = JabRefPreferences.getInstance();</span>
+<span class="nc" id="L60">            Globals.prefs = preferences;</span>
+            // Perform migrations
+<span class="nc" id="L62">            PreferencesMigrations.runMigrations();</span>
+
+<span class="nc" id="L64">            configureProxy(preferences.getProxyPreferences());</span>
+
+<span class="nc" id="L66">            Globals.startBackgroundTasks();</span>
+
+<span class="nc" id="L68">            applyPreferences(preferences);</span>
+
+<span class="nc" id="L70">            clearOldSearchIndices();</span>
+
+            try {
+                // Process arguments
+<span class="nc" id="L74">                ArgumentProcessor argumentProcessor = new ArgumentProcessor(arguments, ArgumentProcessor.Mode.INITIAL_START, preferences);</span>
+                // Check for running JabRef
+<span class="nc bnc" id="L76" title="All 4 branches missed.">                if (!handleMultipleAppInstances(arguments, preferences) || argumentProcessor.shouldShutDown()) {</span>
+<span class="nc" id="L77">                    Platform.exit();</span>
+<span class="nc" id="L78">                    return;</span>
+                }
+
+                // If not, start GUI
+<span class="nc" id="L82">                new JabRefGUI(mainStage, argumentProcessor.getParserResults(), argumentProcessor.isBlank(), preferences);</span>
+<span class="nc" id="L83">            } catch (ParseException e) {</span>
+<span class="nc" id="L84">                LOGGER.error(&quot;Problem parsing arguments&quot;, e);</span>
+
+<span class="nc" id="L86">                JabRefCLI.printUsage();</span>
+<span class="nc" id="L87">                Platform.exit();</span>
+<span class="nc" id="L88">            }</span>
+<span class="nc" id="L89">        } catch (Exception ex) {</span>
+<span class="nc" id="L90">            LOGGER.error(&quot;Unexpected exception&quot;, ex);</span>
+<span class="nc" id="L91">            Platform.exit();</span>
+<span class="nc" id="L92">        }</span>
+<span class="nc" id="L93">    }</span>
+
+    @Override
+    public void stop() {
+<span class="nc" id="L97">        Globals.stopBackgroundTasks();</span>
+<span class="nc" id="L98">        Globals.shutdownThreadPools();</span>
+<span class="nc" id="L99">    }</span>
+
+    private static boolean handleMultipleAppInstances(String[] args, PreferencesService preferences) {
+<span class="nc" id="L102">        RemotePreferences remotePreferences = preferences.getRemotePreferences();</span>
+<span class="nc bnc" id="L103" title="All 2 branches missed.">        if (remotePreferences.useRemoteServer()) {</span>
+            // Try to contact already running JabRef
+<span class="nc" id="L105">            RemoteClient remoteClient = new RemoteClient(remotePreferences.getPort());</span>
+<span class="nc bnc" id="L106" title="All 2 branches missed.">            if (remoteClient.ping()) {</span>
+                // We are not alone, there is already a server out there, send command line arguments to other instance
+<span class="nc bnc" id="L108" title="All 2 branches missed.">                if (remoteClient.sendCommandLineArguments(args)) {</span>
+                    // So we assume it's all taken care of, and quit.
+<span class="nc" id="L110">                    LOGGER.info(Localization.lang(&quot;Arguments passed on to running JabRef instance. Shutting down.&quot;));</span>
+<span class="nc" id="L111">                    return false;</span>
+                } else {
+<span class="nc" id="L113">                    LOGGER.warn(&quot;Could not communicate with other running JabRef instance.&quot;);</span>
+                }
+            } else {
+                // We are alone, so we start the server
+<span class="nc" id="L117">                Globals.REMOTE_LISTENER.openAndStart(new JabRefMessageHandler(), remotePreferences.getPort(), preferences);</span>
+            }
+        }
+<span class="nc" id="L120">        return true;</span>
+    }
+
+    private static void applyPreferences(PreferencesService preferences) {
+        // Read list(s) of journal names and abbreviations
+<span class="nc" id="L125">        Globals.journalAbbreviationRepository = JournalAbbreviationLoader.loadRepository(preferences.getJournalAbbreviationPreferences());</span>
+
+        // Build list of Import and Export formats
+<span class="nc" id="L128">        Globals.IMPORT_FORMAT_READER.resetImportFormats(preferences.getImporterPreferences(),</span>
+<span class="nc" id="L129">                preferences.getGeneralPreferences(), preferences.getImportFormatPreferences(),</span>
+<span class="nc" id="L130">                preferences.getXmpPreferences(), Globals.getFileUpdateMonitor());</span>
+<span class="nc" id="L131">        Globals.entryTypesManager.addCustomOrModifiedTypes(preferences.getBibEntryTypes(BibDatabaseMode.BIBTEX),</span>
+<span class="nc" id="L132">                preferences.getBibEntryTypes(BibDatabaseMode.BIBLATEX));</span>
+<span class="nc" id="L133">        Globals.exportFactory = ExporterFactory.create(</span>
+<span class="nc" id="L134">                preferences.getCustomExportFormats(Globals.journalAbbreviationRepository),</span>
+<span class="nc" id="L135">                preferences.getLayoutFormatterPreferences(Globals.journalAbbreviationRepository),</span>
+<span class="nc" id="L136">                preferences.getSavePreferencesForExport(),</span>
+<span class="nc" id="L137">                preferences.getXmpPreferences(),</span>
+<span class="nc" id="L138">                preferences.getGeneralPreferences().getDefaultBibDatabaseMode(),</span>
+                Globals.entryTypesManager);
+
+        // Initialize protected terms loader
+<span class="nc" id="L142">        Globals.protectedTermsLoader = new ProtectedTermsLoader(preferences.getProtectedTermsPreferences());</span>
+<span class="nc" id="L143">    }</span>
+
+    private static void configureProxy(ProxyPreferences proxyPreferences) {
+<span class="nc" id="L146">        ProxyRegisterer.register(proxyPreferences);</span>
+<span class="nc bnc" id="L147" title="All 4 branches missed.">        if (proxyPreferences.shouldUseProxy() &amp;&amp; proxyPreferences.shouldUseAuthentication()) {</span>
+<span class="nc" id="L148">            Authenticator.setDefault(new ProxyAuthenticator());</span>
+        }
+<span class="nc" id="L150">    }</span>
+
+    private static void clearOldSearchIndices() {
+<span class="nc" id="L153">        Path currentIndexPath = BibDatabaseContext.getFulltextIndexBasePath();</span>
+<span class="nc" id="L154">        Path appData = currentIndexPath.getParent();</span>
+
+<span class="nc" id="L156">        try (DirectoryStream&lt;Path&gt; stream = Files.newDirectoryStream(appData)) {</span>
+<span class="nc bnc" id="L157" title="All 2 branches missed.">            for (Path path : stream) {</span>
+<span class="nc bnc" id="L158" title="All 4 branches missed.">                if (Files.isDirectory(path) &amp;&amp; !path.equals(currentIndexPath)) {</span>
+<span class="nc" id="L159">                    LOGGER.info(&quot;Deleting out-of-date fulltext search index at {}.&quot;, path);</span>
+<span class="nc" id="L160">                    Files.walk(path)</span>
+<span class="nc" id="L161">                         .sorted(Comparator.reverseOrder())</span>
+<span class="nc" id="L162">                         .map(Path::toFile)</span>
+<span class="nc" id="L163">                         .forEach(File::delete);</span>
+
+                }
+<span class="nc" id="L166">            }</span>
+<span class="nc" id="L167">        } catch (IOException e) {</span>
+<span class="nc" id="L168">            LOGGER.error(&quot;Could not access app-directory at {}&quot;, appData, e);</span>
+<span class="nc" id="L169">        }</span>
+<span class="nc" id="L170">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

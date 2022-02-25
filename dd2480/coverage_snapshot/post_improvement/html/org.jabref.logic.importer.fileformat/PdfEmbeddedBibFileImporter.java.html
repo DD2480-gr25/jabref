@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PdfEmbeddedBibFileImporter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.importer.fileformat</a> &gt; <span class="el_source">PdfEmbeddedBibFileImporter.java</span></div><h1>PdfEmbeddedBibFileImporter.java</h1><pre class="source lang-java linenums">package org.jabref.logic.importer.fileformat;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
+import org.jabref.logic.importer.ImportFormatPreferences;
+import org.jabref.logic.importer.Importer;
+import org.jabref.logic.importer.ParseException;
+import org.jabref.logic.importer.ParserResult;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.logic.util.StandardFileType;
+import org.jabref.logic.util.io.FileUtil;
+import org.jabref.logic.xmp.EncryptedPdfsNotSupportedException;
+import org.jabref.logic.xmp.XmpUtilReader;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.util.DummyFileUpdateMonitor;
+
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDDocumentNameDictionary;
+import org.apache.pdfbox.pdmodel.PDEmbeddedFilesNameTreeNode;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.common.PDNameTreeNode;
+import org.apache.pdfbox.pdmodel.common.filespecification.PDComplexFileSpecification;
+import org.apache.pdfbox.pdmodel.common.filespecification.PDEmbeddedFile;
+import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotation;
+import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationFileAttachment;
+
+/**
+ * PdfEmbeddedBibFileImporter imports an embedded Bib-File from the PDF.
+ */
+public class PdfEmbeddedBibFileImporter extends Importer {
+
+    private final ImportFormatPreferences importFormatPreferences;
+    private final BibtexParser bibtexParser;
+
+<span class="fc" id="L42">    public PdfEmbeddedBibFileImporter(ImportFormatPreferences importFormatPreferences) {</span>
+<span class="fc" id="L43">        this.importFormatPreferences = importFormatPreferences;</span>
+<span class="fc" id="L44">        bibtexParser = new BibtexParser(importFormatPreferences, new DummyFileUpdateMonitor());</span>
+<span class="fc" id="L45">    }</span>
+
+    @Override
+    public boolean isRecognizedFormat(BufferedReader input) throws IOException {
+<span class="fc" id="L49">        return input.readLine().startsWith(&quot;%PDF&quot;);</span>
+    }
+
+    @Override
+    public ParserResult importDatabase(BufferedReader reader) throws IOException {
+<span class="nc" id="L54">        Objects.requireNonNull(reader);</span>
+<span class="nc" id="L55">        throw new UnsupportedOperationException(&quot;PdfEmbeddedBibFileImporter does not support importDatabase(BufferedReader reader).&quot;</span>
+                + &quot;Instead use importDatabase(Path filePath, Charset defaultEncoding).&quot;);
+    }
+
+    @Override
+    public ParserResult importDatabase(String data) throws IOException {
+<span class="nc" id="L61">        Objects.requireNonNull(data);</span>
+<span class="nc" id="L62">        throw new UnsupportedOperationException(&quot;PdfEmbeddedBibFileImporter does not support importDatabase(String data).&quot;</span>
+                + &quot;Instead use importDatabase(Path filePath, Charset defaultEncoding).&quot;);
+    }
+
+    @Override
+    public ParserResult importDatabase(Path filePath, Charset defaultEncoding) {
+<span class="fc" id="L68">        try (PDDocument document = XmpUtilReader.loadWithAutomaticDecryption(filePath)) {</span>
+<span class="fc" id="L69">            return new ParserResult(getEmbeddedBibFileEntries(document));</span>
+<span class="nc" id="L70">        } catch (EncryptedPdfsNotSupportedException e) {</span>
+<span class="nc" id="L71">            return ParserResult.fromErrorMessage(Localization.lang(&quot;Decryption not supported.&quot;));</span>
+<span class="fc" id="L72">        } catch (IOException | ParseException e) {</span>
+<span class="fc" id="L73">            return ParserResult.fromError(e);</span>
+        }
+    }
+
+    /**
+     * Extraction of embedded files in pdfs adapted from:
+     * Adapted from https://svn.apache.org/repos/asf/pdfbox/trunk/examples/src/main/java/org/apache/pdfbox/examples/pdmodel/ExtractEmbeddedFiles.javaj
+     */
+
+    private List&lt;BibEntry&gt; getEmbeddedBibFileEntries(PDDocument document) throws IOException, ParseException {
+<span class="fc" id="L83">        List&lt;BibEntry&gt; allParsedEntries = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L84">        PDDocumentNameDictionary nameDictionary = document.getDocumentCatalog().getNames();</span>
+<span class="pc bpc" id="L85" title="1 of 2 branches missed.">        if (nameDictionary != null) {</span>
+<span class="fc" id="L86">            PDEmbeddedFilesNameTreeNode efTree = nameDictionary.getEmbeddedFiles();</span>
+<span class="pc bpc" id="L87" title="1 of 2 branches missed.">            if (efTree != null) {</span>
+<span class="nc" id="L88">                Map&lt;String, PDComplexFileSpecification&gt; names = efTree.getNames();</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">                if (names != null) {</span>
+<span class="nc" id="L90">                    allParsedEntries.addAll(extractAndParseFiles(names));</span>
+                } else {
+<span class="nc" id="L92">                    List&lt;PDNameTreeNode&lt;PDComplexFileSpecification&gt;&gt; kids = efTree.getKids();</span>
+<span class="nc bnc" id="L93" title="All 2 branches missed.">                    if (kids != null) {</span>
+<span class="nc bnc" id="L94" title="All 2 branches missed.">                        for (PDNameTreeNode&lt;PDComplexFileSpecification&gt; node : kids) {</span>
+<span class="nc" id="L95">                            names = node.getNames();</span>
+<span class="nc" id="L96">                            allParsedEntries.addAll(extractAndParseFiles(names));</span>
+<span class="nc" id="L97">                        }</span>
+                    }
+                }
+            }
+        }
+        // extract files from annotations
+<span class="fc bfc" id="L103" title="All 2 branches covered.">        for (PDPage page : document.getPages()) {</span>
+<span class="fc bfc" id="L104" title="All 2 branches covered.">            for (PDAnnotation annotation : page.getAnnotations()) {</span>
+<span class="fc bfc" id="L105" title="All 2 branches covered.">                if (annotation instanceof PDAnnotationFileAttachment) {</span>
+<span class="fc" id="L106">                    PDAnnotationFileAttachment annotationFileAttachment = (PDAnnotationFileAttachment) annotation;</span>
+<span class="fc" id="L107">                    PDComplexFileSpecification fileSpec = (PDComplexFileSpecification) annotationFileAttachment.getFile();</span>
+<span class="fc" id="L108">                    allParsedEntries.addAll(extractAndParseFile(getEmbeddedFile(fileSpec)));</span>
+                }
+<span class="fc" id="L110">            }</span>
+<span class="fc" id="L111">        }</span>
+<span class="fc" id="L112">        return allParsedEntries;</span>
+    }
+
+    private List&lt;BibEntry&gt; extractAndParseFiles(Map&lt;String, PDComplexFileSpecification&gt; names) throws IOException, ParseException {
+<span class="nc" id="L116">        List&lt;BibEntry&gt; allParsedEntries = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L117" title="All 2 branches missed.">        for (Map.Entry&lt;String, PDComplexFileSpecification&gt; entry : names.entrySet()) {</span>
+<span class="nc" id="L118">            String filename = entry.getKey();</span>
+<span class="nc" id="L119">            FileUtil.getFileExtension(filename);</span>
+<span class="nc bnc" id="L120" title="All 2 branches missed.">            if (FileUtil.isBibFile(Path.of(filename))) {</span>
+<span class="nc" id="L121">                PDComplexFileSpecification fileSpec = entry.getValue();</span>
+<span class="nc" id="L122">                allParsedEntries.addAll(extractAndParseFile(getEmbeddedFile(fileSpec)));</span>
+            }
+<span class="nc" id="L124">        }</span>
+<span class="nc" id="L125">        return allParsedEntries;</span>
+    }
+
+    private List&lt;BibEntry&gt; extractAndParseFile(PDEmbeddedFile embeddedFile) throws IOException, ParseException {
+<span class="fc" id="L129">        return bibtexParser.parseEntries(embeddedFile.createInputStream());</span>
+    }
+
+    private static PDEmbeddedFile getEmbeddedFile(PDComplexFileSpecification fileSpec) {
+        // search for the first available alternative of the embedded file
+<span class="fc" id="L134">        PDEmbeddedFile embeddedFile = null;</span>
+<span class="pc bpc" id="L135" title="1 of 2 branches missed.">        if (fileSpec != null) {</span>
+<span class="fc" id="L136">            embeddedFile = fileSpec.getEmbeddedFileUnicode();</span>
+<span class="pc bpc" id="L137" title="1 of 2 branches missed.">            if (embeddedFile == null) {</span>
+<span class="fc" id="L138">                embeddedFile = fileSpec.getEmbeddedFileDos();</span>
+            }
+<span class="pc bpc" id="L140" title="1 of 2 branches missed.">            if (embeddedFile == null) {</span>
+<span class="fc" id="L141">                embeddedFile = fileSpec.getEmbeddedFileMac();</span>
+            }
+<span class="pc bpc" id="L143" title="1 of 2 branches missed.">            if (embeddedFile == null) {</span>
+<span class="fc" id="L144">                embeddedFile = fileSpec.getEmbeddedFileUnix();</span>
+            }
+<span class="pc bpc" id="L146" title="1 of 2 branches missed.">            if (embeddedFile == null) {</span>
+<span class="fc" id="L147">                embeddedFile = fileSpec.getEmbeddedFile();</span>
+            }
+        }
+<span class="fc" id="L150">        return embeddedFile;</span>
+    }
+
+    @Override
+    public String getName() {
+<span class="fc" id="L155">        return &quot;PDFembeddedbibfile&quot;;</span>
+    }
+
+    @Override
+    public StandardFileType getFileType() {
+<span class="fc" id="L160">        return StandardFileType.PDF;</span>
+    }
+
+    @Override
+    public String getDescription() {
+<span class="fc" id="L165">        return &quot;PdfEmbeddedBibFileImporter imports an embedded Bib-File from the PDF.&quot;;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

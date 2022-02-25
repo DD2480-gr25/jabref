@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PdfIndexer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.pdf.search.indexing</a> &gt; <span class="el_source">PdfIndexer.java</span></div><h1>PdfIndexer.java</h1><pre class="source lang-java linenums">package org.jabref.logic.pdf.search.indexing;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+
+import org.jabref.gui.LibraryTab;
+import org.jabref.logic.util.StandardFileType;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.LinkedFile;
+import org.jabref.model.pdf.search.EnglishStemAnalyzer;
+import org.jabref.model.pdf.search.SearchFieldConstants;
+import org.jabref.preferences.FilePreferences;
+
+import org.apache.lucene.document.Document;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexNotFoundException;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.Term;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.NIOFSDirectory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Indexes the text of PDF files and adds it into the lucene search index.
+ */
+public class PdfIndexer {
+
+<span class="fc" id="L40">    private static final Logger LOGGER = LoggerFactory.getLogger(LibraryTab.class);</span>
+
+    private final Directory directoryToIndex;
+    private BibDatabaseContext databaseContext;
+
+    private final FilePreferences filePreferences;
+
+<span class="fc" id="L47">    public PdfIndexer(Directory indexDirectory, FilePreferences filePreferences) {</span>
+<span class="fc" id="L48">        this.directoryToIndex = indexDirectory;</span>
+<span class="fc" id="L49">        this.filePreferences = filePreferences;</span>
+<span class="fc" id="L50">    }</span>
+
+    public static PdfIndexer of(BibDatabaseContext databaseContext, FilePreferences filePreferences) throws IOException {
+<span class="fc" id="L53">        return new PdfIndexer(new NIOFSDirectory(databaseContext.getFulltextIndexPath()), filePreferences);</span>
+    }
+
+    /**
+     * Adds all PDF files linked to an entry in the database to new Lucene search index. Any previous state of the
+     * Lucene search index will be deleted!
+     */
+    public void createIndex() {
+        // Create new index by creating IndexWriter but not writing anything.
+<span class="fc" id="L62">        try (IndexWriter indexWriter = new IndexWriter(directoryToIndex, new IndexWriterConfig(new EnglishStemAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.CREATE))) {</span>
+            // empty comment for checkstyle
+<span class="pc" id="L64">        } catch (IOException e) {</span>
+<span class="nc" id="L65">            LOGGER.warn(&quot;Could not create new Index!&quot;, e);</span>
+<span class="fc" id="L66">        }</span>
+<span class="fc" id="L67">    }</span>
+
+    public void addToIndex(BibDatabaseContext databaseContext) {
+<span class="fc bfc" id="L70" title="All 2 branches covered.">        for (BibEntry entry : databaseContext.getEntries()) {</span>
+<span class="fc" id="L71">            addToIndex(entry, databaseContext);</span>
+<span class="fc" id="L72">        }</span>
+<span class="fc" id="L73">    }</span>
+
+    /**
+     * Adds all the pdf files linked to one entry in the database to an existing (or new) Lucene search index
+     *
+     * @param entry a bibtex entry to link the pdf files to
+     * @param databaseContext the associated BibDatabaseContext
+     */
+    public void addToIndex(BibEntry entry, BibDatabaseContext databaseContext) {
+<span class="fc" id="L82">        addToIndex(entry, entry.getFiles(), databaseContext);</span>
+<span class="fc" id="L83">    }</span>
+
+    /**
+     * Adds a list of pdf files linked to one entry in the database to an existing (or new) Lucene search index
+     *
+     * @param entry a bibtex entry to link the pdf files to
+     * @param databaseContext the associated BibDatabaseContext
+     */
+    public void addToIndex(BibEntry entry, List&lt;LinkedFile&gt; linkedFiles, BibDatabaseContext databaseContext) {
+<span class="fc bfc" id="L92" title="All 2 branches covered.">        for (LinkedFile linkedFile : linkedFiles) {</span>
+<span class="fc" id="L93">            addToIndex(entry, linkedFile, databaseContext);</span>
+<span class="fc" id="L94">        }</span>
+<span class="fc" id="L95">    }</span>
+
+    /**
+     * Adds a pdf file linked to one entry in the database to an existing (or new) Lucene search index
+     *
+     * @param entry a bibtex entry
+     * @param linkedFile the link to the pdf files
+     */
+    public void addToIndex(BibEntry entry, LinkedFile linkedFile, BibDatabaseContext databaseContext) {
+<span class="fc bfc" id="L104" title="All 2 branches covered.">        if (databaseContext != null) {</span>
+<span class="fc" id="L105">            this.databaseContext = databaseContext;</span>
+        }
+<span class="pc bpc" id="L107" title="1 of 2 branches missed.">        if (!entry.getFiles().isEmpty()) {</span>
+<span class="fc" id="L108">            writeToIndex(entry, linkedFile);</span>
+        }
+<span class="fc" id="L110">    }</span>
+
+    /**
+     * Removes a pdf file linked to one entry in the database from the index
+     * @param entry the entry the file is linked to
+     * @param linkedFile the link to the file to be removed
+     */
+    public void removeFromIndex(BibEntry entry, LinkedFile linkedFile) {
+<span class="nc" id="L118">        try (IndexWriter indexWriter = new IndexWriter(</span>
+                directoryToIndex,
+                new IndexWriterConfig(
+<span class="nc" id="L121">                        new EnglishStemAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND))) {</span>
+<span class="nc bnc" id="L122" title="All 2 branches missed.">            if (!entry.getFiles().isEmpty()) {</span>
+<span class="nc" id="L123">                indexWriter.deleteDocuments(new Term(SearchFieldConstants.PATH, linkedFile.getLink()));</span>
+            }
+<span class="nc" id="L125">            indexWriter.commit();</span>
+<span class="nc" id="L126">        } catch (IOException e) {</span>
+<span class="nc" id="L127">            LOGGER.warn(&quot;Could not initialize the IndexWriter!&quot;, e);</span>
+<span class="nc" id="L128">        }</span>
+<span class="nc" id="L129">    }</span>
+
+    /**
+     * Removes  all files linked to a bib-entry from the index
+     * @param entry the entry documents are linked to
+     */
+    public void removeFromIndex(BibEntry entry) {
+<span class="nc" id="L136">        removeFromIndex(entry, entry.getFiles());</span>
+<span class="nc" id="L137">    }</span>
+
+    /**
+     * Removes a list of files linked to a bib-entry from the index
+     * @param entry the entry documents are linked to
+     */
+    public void removeFromIndex(BibEntry entry, List&lt;LinkedFile&gt; linkedFiles) {
+<span class="nc bnc" id="L144" title="All 2 branches missed.">        for (LinkedFile linkedFile : linkedFiles) {</span>
+<span class="nc" id="L145">            removeFromIndex(entry, linkedFile);</span>
+<span class="nc" id="L146">        }</span>
+<span class="nc" id="L147">    }</span>
+
+    /**
+     * Deletes all entries from the Lucene search index.
+     */
+    public void flushIndex() {
+<span class="fc" id="L153">        IndexWriterConfig config = new IndexWriterConfig();</span>
+<span class="fc" id="L154">        config.setOpenMode(IndexWriterConfig.OpenMode.CREATE);</span>
+<span class="fc" id="L155">        try (IndexWriter deleter = new IndexWriter(directoryToIndex, config)) {</span>
+            // Do nothing. Index is deleted.
+<span class="pc" id="L157">        } catch (IOException e) {</span>
+<span class="nc" id="L158">            LOGGER.warn(&quot;The IndexWriter could not be initialized&quot;, e);</span>
+<span class="fc" id="L159">        }</span>
+<span class="fc" id="L160">    }</span>
+
+    /**
+     * Writes all files linked to an entry to the index if the files are not yet in the index or the files on the fs are
+     * newer than the one in the index.
+     * @param entry the entry associated with the file
+     */
+    private void writeToIndex(BibEntry entry) {
+<span class="nc bnc" id="L168" title="All 2 branches missed.">        for (LinkedFile linkedFile : entry.getFiles()) {</span>
+<span class="nc" id="L169">            writeToIndex(entry, linkedFile);</span>
+<span class="nc" id="L170">        }</span>
+<span class="nc" id="L171">    }</span>
+
+    /**
+     * Writes the file to the index if the file is not yet in the index or the file on the fs is newer than the one in
+     * the index.
+     * @param entry the entry associated with the file
+     * @param linkedFile the file to write to the index
+     */
+    private void writeToIndex(BibEntry entry, LinkedFile linkedFile) {
+<span class="fc bfc" id="L180" title="All 4 branches covered.">        if (linkedFile.isOnlineLink() || !StandardFileType.PDF.getName().equals(linkedFile.getFileType())) {</span>
+<span class="fc" id="L181">            return;</span>
+        }
+<span class="fc" id="L183">        Optional&lt;Path&gt; resolvedPath = linkedFile.findIn(databaseContext, filePreferences);</span>
+<span class="pc bpc" id="L184" title="1 of 2 branches missed.">        if (resolvedPath.isEmpty()) {</span>
+<span class="nc" id="L185">            LOGGER.warn(&quot;Could not find {}&quot;, linkedFile.getLink());</span>
+<span class="nc" id="L186">            return;</span>
+        }
+        try {
+            // Check if a document with this path is already in the index
+<span class="fc" id="L190">            try (IndexReader reader = DirectoryReader.open(directoryToIndex)) {</span>
+<span class="fc" id="L191">                IndexSearcher searcher = new IndexSearcher(reader);</span>
+<span class="fc" id="L192">                TermQuery query = new TermQuery(new Term(SearchFieldConstants.PATH, linkedFile.getLink()));</span>
+<span class="fc" id="L193">                TopDocs topDocs = searcher.search(query, 1);</span>
+                // If a document was found, check if is less current than the one in the FS
+<span class="pc bpc" id="L195" title="1 of 2 branches missed.">                if (topDocs.scoreDocs.length &gt; 0) {</span>
+<span class="nc" id="L196">                    Document doc = reader.document(topDocs.scoreDocs[0].doc);</span>
+<span class="nc" id="L197">                    long indexModificationTime = Long.parseLong(doc.getField(SearchFieldConstants.MODIFIED).stringValue());</span>
+
+<span class="nc" id="L199">                    BasicFileAttributes attributes = Files.readAttributes(resolvedPath.get(), BasicFileAttributes.class);</span>
+
+<span class="nc bnc" id="L201" title="All 2 branches missed.">                    if (indexModificationTime &gt;= attributes.lastModifiedTime().to(TimeUnit.SECONDS)) {</span>
+<span class="nc" id="L202">                        return;</span>
+                    }
+                }
+<span class="nc bnc" id="L205" title="All 2 branches missed.">            } catch (IndexNotFoundException e) {</span>
+                // if there is no index yet, don't need to check anything!
+<span class="fc" id="L207">            }</span>
+            // If no document was found, add the new one
+<span class="fc" id="L209">            Optional&lt;List&lt;Document&gt;&gt; pages = new DocumentReader(entry, filePreferences).readLinkedPdf(this.databaseContext, linkedFile);</span>
+<span class="pc bpc" id="L210" title="1 of 2 branches missed.">            if (pages.isPresent()) {</span>
+<span class="fc" id="L211">                try (IndexWriter indexWriter = new IndexWriter(directoryToIndex,</span>
+                                                               new IndexWriterConfig(
+<span class="fc" id="L213">                                                                                     new EnglishStemAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND))) {</span>
+<span class="fc" id="L214">                    indexWriter.addDocuments(pages.get());</span>
+<span class="fc" id="L215">                    indexWriter.commit();</span>
+                }
+            }
+<span class="nc" id="L218">        } catch (IOException e) {</span>
+<span class="nc" id="L219">            LOGGER.warn(&quot;Could not add the document {} to the index!&quot;, linkedFile.getLink(), e);</span>
+<span class="fc" id="L220">        }</span>
+<span class="fc" id="L221">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

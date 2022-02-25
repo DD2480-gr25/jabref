@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IsbnViaOttoBibFetcher.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.importer.fetcher</a> &gt; <span class="el_source">IsbnViaOttoBibFetcher.java</span></div><h1>IsbnViaOttoBibFetcher.java</h1><pre class="source lang-java linenums">package org.jabref.logic.importer.fetcher;
+
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.util.Optional;
+
+import org.jabref.logic.importer.FetcherException;
+import org.jabref.logic.importer.ImportFormatPreferences;
+import org.jabref.logic.importer.ParseException;
+import org.jabref.logic.importer.fileformat.BibtexParser;
+import org.jabref.logic.net.URLDownload;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.strings.StringUtil;
+import org.jabref.model.util.DummyFileUpdateMonitor;
+
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+
+/**
+ * Fetcher for ISBN using https://www.ottobib.com
+ */
+public class IsbnViaOttoBibFetcher extends AbstractIsbnFetcher {
+
+    private static final String BASE_URL = &quot;https://www.ottobib.com/isbn/&quot;;
+
+    public IsbnViaOttoBibFetcher(ImportFormatPreferences importFormatPreferences) {
+<span class="fc" id="L30">        super(importFormatPreferences);</span>
+<span class="fc" id="L31">    }</span>
+
+    @Override
+    public String getName() {
+<span class="fc" id="L35">        return &quot;ISBN (OttoBib)&quot;;</span>
+    }
+
+    /**
+     * @return null, because the identifier is passed using form data. This method is not used.
+     */
+    @Override
+    public URL getUrlForIdentifier(String identifier) throws URISyntaxException, MalformedURLException, FetcherException {
+<span class="nc" id="L43">        return null;</span>
+    }
+
+    @Override
+    public Optional&lt;BibEntry&gt; performSearchById(String identifier) throws FetcherException {
+<span class="fc bfc" id="L48" title="All 2 branches covered.">        if (StringUtil.isBlank(identifier)) {</span>
+<span class="fc" id="L49">            return Optional.empty();</span>
+        }
+
+<span class="fc" id="L52">        this.ensureThatIsbnIsValid(identifier);</span>
+
+        Document html;
+        try {
+<span class="fc" id="L56">            html = Jsoup.connect(BASE_URL + identifier + &quot;/bibtex&quot;).userAgent(URLDownload.USER_AGENT).get();</span>
+<span class="nc" id="L57">        } catch (IOException e) {</span>
+<span class="nc" id="L58">            throw new FetcherException(&quot;Could not &quot;, e);</span>
+<span class="fc" id="L59">        }</span>
+<span class="fc" id="L60">        Element textArea = html.select(&quot;textarea&quot;).first();</span>
+
+        // inspect the &quot;no results&quot; error message (if there is one)
+<span class="fc" id="L63">        Optional&lt;Element&gt; potentialErrorMessageDiv = Optional.ofNullable((html.select(&quot;div#flash-notice.notice.add-bottom&quot;).first()));</span>
+<span class="pc bpc" id="L64" title="1 of 4 branches missed.">        if (potentialErrorMessageDiv.isPresent() &amp;&amp; potentialErrorMessageDiv.get().text().contains(&quot;No Results&quot;)) {</span>
+<span class="fc" id="L65">            LOGGER.error(&quot;ISBN {} not found at ottobib&quot;, identifier);</span>
+        }
+
+<span class="fc" id="L68">        Optional&lt;BibEntry&gt; entry = Optional.empty();</span>
+        try {
+<span class="fc" id="L70">            entry = BibtexParser.singleFromString(textArea.text(), importFormatPreferences, new DummyFileUpdateMonitor());</span>
+<span class="nc" id="L71">        } catch (ParseException e) {</span>
+<span class="nc" id="L72">            throw new FetcherException(&quot;An internal parser error occurred&quot;, e);</span>
+<span class="fc" id="L73">        }</span>
+<span class="fc" id="L74">        entry.ifPresent(bibEntry -&gt; doPostCleanup(bibEntry));</span>
+<span class="fc" id="L75">        return entry;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

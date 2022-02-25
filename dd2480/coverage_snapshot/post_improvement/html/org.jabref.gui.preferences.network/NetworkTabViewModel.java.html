@@ -1,0 +1,313 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NetworkTabViewModel.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.preferences.network</a> &gt; <span class="el_source">NetworkTabViewModel.java</span></div><h1>NetworkTabViewModel.java</h1><pre class="source lang-java linenums">package org.jabref.gui.preferences.network;
+
+import java.net.MalformedURLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+
+import org.jabref.gui.DialogService;
+import org.jabref.gui.Globals;
+import org.jabref.gui.preferences.PreferenceTabViewModel;
+import org.jabref.gui.remote.JabRefMessageHandler;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.logic.net.ProxyPreferences;
+import org.jabref.logic.net.ProxyRegisterer;
+import org.jabref.logic.net.URLDownload;
+import org.jabref.logic.remote.RemotePreferences;
+import org.jabref.logic.remote.RemoteUtil;
+import org.jabref.model.strings.StringUtil;
+import org.jabref.preferences.PreferencesService;
+
+import de.saxsys.mvvmfx.utils.validation.CompositeValidator;
+import de.saxsys.mvvmfx.utils.validation.FunctionBasedValidator;
+import de.saxsys.mvvmfx.utils.validation.ValidationMessage;
+import de.saxsys.mvvmfx.utils.validation.ValidationStatus;
+import de.saxsys.mvvmfx.utils.validation.Validator;
+import kong.unirest.UnirestException;
+
+public class NetworkTabViewModel implements PreferenceTabViewModel {
+<span class="nc" id="L34">    private final BooleanProperty remoteServerProperty = new SimpleBooleanProperty();</span>
+<span class="nc" id="L35">    private final StringProperty remotePortProperty = new SimpleStringProperty(&quot;&quot;);</span>
+<span class="nc" id="L36">    private final BooleanProperty proxyUseProperty = new SimpleBooleanProperty();</span>
+<span class="nc" id="L37">    private final StringProperty proxyHostnameProperty = new SimpleStringProperty(&quot;&quot;);</span>
+<span class="nc" id="L38">    private final StringProperty proxyPortProperty = new SimpleStringProperty(&quot;&quot;);</span>
+<span class="nc" id="L39">    private final BooleanProperty proxyUseAuthenticationProperty = new SimpleBooleanProperty();</span>
+<span class="nc" id="L40">    private final StringProperty proxyUsernameProperty = new SimpleStringProperty(&quot;&quot;);</span>
+<span class="nc" id="L41">    private final StringProperty proxyPasswordProperty = new SimpleStringProperty(&quot;&quot;);</span>
+
+    private final Validator remotePortValidator;
+    private final Validator proxyHostnameValidator;
+    private final Validator proxyPortValidator;
+    private final Validator proxyUsernameValidator;
+    private final Validator proxyPasswordValidator;
+
+    private final DialogService dialogService;
+    private final PreferencesService preferences;
+    private final RemotePreferences remotePreferences;
+    private final ProxyPreferences proxyPreferences;
+    private final ProxyPreferences backupProxyPreferences;
+
+<span class="nc" id="L55">    private final List&lt;String&gt; restartWarning = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L57">    public NetworkTabViewModel(DialogService dialogService, PreferencesService preferences) {</span>
+<span class="nc" id="L58">        this.dialogService = dialogService;</span>
+<span class="nc" id="L59">        this.preferences = preferences;</span>
+<span class="nc" id="L60">        this.remotePreferences = preferences.getRemotePreferences();</span>
+<span class="nc" id="L61">        this.proxyPreferences = preferences.getProxyPreferences();</span>
+
+<span class="nc" id="L63">        backupProxyPreferences = new ProxyPreferences(</span>
+<span class="nc" id="L64">                proxyPreferences.shouldUseProxy(),</span>
+<span class="nc" id="L65">                proxyPreferences.getHostname(),</span>
+<span class="nc" id="L66">                proxyPreferences.getPort(),</span>
+<span class="nc" id="L67">                proxyPreferences.shouldUseAuthentication(),</span>
+<span class="nc" id="L68">                proxyPreferences.getUsername(),</span>
+<span class="nc" id="L69">                proxyPreferences.getPassword());</span>
+
+<span class="nc" id="L71">        remotePortValidator = new FunctionBasedValidator&lt;&gt;(</span>
+                remotePortProperty,
+                input -&gt; {
+                    try {
+<span class="nc" id="L75">                        int portNumber = Integer.parseInt(remotePortProperty().getValue());</span>
+<span class="nc" id="L76">                        return RemoteUtil.isUserPort(portNumber);</span>
+<span class="nc" id="L77">                    } catch (NumberFormatException ex) {</span>
+<span class="nc" id="L78">                        return false;</span>
+                    }
+                },
+<span class="nc" id="L81">                ValidationMessage.error(String.format(&quot;%s &gt; %s %n %n %s&quot;,</span>
+<span class="nc" id="L82">                        Localization.lang(&quot;Network&quot;),</span>
+<span class="nc" id="L83">                        Localization.lang(&quot;Remote operation&quot;),</span>
+<span class="nc" id="L84">                        Localization.lang(&quot;You must enter an integer value in the interval 1025-65535&quot;))));</span>
+
+<span class="nc" id="L86">        proxyHostnameValidator = new FunctionBasedValidator&lt;&gt;(</span>
+                proxyHostnameProperty,
+<span class="nc bnc" id="L88" title="All 2 branches missed.">                input -&gt; !StringUtil.isNullOrEmpty(input),</span>
+<span class="nc" id="L89">                ValidationMessage.error(String.format(&quot;%s &gt; %s %n %n %s&quot;,</span>
+<span class="nc" id="L90">                        Localization.lang(&quot;Network&quot;),</span>
+<span class="nc" id="L91">                        Localization.lang(&quot;Proxy configuration&quot;),</span>
+<span class="nc" id="L92">                        Localization.lang(&quot;Please specify a hostname&quot;))));</span>
+
+<span class="nc" id="L94">        proxyPortValidator = new FunctionBasedValidator&lt;&gt;(</span>
+                proxyPortProperty,
+<span class="nc" id="L96">                input -&gt; getPortAsInt(input).isPresent(),</span>
+<span class="nc" id="L97">                ValidationMessage.error(String.format(&quot;%s &gt; %s %n %n %s&quot;,</span>
+<span class="nc" id="L98">                        Localization.lang(&quot;Network&quot;),</span>
+<span class="nc" id="L99">                        Localization.lang(&quot;Proxy configuration&quot;),</span>
+<span class="nc" id="L100">                        Localization.lang(&quot;Please specify a port&quot;))));</span>
+
+<span class="nc" id="L102">        proxyUsernameValidator = new FunctionBasedValidator&lt;&gt;(</span>
+                proxyUsernameProperty,
+<span class="nc bnc" id="L104" title="All 2 branches missed.">                input -&gt; !StringUtil.isNullOrEmpty(input),</span>
+<span class="nc" id="L105">                ValidationMessage.error(String.format(&quot;%s &gt; %s %n %n %s&quot;,</span>
+<span class="nc" id="L106">                        Localization.lang(&quot;Network&quot;),</span>
+<span class="nc" id="L107">                        Localization.lang(&quot;Proxy configuration&quot;),</span>
+<span class="nc" id="L108">                        Localization.lang(&quot;Please specify a username&quot;))));</span>
+
+<span class="nc" id="L110">        proxyPasswordValidator = new FunctionBasedValidator&lt;&gt;(</span>
+                proxyPasswordProperty,
+<span class="nc bnc" id="L112" title="All 2 branches missed.">                input -&gt; input.length() &gt; 0,</span>
+<span class="nc" id="L113">                ValidationMessage.error(String.format(&quot;%s &gt; %s %n %n %s&quot;,</span>
+<span class="nc" id="L114">                        Localization.lang(&quot;Network&quot;),</span>
+<span class="nc" id="L115">                        Localization.lang(&quot;Proxy configuration&quot;),</span>
+<span class="nc" id="L116">                        Localization.lang(&quot;Please specify a password&quot;))));</span>
+<span class="nc" id="L117">    }</span>
+
+    public void setValues() {
+<span class="nc" id="L120">        remoteServerProperty.setValue(remotePreferences.useRemoteServer());</span>
+<span class="nc" id="L121">        remotePortProperty.setValue(String.valueOf(remotePreferences.getPort()));</span>
+
+<span class="nc" id="L123">        setProxyValues();</span>
+<span class="nc" id="L124">    }</span>
+
+    private void setProxyValues() {
+<span class="nc" id="L127">        proxyUseProperty.setValue(proxyPreferences.shouldUseProxy());</span>
+<span class="nc" id="L128">        proxyHostnameProperty.setValue(proxyPreferences.getHostname());</span>
+<span class="nc" id="L129">        proxyPortProperty.setValue(proxyPreferences.getPort());</span>
+<span class="nc" id="L130">        proxyUseAuthenticationProperty.setValue(proxyPreferences.shouldUseAuthentication());</span>
+<span class="nc" id="L131">        proxyUsernameProperty.setValue(proxyPreferences.getUsername());</span>
+<span class="nc" id="L132">        proxyPasswordProperty.setValue(proxyPreferences.getPassword());</span>
+<span class="nc" id="L133">    }</span>
+
+    public void storeSettings() {
+<span class="nc" id="L136">        storeRemoteSettings();</span>
+
+<span class="nc" id="L138">        storeProxySettings(new ProxyPreferences(</span>
+<span class="nc" id="L139">                proxyUseProperty.getValue(),</span>
+<span class="nc" id="L140">                proxyHostnameProperty.getValue().trim(),</span>
+<span class="nc" id="L141">                proxyPortProperty.getValue().trim(),</span>
+<span class="nc" id="L142">                proxyUseAuthenticationProperty.getValue(),</span>
+<span class="nc" id="L143">                proxyUsernameProperty.getValue().trim(),</span>
+<span class="nc" id="L144">                proxyPasswordProperty.getValue()</span>
+        ));
+<span class="nc" id="L146">    }</span>
+
+    private void storeRemoteSettings() {
+<span class="nc" id="L149">        RemotePreferences newRemotePreferences = new RemotePreferences(</span>
+<span class="nc" id="L150">                remotePreferences.getPort(),</span>
+<span class="nc" id="L151">                remoteServerProperty.getValue()</span>
+        );
+
+<span class="nc" id="L154">        getPortAsInt(remotePortProperty.getValue()).ifPresent(newPort -&gt; {</span>
+<span class="nc bnc" id="L155" title="All 2 branches missed.">            if (remotePreferences.isDifferentPort(newPort)) {</span>
+<span class="nc" id="L156">                remotePreferences.setPort(newPort);</span>
+            }
+<span class="nc" id="L158">        });</span>
+
+<span class="nc bnc" id="L160" title="All 2 branches missed.">        if (remoteServerProperty.getValue()) {</span>
+<span class="nc" id="L161">            remotePreferences.setUseRemoteServer(true);</span>
+<span class="nc" id="L162">            Globals.REMOTE_LISTENER.openAndStart(new JabRefMessageHandler(), remotePreferences.getPort(), preferences);</span>
+        } else {
+<span class="nc" id="L164">            remotePreferences.setUseRemoteServer(false);</span>
+<span class="nc" id="L165">            Globals.REMOTE_LISTENER.stop();</span>
+        }
+<span class="nc" id="L167">    }</span>
+
+    private void storeProxySettings(ProxyPreferences newProxyPreferences) {
+<span class="nc bnc" id="L170" title="All 2 branches missed.">        if (!newProxyPreferences.equals(proxyPreferences)) {</span>
+<span class="nc" id="L171">            ProxyRegisterer.register(newProxyPreferences);</span>
+        }
+
+<span class="nc" id="L174">        proxyPreferences.setUseProxy(newProxyPreferences.shouldUseProxy());</span>
+<span class="nc" id="L175">        proxyPreferences.setHostname(newProxyPreferences.getHostname());</span>
+<span class="nc" id="L176">        proxyPreferences.setPort(newProxyPreferences.getPort());</span>
+<span class="nc" id="L177">        proxyPreferences.setUseAuthentication(newProxyPreferences.shouldUseAuthentication());</span>
+<span class="nc" id="L178">        proxyPreferences.setUsername(newProxyPreferences.getUsername());</span>
+<span class="nc" id="L179">        proxyPreferences.setPassword(newProxyPreferences.getPassword());</span>
+<span class="nc" id="L180">    }</span>
+
+    private Optional&lt;Integer&gt; getPortAsInt(String value) {
+        try {
+<span class="nc" id="L184">            return Optional.of(Integer.parseInt(value));</span>
+<span class="nc" id="L185">        } catch (NumberFormatException ex) {</span>
+<span class="nc" id="L186">            return Optional.empty();</span>
+        }
+    }
+
+    public ValidationStatus remotePortValidationStatus() {
+<span class="nc" id="L191">        return remotePortValidator.getValidationStatus();</span>
+    }
+
+    public ValidationStatus proxyHostnameValidationStatus() {
+<span class="nc" id="L195">        return proxyHostnameValidator.getValidationStatus();</span>
+    }
+
+    public ValidationStatus proxyPortValidationStatus() {
+<span class="nc" id="L199">        return proxyPortValidator.getValidationStatus();</span>
+    }
+
+    public ValidationStatus proxyUsernameValidationStatus() {
+<span class="nc" id="L203">        return proxyUsernameValidator.getValidationStatus();</span>
+    }
+
+    public ValidationStatus proxyPasswordValidationStatus() {
+<span class="nc" id="L207">        return proxyPasswordValidator.getValidationStatus();</span>
+    }
+
+    public boolean validateSettings() {
+<span class="nc" id="L211">        CompositeValidator validator = new CompositeValidator();</span>
+
+<span class="nc bnc" id="L213" title="All 2 branches missed.">        if (remoteServerProperty.getValue()) {</span>
+<span class="nc" id="L214">            validator.addValidators(remotePortValidator);</span>
+        }
+
+<span class="nc bnc" id="L217" title="All 2 branches missed.">        if (proxyUseProperty.getValue()) {</span>
+<span class="nc" id="L218">            validator.addValidators(proxyHostnameValidator);</span>
+<span class="nc" id="L219">            validator.addValidators(proxyPortValidator);</span>
+
+<span class="nc bnc" id="L221" title="All 2 branches missed.">            if (proxyUseAuthenticationProperty.getValue()) {</span>
+<span class="nc" id="L222">                validator.addValidators(proxyUsernameValidator);</span>
+<span class="nc" id="L223">                validator.addValidators(proxyPasswordValidator);</span>
+            }
+        }
+
+<span class="nc" id="L227">        ValidationStatus validationStatus = validator.getValidationStatus();</span>
+<span class="nc bnc" id="L228" title="All 2 branches missed.">        if (!validationStatus.isValid()) {</span>
+<span class="nc" id="L229">            validationStatus.getHighestMessage().ifPresent(message -&gt;</span>
+<span class="nc" id="L230">                    dialogService.showErrorDialogAndWait(message.getMessage()));</span>
+<span class="nc" id="L231">            return false;</span>
+        }
+<span class="nc" id="L233">        return true;</span>
+    }
+
+    /**
+     * Check the connection by using the given url. Used for validating the http proxy.
+     * The checking result will be appear when request finished.
+     * The checking result could be either success or fail, if fail, the cause will be displayed.
+     */
+    public void checkConnection() {
+<span class="nc" id="L242">        final String connectionSuccessText = Localization.lang(&quot;Connection successful!&quot;);</span>
+<span class="nc" id="L243">        final String connectionFailedText = Localization.lang(&quot;Connection failed!&quot;);</span>
+<span class="nc" id="L244">        final String dialogTitle = Localization.lang(&quot;Check Proxy Setting&quot;);</span>
+
+<span class="nc" id="L246">        final String testUrl = &quot;http://jabref.org&quot;;</span>
+
+        // Workaround for testing, since the URLDownload uses stored proxy settings, see
+        // preferences.storeProxyPreferences(...) below.
+<span class="nc" id="L250">        storeProxySettings(new ProxyPreferences(</span>
+<span class="nc" id="L251">                proxyUseProperty.getValue(),</span>
+<span class="nc" id="L252">                proxyHostnameProperty.getValue().trim(),</span>
+<span class="nc" id="L253">                proxyPortProperty.getValue().trim(),</span>
+<span class="nc" id="L254">                proxyUseAuthenticationProperty.getValue(),</span>
+<span class="nc" id="L255">                proxyUsernameProperty.getValue().trim(),</span>
+<span class="nc" id="L256">                proxyPasswordProperty.getValue()</span>
+        ));
+
+        URLDownload urlDownload;
+        try {
+<span class="nc" id="L261">            urlDownload = new URLDownload(testUrl);</span>
+<span class="nc bnc" id="L262" title="All 2 branches missed.">            if (urlDownload.canBeReached()) {</span>
+<span class="nc" id="L263">                dialogService.showInformationDialogAndWait(dialogTitle, connectionSuccessText);</span>
+            } else {
+<span class="nc" id="L265">                dialogService.showErrorDialogAndWait(dialogTitle, connectionFailedText);</span>
+            }
+<span class="nc" id="L267">        } catch (MalformedURLException e) {</span>
+            // Why would that happen? Because one of developers inserted a failing url in testUrl...
+<span class="nc" id="L269">        } catch (UnirestException e) {</span>
+<span class="nc" id="L270">            dialogService.showErrorDialogAndWait(dialogTitle, connectionFailedText);</span>
+<span class="nc" id="L271">        }</span>
+
+<span class="nc" id="L273">        storeProxySettings(backupProxyPreferences);</span>
+<span class="nc" id="L274">    }</span>
+
+    @Override
+    public List&lt;String&gt; getRestartWarnings() {
+<span class="nc" id="L278">        return restartWarning;</span>
+    }
+
+    public BooleanProperty remoteServerProperty() {
+<span class="nc" id="L282">        return remoteServerProperty;</span>
+    }
+
+    public StringProperty remotePortProperty() {
+<span class="nc" id="L286">        return remotePortProperty;</span>
+    }
+
+    public BooleanProperty proxyUseProperty() {
+<span class="nc" id="L290">        return proxyUseProperty;</span>
+    }
+
+    public StringProperty proxyHostnameProperty() {
+<span class="nc" id="L294">        return proxyHostnameProperty;</span>
+    }
+
+    public StringProperty proxyPortProperty() {
+<span class="nc" id="L298">        return proxyPortProperty;</span>
+    }
+
+    public BooleanProperty proxyUseAuthenticationProperty() {
+<span class="nc" id="L302">        return proxyUseAuthenticationProperty;</span>
+    }
+
+    public StringProperty proxyUsernameProperty() {
+<span class="nc" id="L306">        return proxyUsernameProperty;</span>
+    }
+
+    public StringProperty proxyPasswordProperty() {
+<span class="nc" id="L310">        return proxyPasswordProperty;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

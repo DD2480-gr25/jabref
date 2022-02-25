@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IsbnFetcher.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.importer.fetcher</a> &gt; <span class="el_source">IsbnFetcher.java</span></div><h1>IsbnFetcher.java</h1><pre class="source lang-java linenums">package org.jabref.logic.importer.fetcher;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.regex.Pattern;
+
+import org.jabref.logic.help.HelpFile;
+import org.jabref.logic.importer.EntryBasedFetcher;
+import org.jabref.logic.importer.FetcherException;
+import org.jabref.logic.importer.IdBasedFetcher;
+import org.jabref.logic.importer.ImportFormatPreferences;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.field.StandardField;
+import org.jabref.model.strings.StringUtil;
+import org.jabref.model.util.OptionalUtil;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Fetcher for ISBN trying ebook.de first, chimbori.com and then ottobib
+ */
+public class IsbnFetcher implements EntryBasedFetcher, IdBasedFetcher {
+
+<span class="fc" id="L26">    private static final Logger LOGGER = LoggerFactory.getLogger(IsbnFetcher.class);</span>
+<span class="fc" id="L27">    private static final Pattern NEWLINE_SPACE_PATTERN = Pattern.compile(&quot;\\n|\\r\\n|\\s&quot;);</span>
+    protected final ImportFormatPreferences importFormatPreferences;
+
+<span class="fc" id="L30">    public IsbnFetcher(ImportFormatPreferences importFormatPreferences) {</span>
+<span class="fc" id="L31">        this.importFormatPreferences = importFormatPreferences;</span>
+<span class="fc" id="L32">    }</span>
+
+    @Override
+    public String getName() {
+<span class="fc" id="L36">        return &quot;ISBN&quot;;</span>
+    }
+
+    @Override
+    public Optional&lt;HelpFile&gt; getHelpPage() {
+<span class="nc" id="L41">        return Optional.of(HelpFile.FETCHER_ISBN);</span>
+    }
+
+    @Override
+    public Optional&lt;BibEntry&gt; performSearchById(String identifier) throws FetcherException {
+<span class="fc bfc" id="L46" title="All 2 branches covered.">        if (StringUtil.isBlank(identifier)) {</span>
+<span class="fc" id="L47">            return Optional.empty();</span>
+        }
+        // remove any newlines and spaces.
+<span class="fc" id="L50">        identifier = NEWLINE_SPACE_PATTERN.matcher(identifier).replaceAll(&quot;&quot;);</span>
+
+<span class="fc" id="L52">        IsbnViaEbookDeFetcher isbnViaEbookDeFetcher = new IsbnViaEbookDeFetcher(importFormatPreferences);</span>
+<span class="fc" id="L53">        Optional&lt;BibEntry&gt; bibEntry = isbnViaEbookDeFetcher.performSearchById(identifier);</span>
+
+        // nothing found at ebook.de: try ottobib
+<span class="fc bfc" id="L56" title="All 2 branches covered.">        if (!bibEntry.isPresent()) {</span>
+<span class="fc" id="L57">            LOGGER.debug(&quot;No entry found at ebook.de; trying ottobib&quot;);</span>
+<span class="fc" id="L58">            IsbnViaOttoBibFetcher isbnViaOttoBibFetcher = new IsbnViaOttoBibFetcher(importFormatPreferences);</span>
+<span class="fc" id="L59">            bibEntry = isbnViaOttoBibFetcher.performSearchById(identifier);</span>
+        }
+
+<span class="fc" id="L62">        return bibEntry;</span>
+    }
+
+    @Override
+    public List&lt;BibEntry&gt; performSearch(BibEntry entry) throws FetcherException {
+<span class="fc" id="L67">        Optional&lt;String&gt; isbn = entry.getField(StandardField.ISBN);</span>
+<span class="pc bpc" id="L68" title="1 of 2 branches missed.">        if (isbn.isPresent()) {</span>
+<span class="fc" id="L69">            return OptionalUtil.toList(performSearchById(isbn.get()));</span>
+        } else {
+<span class="nc" id="L71">            return Collections.emptyList();</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ClipBoardManager.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui</a> &gt; <span class="el_source">ClipBoardManager.java</span></div><h1>ClipBoardManager.java</h1><pre class="source lang-java linenums">package org.jabref.gui;
+
+import java.awt.Toolkit;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.Transferable;
+import java.awt.datatransfer.UnsupportedFlavorException;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+
+import javafx.application.Platform;
+import javafx.scene.control.TextInputControl;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.DataFormat;
+import javafx.scene.input.MouseButton;
+
+import org.jabref.architecture.AllowedToUseAwt;
+import org.jabref.logic.bibtex.BibEntryWriter;
+import org.jabref.logic.bibtex.FieldWriter;
+import org.jabref.logic.importer.FetcherException;
+import org.jabref.logic.importer.ImportException;
+import org.jabref.logic.importer.ImportFormatReader;
+import org.jabref.logic.importer.ImportFormatReader.UnknownFormatImport;
+import org.jabref.logic.importer.ParseException;
+import org.jabref.logic.importer.fetcher.ArXiv;
+import org.jabref.logic.importer.fetcher.DoiFetcher;
+import org.jabref.logic.importer.fileformat.BibtexParser;
+import org.jabref.model.database.BibDatabaseMode;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.identifier.ArXivIdentifier;
+import org.jabref.model.entry.identifier.DOI;
+import org.jabref.model.util.OptionalUtil;
+import org.jabref.preferences.PreferencesService;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+@AllowedToUseAwt(&quot;Requires ava.awt.datatransfer.Clipboard&quot;)
+public class ClipBoardManager {
+
+<span class="fc" id="L46">    public static final DataFormat XML = new DataFormat(&quot;application/xml&quot;);</span>
+
+<span class="fc" id="L48">    private static final Logger LOGGER = LoggerFactory.getLogger(ClipBoardManager.class);</span>
+
+    private static Clipboard clipboard;
+    private static java.awt.datatransfer.Clipboard primary;
+    private static ImportFormatReader importFormatReader;
+    private final PreferencesService preferencesService;
+
+    public ClipBoardManager(PreferencesService preferencesService) {
+<span class="nc" id="L56">        this(Clipboard.getSystemClipboard(), Toolkit.getDefaultToolkit().getSystemSelection(), Globals.IMPORT_FORMAT_READER, preferencesService);</span>
+<span class="nc" id="L57">    }</span>
+
+<span class="nc" id="L59">    public ClipBoardManager(Clipboard clipboard, java.awt.datatransfer.Clipboard primary, ImportFormatReader importFormatReader, PreferencesService preferencesService) {</span>
+<span class="nc" id="L60">        ClipBoardManager.clipboard = clipboard;</span>
+<span class="nc" id="L61">        ClipBoardManager.primary = primary;</span>
+<span class="nc" id="L62">        ClipBoardManager.importFormatReader = importFormatReader;</span>
+
+<span class="nc" id="L64">        this.preferencesService = preferencesService;</span>
+<span class="nc" id="L65">    }</span>
+
+    /**
+     * Add X11 clipboard support to a text input control. It is necessary to call this method in every input where you
+     * want to use it: {@code ClipBoardManager.addX11Support(TextInputControl input);}.
+     *
+     * @param input the TextInputControl (e.g., TextField, TextArea, and children) where adding this functionality.
+     * @see &lt;a href=&quot;https://www.uninformativ.de/blog/postings/2017-04-02/0/POSTING-en.html&quot;&gt;Short summary for X11
+     * clipboards&lt;/a&gt;
+     * @see &lt;a href=&quot;https://unix.stackexchange.com/questions/139191/whats-the-difference-between-primary-selection-and-clipboard-buffer/139193#139193&quot;&gt;Longer
+     * text over clipboards&lt;/a&gt;
+     */
+    public static void addX11Support(TextInputControl input) {
+<span class="fc" id="L78">        input.selectedTextProperty().addListener(</span>
+                // using InvalidationListener because of https://bugs.openjdk.java.net/browse/JDK-8176270
+<span class="nc" id="L80">                observable -&gt; Platform.runLater(() -&gt; {</span>
+<span class="nc" id="L81">                    String newValue = input.getSelectedText();</span>
+<span class="nc bnc" id="L82" title="All 4 branches missed.">                    if (!newValue.isEmpty() &amp;&amp; (primary != null)) {</span>
+<span class="nc" id="L83">                        primary.setContents(new StringSelection(newValue), null);</span>
+                    }
+<span class="nc" id="L85">                }));</span>
+<span class="fc" id="L86">        input.setOnMouseClicked(event -&gt; {</span>
+<span class="nc bnc" id="L87" title="All 2 branches missed.">            if (event.getButton() == MouseButton.MIDDLE) {</span>
+<span class="nc" id="L88">                input.insertText(input.getCaretPosition(), getContentsPrimary());</span>
+            }
+<span class="nc" id="L90">        });</span>
+<span class="fc" id="L91">    }</span>
+
+    /**
+     * Get the String residing on the system clipboard.
+     *
+     * @return any text found on the Clipboard; if none found, return an empty String.
+     */
+    public static String getContents() {
+<span class="nc" id="L99">        String result = clipboard.getString();</span>
+<span class="nc bnc" id="L100" title="All 2 branches missed.">        if (result == null) {</span>
+<span class="nc" id="L101">            return &quot;&quot;;</span>
+        }
+<span class="nc" id="L103">        return result;</span>
+    }
+
+    /**
+     * Get the String residing on the primary clipboard (if it exists).
+     *
+     * @return any text found on the primary Clipboard; if none found, try with the system clipboard.
+     */
+    public static String getContentsPrimary() {
+<span class="nc bnc" id="L112" title="All 2 branches missed.">        if (primary != null) {</span>
+<span class="nc" id="L113">            Transferable contents = primary.getContents(null);</span>
+<span class="nc bnc" id="L114" title="All 4 branches missed.">            if ((contents != null) &amp;&amp; contents.isDataFlavorSupported(DataFlavor.stringFlavor)) {</span>
+                try {
+<span class="nc" id="L116">                    return (String) contents.getTransferData(DataFlavor.stringFlavor);</span>
+<span class="nc" id="L117">                } catch (UnsupportedFlavorException | IOException e) {</span>
+<span class="nc" id="L118">                    LOGGER.warn(e.getMessage());</span>
+                }
+            }
+        }
+<span class="nc" id="L122">        return getContents();</span>
+    }
+
+    /**
+     * Puts content onto the system clipboard.
+     *
+     * @param content the ClipboardContent to set as current value of the system clipboard.
+     */
+    public void setContent(ClipboardContent content) {
+<span class="nc" id="L131">        clipboard.setContent(content);</span>
+<span class="nc" id="L132">        setPrimaryClipboardContent(content);</span>
+<span class="nc" id="L133">    }</span>
+
+    /**
+     * Puts content onto the primary clipboard (if it exists).
+     *
+     * @param content the ClipboardContent to set as current value of the primary clipboard.
+     */
+    public void setPrimaryClipboardContent(ClipboardContent content) {
+<span class="nc bnc" id="L141" title="All 2 branches missed.">        if (primary != null) {</span>
+<span class="nc" id="L142">            primary.setContents(new StringSelection(content.getString()), null);</span>
+        }
+<span class="nc" id="L144">    }</span>
+
+    public void setHtmlContent(String html, String fallbackPlain) {
+<span class="nc" id="L147">        final ClipboardContent content = new ClipboardContent();</span>
+<span class="nc" id="L148">        content.putHtml(html);</span>
+<span class="nc" id="L149">        content.putString(fallbackPlain);</span>
+<span class="nc" id="L150">        clipboard.setContent(content);</span>
+<span class="nc" id="L151">        setPrimaryClipboardContent(content);</span>
+<span class="nc" id="L152">    }</span>
+
+    public void setContent(String string) {
+<span class="nc" id="L155">        final ClipboardContent content = new ClipboardContent();</span>
+<span class="nc" id="L156">        content.putString(string);</span>
+<span class="nc" id="L157">        clipboard.setContent(content);</span>
+<span class="nc" id="L158">        setPrimaryClipboardContent(content);</span>
+<span class="nc" id="L159">    }</span>
+
+    public void setContent(List&lt;BibEntry&gt; entries) throws IOException {
+<span class="nc" id="L162">        final ClipboardContent content = new ClipboardContent();</span>
+<span class="nc" id="L163">        BibEntryWriter writer = new BibEntryWriter(new FieldWriter(preferencesService.getFieldWriterPreferences()), Globals.entryTypesManager);</span>
+<span class="nc" id="L164">        String serializedEntries = writer.serializeAll(entries, BibDatabaseMode.BIBTEX);</span>
+<span class="nc" id="L165">        content.put(DragAndDropDataFormats.ENTRIES, serializedEntries);</span>
+<span class="nc" id="L166">        content.putString(serializedEntries);</span>
+<span class="nc" id="L167">        clipboard.setContent(content);</span>
+<span class="nc" id="L168">        setPrimaryClipboardContent(content);</span>
+<span class="nc" id="L169">    }</span>
+
+    public List&lt;BibEntry&gt; extractData() {
+<span class="nc" id="L172">        Object entries = clipboard.getContent(DragAndDropDataFormats.ENTRIES);</span>
+
+<span class="nc bnc" id="L174" title="All 2 branches missed.">        if (entries == null) {</span>
+<span class="nc" id="L175">            return handleStringData(clipboard.getString());</span>
+        }
+<span class="nc" id="L177">        return handleBibTeXData((String) entries);</span>
+    }
+
+    private List&lt;BibEntry&gt; handleBibTeXData(String entries) {
+<span class="nc" id="L181">        BibtexParser parser = new BibtexParser(preferencesService.getImportFormatPreferences(), Globals.getFileUpdateMonitor());</span>
+        try {
+<span class="nc" id="L183">            return parser.parseEntries(new ByteArrayInputStream(entries.getBytes(StandardCharsets.UTF_8)));</span>
+<span class="nc" id="L184">        } catch (ParseException ex) {</span>
+<span class="nc" id="L185">            LOGGER.error(&quot;Could not paste&quot;, ex);</span>
+<span class="nc" id="L186">            return Collections.emptyList();</span>
+        }
+    }
+
+    private List&lt;BibEntry&gt; handleStringData(String data) {
+<span class="nc bnc" id="L191" title="All 4 branches missed.">        if ((data == null) || data.isEmpty()) {</span>
+<span class="nc" id="L192">            return Collections.emptyList();</span>
+        }
+
+<span class="nc" id="L195">        Optional&lt;DOI&gt; doi = DOI.parse(data);</span>
+<span class="nc bnc" id="L196" title="All 2 branches missed.">        if (doi.isPresent()) {</span>
+<span class="nc" id="L197">            return fetchByDOI(doi.get());</span>
+        }
+<span class="nc" id="L199">        Optional&lt;ArXivIdentifier&gt; arXiv = ArXivIdentifier.parse(data);</span>
+<span class="nc bnc" id="L200" title="All 2 branches missed.">        if (arXiv.isPresent()) {</span>
+<span class="nc" id="L201">            return fetchByArXiv(arXiv.get());</span>
+        }
+
+<span class="nc" id="L204">        return tryImportFormats(data);</span>
+    }
+
+    private List&lt;BibEntry&gt; tryImportFormats(String data) {
+        try {
+<span class="nc" id="L209">            UnknownFormatImport unknownFormatImport = importFormatReader.importUnknownFormat(data);</span>
+<span class="nc" id="L210">            return unknownFormatImport.parserResult.getDatabase().getEntries();</span>
+<span class="nc" id="L211">        } catch (ImportException ignored) {</span>
+<span class="nc" id="L212">            return Collections.emptyList();</span>
+        }
+    }
+
+    private List&lt;BibEntry&gt; fetchByDOI(DOI doi) {
+<span class="nc" id="L217">        LOGGER.info(&quot;Found DOI in clipboard&quot;);</span>
+        try {
+<span class="nc" id="L219">            Optional&lt;BibEntry&gt; entry = new DoiFetcher(preferencesService.getImportFormatPreferences()).performSearchById(doi.getDOI());</span>
+<span class="nc" id="L220">            return OptionalUtil.toList(entry);</span>
+<span class="nc" id="L221">        } catch (FetcherException ex) {</span>
+<span class="nc" id="L222">            LOGGER.error(&quot;Error while fetching&quot;, ex);</span>
+<span class="nc" id="L223">            return Collections.emptyList();</span>
+        }
+    }
+
+    private List&lt;BibEntry&gt; fetchByArXiv(ArXivIdentifier arXivIdentifier) {
+<span class="nc" id="L228">        LOGGER.info(&quot;Found arxiv identifier in clipboard&quot;);</span>
+        try {
+<span class="nc" id="L230">            Optional&lt;BibEntry&gt; entry = new ArXiv(preferencesService.getImportFormatPreferences()).performSearchById(arXivIdentifier.getNormalizedWithoutVersion());</span>
+<span class="nc" id="L231">            return OptionalUtil.toList(entry);</span>
+<span class="nc" id="L232">        } catch (FetcherException ex) {</span>
+<span class="nc" id="L233">            LOGGER.error(&quot;Error while fetching&quot;, ex);</span>
+<span class="nc" id="L234">            return Collections.emptyList();</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

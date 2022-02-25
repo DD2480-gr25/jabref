@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WebSearchPaneViewModel.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.importer.fetcher</a> &gt; <span class="el_source">WebSearchPaneViewModel.java</span></div><h1>WebSearchPaneViewModel.java</h1><pre class="source lang-java linenums">package org.jabref.gui.importer.fetcher;
+
+import java.util.Map;
+import java.util.SortedSet;
+
+import javafx.beans.property.ListProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleListProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+
+import org.jabref.gui.DialogService;
+import org.jabref.gui.Globals;
+import org.jabref.gui.StateManager;
+import org.jabref.gui.importer.ImportEntriesDialog;
+import org.jabref.gui.util.BackgroundTask;
+import org.jabref.logic.importer.ParserResult;
+import org.jabref.logic.importer.SearchBasedFetcher;
+import org.jabref.logic.importer.WebFetchers;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.model.strings.StringUtil;
+import org.jabref.preferences.PreferencesService;
+import org.jabref.preferences.SidePanePreferences;
+
+import com.tobiasdiez.easybind.EasyBind;
+import de.saxsys.mvvmfx.utils.validation.FunctionBasedValidator;
+import de.saxsys.mvvmfx.utils.validation.ValidationMessage;
+import de.saxsys.mvvmfx.utils.validation.ValidationStatus;
+import de.saxsys.mvvmfx.utils.validation.Validator;
+import org.apache.lucene.queryparser.flexible.core.QueryNodeParseException;
+import org.apache.lucene.queryparser.flexible.core.parser.SyntaxParser;
+import org.apache.lucene.queryparser.flexible.standard.parser.ParseException;
+import org.apache.lucene.queryparser.flexible.standard.parser.StandardSyntaxParser;
+
+import static org.jabref.logic.importer.fetcher.transformers.AbstractQueryTransformer.NO_EXPLICIT_FIELD;
+
+public class WebSearchPaneViewModel {
+
+<span class="fc" id="L42">    private final ObjectProperty&lt;SearchBasedFetcher&gt; selectedFetcher = new SimpleObjectProperty&lt;&gt;();</span>
+<span class="fc" id="L43">    private final ListProperty&lt;SearchBasedFetcher&gt; fetchers = new SimpleListProperty&lt;&gt;(FXCollections.observableArrayList());</span>
+<span class="fc" id="L44">    private final StringProperty query = new SimpleStringProperty();</span>
+    private final DialogService dialogService;
+    private final StateManager stateManager;
+
+    private final Validator searchQueryValidator;
+<span class="fc" id="L49">    private final SyntaxParser parser = new StandardSyntaxParser();</span>
+
+<span class="fc" id="L51">    public WebSearchPaneViewModel(PreferencesService preferencesService, DialogService dialogService, StateManager stateManager) {</span>
+<span class="fc" id="L52">        this.dialogService = dialogService;</span>
+<span class="fc" id="L53">        this.stateManager = stateManager;</span>
+
+<span class="fc" id="L55">        SortedSet&lt;SearchBasedFetcher&gt; allFetchers = WebFetchers.getSearchBasedFetchers(preferencesService.getImportFormatPreferences());</span>
+<span class="fc" id="L56">        fetchers.setAll(allFetchers);</span>
+
+        // Choose last-selected fetcher as default
+<span class="fc" id="L59">        SidePanePreferences sidePanePreferences = preferencesService.getSidePanePreferences();</span>
+<span class="fc" id="L60">        int defaultFetcherIndex = sidePanePreferences.getWebSearchFetcherSelected();</span>
+<span class="pc bpc" id="L61" title="3 of 4 branches missed.">        if ((defaultFetcherIndex &lt;= 0) || (defaultFetcherIndex &gt;= fetchers.size())) {</span>
+<span class="fc" id="L62">            selectedFetcherProperty().setValue(fetchers.get(0));</span>
+        } else {
+<span class="nc" id="L64">            selectedFetcherProperty().setValue(fetchers.get(defaultFetcherIndex));</span>
+        }
+<span class="fc" id="L66">        EasyBind.subscribe(selectedFetcherProperty(), newFetcher -&gt; {</span>
+<span class="fc" id="L67">            int newIndex = fetchers.indexOf(newFetcher);</span>
+<span class="fc" id="L68">            sidePanePreferences.setWebSearchFetcherSelected(newIndex);</span>
+<span class="fc" id="L69">        });</span>
+
+<span class="fc" id="L71">        searchQueryValidator = new FunctionBasedValidator&lt;&gt;(</span>
+                query,
+                queryText -&gt; {
+<span class="fc bfc" id="L74" title="All 2 branches covered.">                    if (StringUtil.isBlank(queryText)) {</span>
+                        // in case user did not enter something, it is treated as valid (to avoid UI WTFs)
+<span class="fc" id="L76">                        return null;</span>
+                    }
+                    try {
+<span class="fc" id="L79">                        parser.parse(queryText, NO_EXPLICIT_FIELD);</span>
+<span class="fc" id="L80">                        return null;</span>
+<span class="fc" id="L81">                    } catch (ParseException e) {</span>
+<span class="fc" id="L82">                        String element = e.currentToken.image;</span>
+<span class="fc" id="L83">                        int position = e.currentToken.beginColumn;</span>
+<span class="fc bfc" id="L84" title="All 2 branches covered.">                        if (element == null) {</span>
+<span class="fc" id="L85">                            return ValidationMessage.error(Localization.lang(&quot;Invalid query. Check position %0.&quot;, position));</span>
+                        } else {
+<span class="fc" id="L87">                            return ValidationMessage.error(Localization.lang(&quot;Invalid query element '%0' at position %1&quot;, element, position));</span>
+                        }
+<span class="nc" id="L89">                    } catch (QueryNodeParseException e) {</span>
+<span class="nc" id="L90">                        return ValidationMessage.error(&quot;&quot;);</span>
+                    }
+                });
+<span class="fc" id="L93">    }</span>
+
+    public ObservableList&lt;SearchBasedFetcher&gt; getFetchers() {
+<span class="nc" id="L96">        return fetchers.get();</span>
+    }
+
+    public ListProperty&lt;SearchBasedFetcher&gt; fetchersProperty() {
+<span class="nc" id="L100">        return fetchers;</span>
+    }
+
+    public SearchBasedFetcher getSelectedFetcher() {
+<span class="nc" id="L104">        return selectedFetcher.get();</span>
+    }
+
+    public ObjectProperty&lt;SearchBasedFetcher&gt; selectedFetcherProperty() {
+<span class="fc" id="L108">        return selectedFetcher;</span>
+    }
+
+    public String getQuery() {
+<span class="nc" id="L112">        return query.get();</span>
+    }
+
+    public StringProperty queryProperty() {
+<span class="fc" id="L116">        return query;</span>
+    }
+
+    public void search() {
+<span class="nc" id="L120">        String query = getQuery().trim();</span>
+<span class="nc bnc" id="L121" title="All 2 branches missed.">        if (StringUtil.isBlank(query)) {</span>
+<span class="nc" id="L122">            dialogService.notify(Localization.lang(&quot;Please enter a search string&quot;));</span>
+<span class="nc" id="L123">            return;</span>
+        }
+<span class="nc bnc" id="L125" title="All 2 branches missed.">        if (stateManager.getActiveDatabase().isEmpty()) {</span>
+<span class="nc" id="L126">            dialogService.notify(Localization.lang(&quot;Please open or start a new library before searching&quot;));</span>
+<span class="nc" id="L127">            return;</span>
+        }
+
+<span class="nc" id="L130">        SearchBasedFetcher activeFetcher = getSelectedFetcher();</span>
+<span class="nc" id="L131">        Globals.getTelemetryClient().ifPresent(client -&gt; client.trackEvent(&quot;search&quot;, Map.of(&quot;fetcher&quot;, activeFetcher.getName()), Map.of()));</span>
+
+        BackgroundTask&lt;ParserResult&gt; task;
+<span class="nc" id="L134">        task = BackgroundTask.wrap(() -&gt; new ParserResult(activeFetcher.performSearch(query)))</span>
+<span class="nc" id="L135">                             .withInitialMessage(Localization.lang(&quot;Processing %0&quot;, query));</span>
+<span class="nc" id="L136">        task.onFailure(dialogService::showErrorDialogAndWait);</span>
+
+<span class="nc" id="L138">        ImportEntriesDialog dialog = new ImportEntriesDialog(stateManager.getActiveDatabase().get(), task);</span>
+<span class="nc" id="L139">        dialog.setTitle(activeFetcher.getName());</span>
+<span class="nc" id="L140">        dialogService.showCustomDialogAndWait(dialog);</span>
+<span class="nc" id="L141">    }</span>
+
+    public ValidationStatus queryValidationStatus() {
+<span class="fc" id="L144">        return searchQueryValidator.getValidationStatus();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

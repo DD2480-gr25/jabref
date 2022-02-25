@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MathSciNet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.importer.fetcher</a> &gt; <span class="el_source">MathSciNet.java</span></div><h1>MathSciNet.java</h1><pre class="source lang-java linenums">package org.jabref.logic.importer.fetcher;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import org.jabref.logic.cleanup.DoiCleanup;
+import org.jabref.logic.cleanup.FieldFormatterCleanup;
+import org.jabref.logic.cleanup.MoveFieldCleanup;
+import org.jabref.logic.formatter.bibtexfields.ClearFormatter;
+import org.jabref.logic.importer.EntryBasedParserFetcher;
+import org.jabref.logic.importer.FetcherException;
+import org.jabref.logic.importer.IdBasedParserFetcher;
+import org.jabref.logic.importer.ImportFormatPreferences;
+import org.jabref.logic.importer.Parser;
+import org.jabref.logic.importer.SearchBasedParserFetcher;
+import org.jabref.logic.importer.fetcher.transformers.DefaultQueryTransformer;
+import org.jabref.logic.importer.fileformat.BibtexParser;
+import org.jabref.logic.util.OS;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.field.StandardField;
+import org.jabref.model.entry.field.UnknownField;
+import org.jabref.model.util.DummyFileUpdateMonitor;
+
+import org.apache.http.client.utils.URIBuilder;
+import org.apache.lucene.queryparser.flexible.core.nodes.QueryNode;
+
+/**
+ * Fetches data from the MathSciNet (http://www.ams.org/mathscinet)
+ */
+public class MathSciNet implements SearchBasedParserFetcher, EntryBasedParserFetcher, IdBasedParserFetcher {
+
+    private final ImportFormatPreferences preferences;
+
+<span class="fc" id="L44">    public MathSciNet(ImportFormatPreferences preferences) {</span>
+<span class="fc" id="L45">        this.preferences = Objects.requireNonNull(preferences);</span>
+<span class="fc" id="L46">    }</span>
+
+    @Override
+    public String getName() {
+<span class="fc" id="L50">        return &quot;MathSciNet&quot;;</span>
+    }
+
+    /**
+     * We use MR Lookup (http://www.ams.org/mrlookup) instead of the usual search since this tool is also available
+     * without subscription and, moreover, is optimized for finding a publication based on partial information.
+     */
+    @Override
+    public URL getURLForEntry(BibEntry entry) throws URISyntaxException, MalformedURLException, FetcherException {
+<span class="fc" id="L59">        Optional&lt;String&gt; mrNumberInEntry = entry.getField(StandardField.MR_NUMBER);</span>
+<span class="fc bfc" id="L60" title="All 2 branches covered.">        if (mrNumberInEntry.isPresent()) {</span>
+            // We are lucky and already know the id, so use it instead
+<span class="fc" id="L62">            return getUrlForIdentifier(mrNumberInEntry.get());</span>
+        }
+
+<span class="fc" id="L65">        URIBuilder uriBuilder = new URIBuilder(&quot;https://mathscinet.ams.org/mrlookup&quot;);</span>
+<span class="fc" id="L66">        uriBuilder.addParameter(&quot;format&quot;, &quot;bibtex&quot;);</span>
+
+<span class="fc" id="L68">        entry.getFieldOrAlias(StandardField.TITLE).ifPresent(title -&gt; uriBuilder.addParameter(&quot;ti&quot;, title));</span>
+<span class="fc" id="L69">        entry.getFieldOrAlias(StandardField.AUTHOR).ifPresent(author -&gt; uriBuilder.addParameter(&quot;au&quot;, author));</span>
+<span class="fc" id="L70">        entry.getFieldOrAlias(StandardField.JOURNAL).ifPresent(journal -&gt; uriBuilder.addParameter(&quot;jrnl&quot;, journal));</span>
+<span class="pc" id="L71">        entry.getFieldOrAlias(StandardField.YEAR).ifPresent(year -&gt; uriBuilder.addParameter(&quot;year&quot;, year));</span>
+
+<span class="fc" id="L73">        return uriBuilder.build().toURL();</span>
+    }
+
+    @Override
+    public URL getURLForQuery(QueryNode luceneQuery) throws URISyntaxException, MalformedURLException, FetcherException {
+<span class="fc" id="L78">        URIBuilder uriBuilder = new URIBuilder(&quot;https://mathscinet.ams.org/mathscinet/search/publications.html&quot;);</span>
+<span class="fc" id="L79">        uriBuilder.addParameter(&quot;pg7&quot;, &quot;ALLF&quot;); // search all fields</span>
+<span class="fc" id="L80">        uriBuilder.addParameter(&quot;s7&quot;, new DefaultQueryTransformer().transformLuceneQuery(luceneQuery).orElse(&quot;&quot;)); // query</span>
+<span class="fc" id="L81">        uriBuilder.addParameter(&quot;r&quot;, &quot;1&quot;); // start index</span>
+<span class="fc" id="L82">        uriBuilder.addParameter(&quot;extend&quot;, &quot;1&quot;); // should return up to 100 items (instead of default 10)</span>
+<span class="fc" id="L83">        uriBuilder.addParameter(&quot;fmt&quot;, &quot;bibtex&quot;); // BibTeX format</span>
+<span class="fc" id="L84">        return uriBuilder.build().toURL();</span>
+    }
+
+    @Override
+    public URL getUrlForIdentifier(String identifier) throws URISyntaxException, MalformedURLException, FetcherException {
+<span class="fc" id="L89">        URIBuilder uriBuilder = new URIBuilder(&quot;https://mathscinet.ams.org/mathscinet/search/publications.html&quot;);</span>
+<span class="fc" id="L90">        uriBuilder.addParameter(&quot;pg1&quot;, &quot;MR&quot;); // search MR number</span>
+<span class="fc" id="L91">        uriBuilder.addParameter(&quot;s1&quot;, identifier); // identifier</span>
+<span class="fc" id="L92">        uriBuilder.addParameter(&quot;fmt&quot;, &quot;bibtex&quot;); // BibTeX format</span>
+<span class="fc" id="L93">        return uriBuilder.build().toURL();</span>
+    }
+
+    @Override
+    public Parser getParser() {
+        // MathSciNet returns the BibTeX result embedded in HTML
+        // So we extract the BibTeX string from the &lt;pre&gt;bibtex&lt;/pre&gt; tags and pass the content to the BibTeX parser
+<span class="fc" id="L100">        return inputStream -&gt; {</span>
+<span class="fc" id="L101">            String response = new BufferedReader(new InputStreamReader(inputStream)).lines().collect(Collectors.joining(OS.NEWLINE));</span>
+
+<span class="fc" id="L103">            List&lt;BibEntry&gt; entries = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L104">            BibtexParser bibtexParser = new BibtexParser(preferences, new DummyFileUpdateMonitor());</span>
+<span class="fc" id="L105">            Pattern pattern = Pattern.compile(&quot;&lt;pre&gt;(?s)(.*)&lt;/pre&gt;&quot;);</span>
+<span class="fc" id="L106">            Matcher matcher = pattern.matcher(response);</span>
+<span class="fc bfc" id="L107" title="All 2 branches covered.">            while (matcher.find()) {</span>
+<span class="fc" id="L108">                String bibtexEntryString = matcher.group();</span>
+<span class="fc" id="L109">                entries.addAll(bibtexParser.parseEntries(bibtexEntryString));</span>
+<span class="fc" id="L110">            }</span>
+<span class="fc" id="L111">            return entries;</span>
+        };
+    }
+
+    @Override
+    public void doPostCleanup(BibEntry entry) {
+<span class="fc" id="L117">        new MoveFieldCleanup(new UnknownField(&quot;fjournal&quot;), StandardField.JOURNAL).cleanup(entry);</span>
+<span class="fc" id="L118">        new MoveFieldCleanup(new UnknownField(&quot;mrclass&quot;), StandardField.KEYWORDS).cleanup(entry);</span>
+<span class="fc" id="L119">        new FieldFormatterCleanup(new UnknownField(&quot;mrreviewer&quot;), new ClearFormatter()).cleanup(entry);</span>
+<span class="fc" id="L120">        new DoiCleanup().cleanup(entry);</span>
+<span class="fc" id="L121">        new FieldFormatterCleanup(StandardField.URL, new ClearFormatter()).cleanup(entry);</span>
+
+        // Remove comments: MathSciNet prepends a &lt;pre&gt; html tag
+<span class="fc" id="L124">        entry.setCommentsBeforeEntry(&quot;&quot;);</span>
+<span class="fc" id="L125">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

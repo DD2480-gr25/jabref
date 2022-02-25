@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CSLAdapter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.citationstyle</a> &gt; <span class="el_source">CSLAdapter.java</span></div><h1>CSLAdapter.java</h1><pre class="source lang-java linenums">package org.jabref.logic.citationstyle;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+
+import org.jabref.logic.formatter.bibtexfields.RemoveNewlinesFormatter;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.BibEntryType;
+import org.jabref.model.entry.BibEntryTypesManager;
+import org.jabref.model.entry.Month;
+import org.jabref.model.entry.field.Field;
+import org.jabref.model.entry.field.StandardField;
+import org.jabref.model.strings.LatexToUnicodeAdapter;
+
+import de.undercouch.citeproc.CSL;
+import de.undercouch.citeproc.DefaultAbbreviationProvider;
+import de.undercouch.citeproc.ItemDataProvider;
+import de.undercouch.citeproc.bibtex.BibTeXConverter;
+import de.undercouch.citeproc.csl.CSLItemData;
+import de.undercouch.citeproc.output.Bibliography;
+import org.jbibtex.BibTeXEntry;
+import org.jbibtex.DigitStringValue;
+import org.jbibtex.Key;
+
+/**
+ * Provides an adapter class to CSL. It holds a CSL instance under the hood that is only recreated when
+ * the style changes.
+ *
+ * @apiNote The first call to {@link #makeBibliography} is expensive since the
+ * CSL instance will be created. As long as the style stays the same, we can reuse this instance. On style-change, the
+ * engine is re-instantiated. Therefore, the use-case of this class is many calls to {@link #makeBibliography} with the
+ * same style. Changing the output format is cheap.
+ * @implNote The main function {@link #makeBibliography} will enforce
+ * synchronized calling. The main CSL engine under the hood is not thread-safe. Since this class is usually called from
+ * a BackgroundTakk, the only other option would be to create several CSL instances which is wasting a lot of resources and very slow.
+ * In the current scheme, {@link #makeBibliography} can be called as usual
+ * background task and to the best of my knowledge, concurrent calls will pile up and processed sequentially.
+ */
+<span class="fc" id="L46">public class CSLAdapter {</span>
+
+<span class="fc" id="L48">    private static final BibTeXConverter BIBTEX_CONVERTER = new BibTeXConverter();</span>
+<span class="fc" id="L49">    private final JabRefItemDataProvider dataProvider = new JabRefItemDataProvider();</span>
+    private String style;
+    private CitationStyleOutputFormat format;
+    private CSL cslInstance;
+
+    /**
+     * Creates the bibliography of the provided items. This method needs to run synchronized because the underlying
+     * CSL engine is not thread-safe.
+     * @param databaseContext {@link BibDatabaseContext} is used to be able to resolve fields and their aliases
+     */
+    public synchronized List&lt;String&gt; makeBibliography(List&lt;BibEntry&gt; bibEntries, String style, CitationStyleOutputFormat outputFormat, BibDatabaseContext databaseContext, BibEntryTypesManager entryTypesManager) throws IOException, IllegalArgumentException {
+<span class="fc" id="L60">        dataProvider.setData(bibEntries, databaseContext, entryTypesManager);</span>
+<span class="fc" id="L61">        initialize(style, outputFormat);</span>
+<span class="fc" id="L62">        cslInstance.registerCitationItems(dataProvider.getIds());</span>
+<span class="fc" id="L63">        final Bibliography bibliography = cslInstance.makeBibliography();</span>
+<span class="fc" id="L64">        return Arrays.asList(bibliography.getEntries());</span>
+    }
+
+    /**
+     * Initialized the static CSL instance if needed.
+     *
+     * @param newStyle  journal style of the output
+     * @param newFormat usually HTML or RTF.
+     * @throws IOException An error occurred in the underlying JavaScript framework
+     */
+    private void initialize(String newStyle, CitationStyleOutputFormat newFormat) throws IOException {
+<span class="fc bfc" id="L75" title="All 4 branches covered.">        if ((cslInstance == null) || !Objects.equals(newStyle, style)) {</span>
+            // lang and forceLang are set to the default values of other CSL constructors
+<span class="fc" id="L77">            cslInstance = new CSL(dataProvider, new JabRefLocaleProvider(),</span>
+                    new DefaultAbbreviationProvider(), newStyle, &quot;en-US&quot;);
+<span class="fc" id="L79">            style = newStyle;</span>
+        }
+
+<span class="fc bfc" id="L82" title="All 2 branches covered.">        if (!Objects.equals(newFormat, format)) {</span>
+<span class="fc" id="L83">            cslInstance.setOutputFormat(newFormat.getFormat());</span>
+<span class="fc" id="L84">            format = newFormat;</span>
+        }
+<span class="fc" id="L86">    }</span>
+
+    /**
+     * Custom ItemDataProvider that allows to set the data so that we don't have to instantiate a new CSL object
+     * every time.
+     */
+<span class="fc" id="L92">    private static class JabRefItemDataProvider implements ItemDataProvider {</span>
+
+<span class="fc" id="L94">        private final List&lt;BibEntry&gt; data = new ArrayList&lt;&gt;();</span>
+        private BibDatabaseContext bibDatabaseContext;
+        private BibEntryTypesManager entryTypesManager;
+
+        /**
+         * Converts the {@link BibEntry} into {@link CSLItemData}.
+         */
+        private static CSLItemData bibEntryToCSLItemData(BibEntry bibEntry, BibDatabaseContext bibDatabaseContext, BibEntryTypesManager entryTypesManager) {
+
+<span class="fc" id="L103">            String citeKey = bibEntry.getCitationKey().orElse(&quot;&quot;);</span>
+<span class="fc" id="L104">            BibTeXEntry bibTeXEntry = new BibTeXEntry(new Key(bibEntry.getType().getName()), new Key(citeKey));</span>
+
+            // Not every field is already generated into latex free fields
+<span class="fc" id="L107">            RemoveNewlinesFormatter removeNewlinesFormatter = new RemoveNewlinesFormatter();</span>
+
+<span class="fc" id="L109">            Optional&lt;BibEntryType&gt; entryType = entryTypesManager.enrich(bibEntry.getType(), bibDatabaseContext.getMode());</span>
+
+<span class="fc" id="L111">            Set&lt;Field&gt; fields = entryType.map(BibEntryType::getAllFields).orElse(bibEntry.getFields());</span>
+
+<span class="fc bfc" id="L113" title="All 2 branches covered.">            for (Field key : fields) {</span>
+<span class="fc" id="L114">                bibEntry.getResolvedFieldOrAlias(key, bibDatabaseContext.getDatabase())</span>
+<span class="fc" id="L115">                        .map(removeNewlinesFormatter::format)</span>
+<span class="fc" id="L116">                        .map(LatexToUnicodeAdapter::format)</span>
+<span class="fc" id="L117">                        .ifPresent(value -&gt; {</span>
+<span class="pc bpc" id="L118" title="1 of 2 branches missed.">                            if (StandardField.MONTH.equals(key)) {</span>
+                                // Change month from #mon# to mon because CSL does not support the former format
+<span class="nc" id="L120">                                value = bibEntry.getMonth().map(Month::getShortName).orElse(value);</span>
+                            }
+<span class="fc" id="L122">                            bibTeXEntry.addField(new Key(key.getName()), new DigitStringValue(value));</span>
+
+<span class="fc" id="L124">                        });</span>
+<span class="fc" id="L125">            }</span>
+<span class="fc" id="L126">            return BIBTEX_CONVERTER.toItemData(bibTeXEntry);</span>
+        }
+
+        public void setData(List&lt;BibEntry&gt; data, BibDatabaseContext bibDatabaseContext, BibEntryTypesManager entryTypesManager) {
+<span class="fc" id="L130">            this.data.clear();</span>
+<span class="fc" id="L131">            this.data.addAll(data);</span>
+<span class="fc" id="L132">            this.bibDatabaseContext = bibDatabaseContext;</span>
+<span class="fc" id="L133">            this.entryTypesManager = entryTypesManager;</span>
+<span class="fc" id="L134">        }</span>
+
+        @Override
+        public CSLItemData retrieveItem(String id) {
+<span class="fc" id="L138">            return data.stream()</span>
+<span class="fc" id="L139">                       .filter(entry -&gt; entry.getCitationKey().orElse(&quot;&quot;).equals(id))</span>
+<span class="fc" id="L140">                       .map(entry -&gt; JabRefItemDataProvider.bibEntryToCSLItemData(entry, bibDatabaseContext, entryTypesManager))</span>
+<span class="fc" id="L141">                       .findFirst().orElse(null);</span>
+        }
+
+        @Override
+        public Collection&lt;String&gt; getIds() {
+<span class="fc" id="L146">            return data.stream()</span>
+<span class="fc" id="L147">                       .map(entry -&gt; entry.getCitationKey().orElse(&quot;&quot;))</span>
+<span class="fc" id="L148">                       .toList();</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

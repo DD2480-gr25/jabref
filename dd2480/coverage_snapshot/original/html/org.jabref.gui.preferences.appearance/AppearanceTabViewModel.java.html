@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AppearanceTabViewModel.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.preferences.appearance</a> &gt; <span class="el_source">AppearanceTabViewModel.java</span></div><h1>AppearanceTabViewModel.java</h1><pre class="source lang-java linenums">package org.jabref.gui.preferences.appearance;
+
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+import javafx.scene.control.SpinnerValueFactory;
+
+import org.jabref.gui.DialogService;
+import org.jabref.gui.preferences.PreferenceTabViewModel;
+import org.jabref.gui.theme.Theme;
+import org.jabref.gui.util.FileDialogConfiguration;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.logic.util.StandardFileType;
+import org.jabref.model.strings.StringUtil;
+import org.jabref.preferences.AppearancePreferences;
+import org.jabref.preferences.PreferencesService;
+
+import de.saxsys.mvvmfx.utils.validation.CompositeValidator;
+import de.saxsys.mvvmfx.utils.validation.FunctionBasedValidator;
+import de.saxsys.mvvmfx.utils.validation.ValidationMessage;
+import de.saxsys.mvvmfx.utils.validation.ValidationStatus;
+import de.saxsys.mvvmfx.utils.validation.Validator;
+
+public class AppearanceTabViewModel implements PreferenceTabViewModel {
+
+<span class="nc" id="L27">    public static SpinnerValueFactory&lt;Integer&gt; fontSizeValueFactory =</span>
+            new SpinnerValueFactory.IntegerSpinnerValueFactory(9, Integer.MAX_VALUE);
+
+<span class="nc" id="L30">    private final BooleanProperty fontOverrideProperty = new SimpleBooleanProperty();</span>
+<span class="nc" id="L31">    private final StringProperty fontSizeProperty = new SimpleStringProperty();</span>
+<span class="nc" id="L32">    private final BooleanProperty themeLightProperty = new SimpleBooleanProperty();</span>
+<span class="nc" id="L33">    private final BooleanProperty themeDarkProperty = new SimpleBooleanProperty();</span>
+<span class="nc" id="L34">    private final BooleanProperty themeCustomProperty = new SimpleBooleanProperty();</span>
+<span class="nc" id="L35">    private final StringProperty customPathToThemeProperty = new SimpleStringProperty();</span>
+
+    private final DialogService dialogService;
+    private final PreferencesService preferences;
+    private final AppearancePreferences appearancePreferences;
+
+    private final Validator fontSizeValidator;
+    private final Validator customPathToThemeValidator;
+
+<span class="nc" id="L44">    public AppearanceTabViewModel(DialogService dialogService, PreferencesService preferences) {</span>
+<span class="nc" id="L45">        this.dialogService = dialogService;</span>
+<span class="nc" id="L46">        this.preferences = preferences;</span>
+<span class="nc" id="L47">        this.appearancePreferences = preferences.getAppearancePreferences();</span>
+
+<span class="nc" id="L49">        fontSizeValidator = new FunctionBasedValidator&lt;&gt;(</span>
+                fontSizeProperty,
+                input -&gt; {
+                    try {
+<span class="nc bnc" id="L53" title="All 2 branches missed.">                        return Integer.parseInt(fontSizeProperty().getValue()) &gt; 8;</span>
+<span class="nc" id="L54">                    } catch (NumberFormatException ex) {</span>
+<span class="nc" id="L55">                        return false;</span>
+                    }
+                },
+<span class="nc" id="L58">                ValidationMessage.error(String.format(&quot;%s &gt; %s %n %n %s&quot;,</span>
+<span class="nc" id="L59">                        Localization.lang(&quot;Appearance&quot;),</span>
+<span class="nc" id="L60">                        Localization.lang(&quot;Font settings&quot;),</span>
+<span class="nc" id="L61">                        Localization.lang(&quot;You must enter an integer value higher than 8.&quot;))));</span>
+
+<span class="nc" id="L63">        customPathToThemeValidator = new FunctionBasedValidator&lt;&gt;(</span>
+                customPathToThemeProperty,
+<span class="nc bnc" id="L65" title="All 2 branches missed.">                input -&gt; !StringUtil.isNullOrEmpty(input),</span>
+<span class="nc" id="L66">                ValidationMessage.error(String.format(&quot;%s &gt; %s %n %n %s&quot;,</span>
+<span class="nc" id="L67">                        Localization.lang(&quot;Appearance&quot;),</span>
+<span class="nc" id="L68">                        Localization.lang(&quot;Visual theme&quot;),</span>
+<span class="nc" id="L69">                        Localization.lang(&quot;Please specify a css theme file.&quot;))));</span>
+<span class="nc" id="L70">    }</span>
+
+    @Override
+    public void setValues() {
+<span class="nc" id="L74">        fontOverrideProperty.setValue(appearancePreferences.shouldOverrideDefaultFontSize());</span>
+<span class="nc" id="L75">        fontSizeProperty.setValue(String.valueOf(appearancePreferences.getMainFontSize()));</span>
+
+        // The light theme is in fact the absence of any theme modifying 'base.css'. Another embedded theme like
+        // 'dark.css', stored in the classpath, can be introduced in {@link org.jabref.gui.theme.Theme}.
+<span class="nc" id="L79">        Theme currentTheme = appearancePreferences.getTheme();</span>
+<span class="nc bnc" id="L80" title="All 2 branches missed.">        if (currentTheme.getType() == Theme.Type.DEFAULT) {</span>
+<span class="nc" id="L81">            themeLightProperty.setValue(true);</span>
+<span class="nc" id="L82">            themeDarkProperty.setValue(false);</span>
+<span class="nc" id="L83">            themeCustomProperty.setValue(false);</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">        } else if (currentTheme.getType() == Theme.Type.EMBEDDED) {</span>
+<span class="nc" id="L85">            themeLightProperty.setValue(false);</span>
+<span class="nc" id="L86">            themeDarkProperty.setValue(true);</span>
+<span class="nc" id="L87">            themeCustomProperty.setValue(false);</span>
+        } else {
+<span class="nc" id="L89">            themeLightProperty.setValue(false);</span>
+<span class="nc" id="L90">            themeDarkProperty.setValue(false);</span>
+<span class="nc" id="L91">            themeCustomProperty.setValue(true);</span>
+<span class="nc" id="L92">            customPathToThemeProperty.setValue(currentTheme.getName());</span>
+        }
+<span class="nc" id="L94">    }</span>
+
+    @Override
+    public void storeSettings() {
+<span class="nc" id="L98">        appearancePreferences.setShouldOverrideDefaultFontSize(fontOverrideProperty.getValue());</span>
+<span class="nc" id="L99">        appearancePreferences.setMainFontSize(Integer.parseInt(fontSizeProperty.getValue()));</span>
+
+<span class="nc bnc" id="L101" title="All 2 branches missed.">        if (themeLightProperty.getValue()) {</span>
+<span class="nc" id="L102">            appearancePreferences.setTheme(Theme.light());</span>
+<span class="nc bnc" id="L103" title="All 2 branches missed.">        } else if (themeDarkProperty.getValue()) {</span>
+<span class="nc" id="L104">            appearancePreferences.setTheme(Theme.dark());</span>
+<span class="nc bnc" id="L105" title="All 2 branches missed.">        } else if (themeCustomProperty.getValue()) {</span>
+<span class="nc" id="L106">            appearancePreferences.setTheme(Theme.custom(customPathToThemeProperty.getValue()));</span>
+        }
+<span class="nc" id="L108">    }</span>
+
+    public ValidationStatus fontSizeValidationStatus() {
+<span class="nc" id="L111">        return fontSizeValidator.getValidationStatus();</span>
+    }
+
+    public ValidationStatus customPathToThemeValidationStatus() {
+<span class="nc" id="L115">        return customPathToThemeValidator.getValidationStatus();</span>
+    }
+
+    @Override
+    public boolean validateSettings() {
+<span class="nc" id="L120">        CompositeValidator validator = new CompositeValidator();</span>
+
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        if (fontOverrideProperty.getValue()) {</span>
+<span class="nc" id="L123">            validator.addValidators(fontSizeValidator);</span>
+        }
+
+<span class="nc bnc" id="L126" title="All 2 branches missed.">        if (themeCustomProperty.getValue()) {</span>
+<span class="nc" id="L127">            validator.addValidators(customPathToThemeValidator);</span>
+        }
+
+<span class="nc" id="L130">        ValidationStatus validationStatus = validator.getValidationStatus();</span>
+<span class="nc bnc" id="L131" title="All 2 branches missed.">        if (!validationStatus.isValid()) {</span>
+<span class="nc" id="L132">            validationStatus.getHighestMessage().ifPresent(message -&gt;</span>
+<span class="nc" id="L133">                    dialogService.showErrorDialogAndWait(message.getMessage()));</span>
+<span class="nc" id="L134">            return false;</span>
+        }
+<span class="nc" id="L136">        return true;</span>
+    }
+
+    public BooleanProperty fontOverrideProperty() {
+<span class="nc" id="L140">        return fontOverrideProperty;</span>
+    }
+
+    public StringProperty fontSizeProperty() {
+<span class="nc" id="L144">        return fontSizeProperty;</span>
+    }
+
+    public BooleanProperty themeLightProperty() {
+<span class="nc" id="L148">        return themeLightProperty;</span>
+    }
+
+    public BooleanProperty themeDarkProperty() {
+<span class="nc" id="L152">        return themeDarkProperty;</span>
+    }
+
+    public BooleanProperty customThemeProperty() {
+<span class="nc" id="L156">        return themeCustomProperty;</span>
+    }
+
+    public StringProperty customPathToThemeProperty() {
+<span class="nc" id="L160">        return customPathToThemeProperty;</span>
+    }
+
+    public void importCSSFile() {
+<span class="nc" id="L164">        FileDialogConfiguration fileDialogConfiguration = new FileDialogConfiguration.Builder()</span>
+<span class="nc" id="L165">                .addExtensionFilter(StandardFileType.CSS)</span>
+<span class="nc" id="L166">                .withDefaultExtension(StandardFileType.CSS)</span>
+<span class="nc" id="L167">                .withInitialDirectory(preferences.getLastPreferencesExportPath()).build();</span>
+
+<span class="nc" id="L169">        dialogService.showFileOpenDialog(fileDialogConfiguration).ifPresent(file -&gt;</span>
+<span class="nc" id="L170">                customPathToThemeProperty.setValue(file.toAbsolutePath().toString()));</span>
+<span class="nc" id="L171">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

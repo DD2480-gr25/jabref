@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FileHistory.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.util.io</a> &gt; <span class="el_source">FileHistory.java</span></div><h1>FileHistory.java</h1><pre class="source lang-java linenums">package org.jabref.logic.util.io;
+
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Objects;
+
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+
+public class FileHistory {
+
+    private static final int HISTORY_SIZE = 8;
+
+    private final ObservableList&lt;Path&gt; history;
+
+<span class="fc" id="L16">    public FileHistory(List&lt;Path&gt; files) {</span>
+<span class="fc" id="L17">        history = FXCollections.observableList(Objects.requireNonNull(files));</span>
+<span class="fc" id="L18">    }</span>
+
+    public int size() {
+<span class="fc" id="L21">        return history.size();</span>
+    }
+
+    public boolean isEmpty() {
+<span class="fc" id="L25">        return history.isEmpty();</span>
+    }
+
+    /**
+     * Adds the file to the top of the list. If it already is in the list, it is merely moved to the top.
+     */
+    public void newFile(Path file) {
+<span class="fc" id="L32">        removeItem(file);</span>
+<span class="fc" id="L33">        history.add(0, file);</span>
+<span class="pc bpc" id="L34" title="1 of 2 branches missed.">        while (size() &gt; HISTORY_SIZE) {</span>
+<span class="nc" id="L35">            history.remove(HISTORY_SIZE);</span>
+        }
+<span class="fc" id="L37">    }</span>
+
+    public Path getFileAt(int index) {
+<span class="fc" id="L40">        return history.get(index);</span>
+    }
+
+    public void removeItem(Path file) {
+<span class="fc" id="L44">        history.remove(file);</span>
+<span class="fc" id="L45">    }</span>
+
+    public ObservableList&lt;Path&gt; getHistory() {
+<span class="fc" id="L48">        return history;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

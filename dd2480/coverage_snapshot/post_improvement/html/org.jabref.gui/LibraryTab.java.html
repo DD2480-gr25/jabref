@@ -1,0 +1,924 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LibraryTab.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui</a> &gt; <span class="el_source">LibraryTab.java</span></div><h1>LibraryTab.java</h1><pre class="source lang-java linenums">package org.jabref.gui;
+
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+
+import javafx.application.Platform;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.collections.ListChangeListener;
+import javafx.geometry.Orientation;
+import javafx.scene.Node;
+import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.SplitPane;
+import javafx.scene.control.Tab;
+import javafx.scene.control.Tooltip;
+import javafx.scene.layout.BorderPane;
+
+import org.jabref.gui.autocompleter.AutoCompletePreferences;
+import org.jabref.gui.autocompleter.PersonNameSuggestionProvider;
+import org.jabref.gui.autocompleter.SuggestionProviders;
+import org.jabref.gui.collab.DatabaseChangeMonitor;
+import org.jabref.gui.collab.DatabaseChangePane;
+import org.jabref.gui.dialogs.AutosaveUiManager;
+import org.jabref.gui.entryeditor.EntryEditor;
+import org.jabref.gui.externalfiletype.ExternalFileTypes;
+import org.jabref.gui.importer.actions.OpenDatabaseAction;
+import org.jabref.gui.maintable.MainTable;
+import org.jabref.gui.maintable.MainTableDataModel;
+import org.jabref.gui.theme.ThemeManager;
+import org.jabref.gui.undo.CountingUndoManager;
+import org.jabref.gui.undo.NamedCompound;
+import org.jabref.gui.undo.UndoableFieldChange;
+import org.jabref.gui.undo.UndoableInsertEntries;
+import org.jabref.gui.undo.UndoableRemoveEntries;
+import org.jabref.gui.util.BackgroundTask;
+import org.jabref.gui.util.DefaultTaskExecutor;
+import org.jabref.logic.autosaveandbackup.AutosaveManager;
+import org.jabref.logic.autosaveandbackup.BackupManager;
+import org.jabref.logic.citationstyle.CitationStyleCache;
+import org.jabref.logic.importer.ParserResult;
+import org.jabref.logic.importer.util.FileFieldParser;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.logic.pdf.FileAnnotationCache;
+import org.jabref.logic.pdf.search.indexing.IndexingTaskManager;
+import org.jabref.logic.pdf.search.indexing.PdfIndexer;
+import org.jabref.logic.search.SearchQuery;
+import org.jabref.logic.shared.DatabaseLocation;
+import org.jabref.logic.util.UpdateField;
+import org.jabref.logic.util.io.FileUtil;
+import org.jabref.model.FieldChange;
+import org.jabref.model.database.BibDatabase;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.database.event.BibDatabaseContextChangedEvent;
+import org.jabref.model.database.event.EntriesAddedEvent;
+import org.jabref.model.database.event.EntriesRemovedEvent;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.LinkedFile;
+import org.jabref.model.entry.event.EntriesEventSource;
+import org.jabref.model.entry.event.EntryChangedEvent;
+import org.jabref.model.entry.event.FieldChangedEvent;
+import org.jabref.model.entry.field.Field;
+import org.jabref.model.entry.field.FieldFactory;
+import org.jabref.model.entry.field.StandardField;
+import org.jabref.preferences.PreferencesService;
+
+import com.google.common.eventbus.Subscribe;
+import com.tobiasdiez.easybind.EasyBind;
+import com.tobiasdiez.easybind.Subscription;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class LibraryTab extends Tab {
+
+<span class="fc" id="L79">    private static final Logger LOGGER = LoggerFactory.getLogger(LibraryTab.class);</span>
+    private final JabRefFrame frame;
+    private final CountingUndoManager undoManager;
+    private final ExternalFileTypes externalFileTypes;
+    private final DialogService dialogService;
+    private final PreferencesService preferencesService;
+    private final StateManager stateManager;
+    private final ThemeManager themeManager;
+<span class="nc" id="L87">    private final BooleanProperty changedProperty = new SimpleBooleanProperty(false);</span>
+<span class="nc" id="L88">    private final BooleanProperty nonUndoableChangeProperty = new SimpleBooleanProperty(false);</span>
+    private BibDatabaseContext bibDatabaseContext;
+    private MainTableDataModel tableModel;
+    private CitationStyleCache citationStyleCache;
+    private FileAnnotationCache annotationCache;
+    private EntryEditor entryEditor;
+    private MainTable mainTable;
+<span class="nc" id="L95">    private BasePanelMode mode = BasePanelMode.SHOWING_NOTHING;</span>
+    private SplitPane splitPane;
+    private DatabaseChangePane changePane;
+    private boolean saving;
+    private PersonNameSuggestionProvider searchAutoCompleter;
+    // Used to track whether the base has changed since last save.
+    private BibEntry showing;
+    private SuggestionProviders suggestionProviders;
+    @SuppressWarnings({&quot;FieldCanBeLocal&quot;})
+    private Subscription dividerPositionSubscription;
+    // the query the user searches when this BasePanel is active
+<span class="nc" id="L106">    private Optional&lt;SearchQuery&gt; currentSearchQuery = Optional.empty();</span>
+<span class="nc" id="L107">    private Optional&lt;DatabaseChangeMonitor&gt; changeMonitor = Optional.empty();</span>
+    // initializing it so we prevent NullPointerException
+<span class="nc" id="L109">    private BackgroundTask&lt;ParserResult&gt; dataLoadingTask = BackgroundTask.wrap(() -&gt; null);</span>
+
+<span class="nc" id="L111">    private final IndexingTaskManager indexingTaskManager = new IndexingTaskManager(Globals.TASK_EXECUTOR);</span>
+
+    public LibraryTab(JabRefFrame frame,
+                      PreferencesService preferencesService,
+                      StateManager stateManager,
+                      ThemeManager themeManager,
+                      BibDatabaseContext bibDatabaseContext,
+<span class="nc" id="L118">                      ExternalFileTypes externalFileTypes) {</span>
+<span class="nc" id="L119">        this.frame = Objects.requireNonNull(frame);</span>
+<span class="nc" id="L120">        this.bibDatabaseContext = Objects.requireNonNull(bibDatabaseContext);</span>
+<span class="nc" id="L121">        this.externalFileTypes = Objects.requireNonNull(externalFileTypes);</span>
+<span class="nc" id="L122">        this.undoManager = frame.getUndoManager();</span>
+<span class="nc" id="L123">        this.dialogService = frame.getDialogService();</span>
+<span class="nc" id="L124">        this.preferencesService = Objects.requireNonNull(preferencesService);</span>
+<span class="nc" id="L125">        this.stateManager = Objects.requireNonNull(stateManager);</span>
+<span class="nc" id="L126">        this.themeManager = Objects.requireNonNull(themeManager);</span>
+
+<span class="nc" id="L128">        bibDatabaseContext.getDatabase().registerListener(this);</span>
+<span class="nc" id="L129">        bibDatabaseContext.getMetaData().registerListener(this);</span>
+
+<span class="nc" id="L131">        this.tableModel = new MainTableDataModel(getBibDatabaseContext(), preferencesService, stateManager);</span>
+
+<span class="nc" id="L133">        citationStyleCache = new CitationStyleCache(bibDatabaseContext);</span>
+<span class="nc" id="L134">        annotationCache = new FileAnnotationCache(bibDatabaseContext, preferencesService.getFilePreferences());</span>
+
+<span class="nc" id="L136">        setupMainPanel();</span>
+<span class="nc" id="L137">        setupAutoCompletion();</span>
+
+<span class="nc" id="L139">        this.getDatabase().registerListener(new SearchListener());</span>
+<span class="nc" id="L140">        this.getDatabase().registerListener(new IndexUpdateListener());</span>
+<span class="nc" id="L141">        this.getDatabase().registerListener(new EntriesRemovedListener());</span>
+
+        // ensure that at each addition of a new entry, the entry is added to the groups interface
+<span class="nc" id="L144">        this.bibDatabaseContext.getDatabase().registerListener(new GroupTreeListener());</span>
+        // ensure that all entry changes mark the panel as changed
+<span class="nc" id="L146">        this.bibDatabaseContext.getDatabase().registerListener(this);</span>
+
+<span class="nc" id="L148">        this.getDatabase().registerListener(new UpdateTimestampListener(preferencesService));</span>
+
+<span class="nc" id="L150">        this.entryEditor = new EntryEditor(this, externalFileTypes);</span>
+
+<span class="nc" id="L152">        Platform.runLater(() -&gt; {</span>
+<span class="nc" id="L153">            EasyBind.subscribe(changedProperty, this::updateTabTitle);</span>
+<span class="nc" id="L154">            stateManager.getOpenDatabases().addListener((ListChangeListener&lt;BibDatabaseContext&gt;) c -&gt;</span>
+<span class="nc" id="L155">                    updateTabTitle(changedProperty.getValue()));</span>
+<span class="nc" id="L156">        });</span>
+<span class="nc" id="L157">    }</span>
+
+    private static void addChangedInformation(StringBuilder text, String fileName) {
+<span class="nc" id="L160">        text.append(&quot;\n&quot;);</span>
+<span class="nc" id="L161">        text.append(Localization.lang(&quot;Library '%0' has changed.&quot;, fileName));</span>
+<span class="nc" id="L162">    }</span>
+
+    private static void addModeInfo(StringBuilder text, BibDatabaseContext bibDatabaseContext) {
+<span class="nc" id="L165">        String mode = bibDatabaseContext.getMode().getFormattedName();</span>
+<span class="nc" id="L166">        String modeInfo = String.format(&quot;\n%s&quot;, Localization.lang(&quot;%0 mode&quot;, mode));</span>
+<span class="nc" id="L167">        text.append(modeInfo);</span>
+<span class="nc" id="L168">    }</span>
+
+    private static void addSharedDbInformation(StringBuilder text, BibDatabaseContext bibDatabaseContext) {
+<span class="nc" id="L171">        text.append(bibDatabaseContext.getDBMSSynchronizer().getDBName());</span>
+<span class="nc" id="L172">        text.append(&quot; [&quot;);</span>
+<span class="nc" id="L173">        text.append(Localization.lang(&quot;shared&quot;));</span>
+<span class="nc" id="L174">        text.append(&quot;]&quot;);</span>
+<span class="nc" id="L175">    }</span>
+
+    public BackgroundTask&lt;?&gt; getDataLoadingTask() {
+<span class="nc" id="L178">        return dataLoadingTask;</span>
+    }
+
+    public void setDataLoadingTask(BackgroundTask&lt;ParserResult&gt; dataLoadingTask) {
+<span class="nc" id="L182">        this.dataLoadingTask = dataLoadingTask;</span>
+<span class="nc" id="L183">    }</span>
+
+    /* The layout to display in the tab when it's loading*/
+    public Node createLoadingAnimationLayout() {
+<span class="nc" id="L187">        ProgressIndicator progressIndicator = new ProgressIndicator(ProgressIndicator.INDETERMINATE_PROGRESS);</span>
+<span class="nc" id="L188">        BorderPane pane = new BorderPane();</span>
+<span class="nc" id="L189">        pane.setCenter(progressIndicator);</span>
+
+<span class="nc" id="L191">        return pane;</span>
+    }
+
+    public void onDatabaseLoadingStarted() {
+<span class="nc" id="L195">        Node loadingLayout = createLoadingAnimationLayout();</span>
+<span class="nc" id="L196">        getMainTable().placeholderProperty().setValue(loadingLayout);</span>
+
+<span class="nc" id="L198">        frame.addTab(this, true);</span>
+<span class="nc" id="L199">    }</span>
+
+    public void onDatabaseLoadingSucceed(ParserResult result) {
+<span class="nc" id="L202">        BibDatabaseContext context = result.getDatabaseContext();</span>
+<span class="nc" id="L203">        OpenDatabaseAction.performPostOpenActions(this, result);</span>
+
+<span class="nc" id="L205">        feedData(context);</span>
+        // a temporary workaround to update groups pane
+<span class="nc" id="L207">        stateManager.activeDatabaseProperty().bind(</span>
+<span class="nc" id="L208">                EasyBind.map(frame.getTabbedPane().getSelectionModel().selectedItemProperty(),</span>
+<span class="nc" id="L209">                        selectedTab -&gt; Optional.ofNullable(selectedTab)</span>
+<span class="nc" id="L210">                                               .filter(tab -&gt; tab instanceof LibraryTab)</span>
+<span class="nc" id="L211">                                               .map(tab -&gt; (LibraryTab) tab)</span>
+<span class="nc" id="L212">                                               .map(LibraryTab::getBibDatabaseContext)));</span>
+<span class="nc" id="L213">    }</span>
+
+    public void onDatabaseLoadingFailed(Exception ex) {
+<span class="nc" id="L216">        String title = Localization.lang(&quot;Connection error&quot;);</span>
+<span class="nc" id="L217">        String content = String.format(&quot;%s\n\n%s&quot;, ex.getMessage(), Localization.lang(&quot;A local copy will be opened.&quot;));</span>
+
+<span class="nc" id="L219">        dialogService.showErrorDialogAndWait(title, content, ex);</span>
+<span class="nc" id="L220">    }</span>
+
+    public void feedData(BibDatabaseContext bibDatabaseContext) {
+<span class="nc" id="L223">        cleanUp();</span>
+
+<span class="nc" id="L225">        this.bibDatabaseContext = Objects.requireNonNull(bibDatabaseContext);</span>
+
+<span class="nc" id="L227">        bibDatabaseContext.getDatabase().registerListener(this);</span>
+<span class="nc" id="L228">        bibDatabaseContext.getMetaData().registerListener(this);</span>
+
+<span class="nc" id="L230">        this.tableModel = new MainTableDataModel(getBibDatabaseContext(), preferencesService, stateManager);</span>
+<span class="nc" id="L231">        citationStyleCache = new CitationStyleCache(bibDatabaseContext);</span>
+<span class="nc" id="L232">        annotationCache = new FileAnnotationCache(bibDatabaseContext, preferencesService.getFilePreferences());</span>
+
+<span class="nc" id="L234">        setupMainPanel();</span>
+<span class="nc" id="L235">        setupAutoCompletion();</span>
+
+<span class="nc" id="L237">        this.getDatabase().registerListener(new SearchListener());</span>
+<span class="nc" id="L238">        this.getDatabase().registerListener(new EntriesRemovedListener());</span>
+
+        // ensure that at each addition of a new entry, the entry is added to the groups interface
+<span class="nc" id="L241">        this.bibDatabaseContext.getDatabase().registerListener(new GroupTreeListener());</span>
+        // ensure that all entry changes mark the panel as changed
+<span class="nc" id="L243">        this.bibDatabaseContext.getDatabase().registerListener(this);</span>
+
+<span class="nc" id="L245">        this.getDatabase().registerListener(new UpdateTimestampListener(preferencesService));</span>
+
+<span class="nc" id="L247">        this.entryEditor = new EntryEditor(this, externalFileTypes);</span>
+
+<span class="nc" id="L249">        Platform.runLater(() -&gt; {</span>
+<span class="nc" id="L250">            EasyBind.subscribe(changedProperty, this::updateTabTitle);</span>
+<span class="nc" id="L251">            stateManager.getOpenDatabases().addListener((ListChangeListener&lt;BibDatabaseContext&gt;) c -&gt;</span>
+<span class="nc" id="L252">                    updateTabTitle(changedProperty.getValue()));</span>
+<span class="nc" id="L253">        });</span>
+
+<span class="nc bnc" id="L255" title="All 2 branches missed.">        if (isDatabaseReadyForAutoSave(bibDatabaseContext)) {</span>
+<span class="nc" id="L256">            AutosaveManager autoSaver = AutosaveManager.start(bibDatabaseContext);</span>
+<span class="nc" id="L257">            autoSaver.registerListener(new AutosaveUiManager(this));</span>
+        }
+
+<span class="nc" id="L260">        BackupManager.start(this.bibDatabaseContext, Globals.entryTypesManager, preferencesService);</span>
+<span class="nc" id="L261">    }</span>
+
+    private boolean isDatabaseReadyForAutoSave(BibDatabaseContext context) {
+<span class="nc bnc" id="L264" title="All 2 branches missed.">        return ((context.getLocation() == DatabaseLocation.SHARED)</span>
+<span class="nc bnc" id="L265" title="All 2 branches missed.">                || ((context.getLocation() == DatabaseLocation.LOCAL)</span>
+<span class="nc bnc" id="L266" title="All 2 branches missed.">                &amp;&amp; preferencesService.getImportExportPreferences().shouldAutoSave()))</span>
+<span class="nc bnc" id="L267" title="All 2 branches missed.">                &amp;&amp; context.getDatabasePath().isPresent();</span>
+    }
+
+    /**
+     * Sets the title of the tab modification-asterisk filename – path-fragment
+     * &lt;p&gt;
+     * The modification-asterisk (*) is shown if the file was modified since last save (path-fragment is only shown if filename is not (globally) unique)
+     * &lt;p&gt;
+     * Example: *jabref-authors.bib – testbib
+     */
+    public void updateTabTitle(boolean isChanged) {
+<span class="nc" id="L278">        boolean isAutosaveEnabled = preferencesService.getImportExportPreferences().shouldAutoSave();</span>
+
+<span class="nc" id="L280">        DatabaseLocation databaseLocation = bibDatabaseContext.getLocation();</span>
+<span class="nc" id="L281">        Optional&lt;Path&gt; file = bibDatabaseContext.getDatabasePath();</span>
+
+<span class="nc" id="L283">        StringBuilder tabTitle = new StringBuilder();</span>
+<span class="nc" id="L284">        StringBuilder toolTipText = new StringBuilder();</span>
+
+<span class="nc bnc" id="L286" title="All 2 branches missed.">        if (file.isPresent()) {</span>
+            // Modification asterisk
+<span class="nc bnc" id="L288" title="All 4 branches missed.">            if (isChanged &amp;&amp; !isAutosaveEnabled) {</span>
+<span class="nc" id="L289">                tabTitle.append('*');</span>
+            }
+
+            // Filename
+<span class="nc" id="L293">            Path databasePath = file.get();</span>
+<span class="nc" id="L294">            String fileName = databasePath.getFileName().toString();</span>
+<span class="nc" id="L295">            tabTitle.append(fileName);</span>
+<span class="nc" id="L296">            toolTipText.append(databasePath.toAbsolutePath().toString());</span>
+
+<span class="nc bnc" id="L298" title="All 2 branches missed.">            if (databaseLocation == DatabaseLocation.SHARED) {</span>
+<span class="nc" id="L299">                tabTitle.append(&quot; \u2013 &quot;);</span>
+<span class="nc" id="L300">                addSharedDbInformation(tabTitle, bibDatabaseContext);</span>
+<span class="nc" id="L301">                toolTipText.append(' ');</span>
+<span class="nc" id="L302">                addSharedDbInformation(toolTipText, bibDatabaseContext);</span>
+            }
+
+            // Database mode
+<span class="nc" id="L306">            addModeInfo(toolTipText, bibDatabaseContext);</span>
+
+            // Changed information (tooltip)
+<span class="nc bnc" id="L309" title="All 4 branches missed.">            if (isChanged &amp;&amp; !isAutosaveEnabled) {</span>
+<span class="nc" id="L310">                addChangedInformation(toolTipText, fileName);</span>
+            }
+
+            // Unique path fragment
+<span class="nc" id="L314">            Optional&lt;String&gt; uniquePathPart = FileUtil.getUniquePathFragment(collectAllDatabasePaths(), databasePath);</span>
+<span class="nc" id="L315">            uniquePathPart.ifPresent(part -&gt; tabTitle.append(&quot; \u2013 &quot;).append(part));</span>
+
+<span class="nc" id="L317">        } else {</span>
+<span class="nc bnc" id="L318" title="All 2 branches missed.">            if (databaseLocation == DatabaseLocation.LOCAL) {</span>
+<span class="nc" id="L319">                tabTitle.append(Localization.lang(&quot;untitled&quot;));</span>
+<span class="nc bnc" id="L320" title="All 2 branches missed.">                if (bibDatabaseContext.getDatabase().hasEntries()) {</span>
+                    // if the database is not empty and no file is assigned,
+                    // the database came from an import and has to be treated somehow
+                    // -&gt; mark as changed
+<span class="nc" id="L324">                    tabTitle.append('*');</span>
+                }
+            } else {
+<span class="nc" id="L327">                addSharedDbInformation(tabTitle, bibDatabaseContext);</span>
+<span class="nc" id="L328">                addSharedDbInformation(toolTipText, bibDatabaseContext);</span>
+            }
+<span class="nc" id="L330">            addModeInfo(toolTipText, bibDatabaseContext);</span>
+<span class="nc bnc" id="L331" title="All 4 branches missed.">            if ((databaseLocation == DatabaseLocation.LOCAL) &amp;&amp; bibDatabaseContext.getDatabase().hasEntries()) {</span>
+<span class="nc" id="L332">                addChangedInformation(toolTipText, Localization.lang(&quot;untitled&quot;));</span>
+            }
+        }
+
+<span class="nc" id="L336">        DefaultTaskExecutor.runInJavaFXThread(() -&gt; {</span>
+<span class="nc" id="L337">            textProperty().setValue(tabTitle.toString());</span>
+<span class="nc" id="L338">            setTooltip(new Tooltip(toolTipText.toString()));</span>
+<span class="nc" id="L339">        });</span>
+
+<span class="nc bnc" id="L341" title="All 2 branches missed.">        if (preferencesService.getFilePreferences().shouldFulltextIndexLinkedFiles()) {</span>
+<span class="nc" id="L342">            indexingTaskManager.updateDatabaseName(tabTitle.toString());</span>
+        }
+<span class="nc" id="L344">    }</span>
+
+    private List&lt;String&gt; collectAllDatabasePaths() {
+<span class="nc" id="L347">        List&lt;String&gt; list = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L348">        stateManager.getOpenDatabases().stream()</span>
+<span class="nc" id="L349">                    .map(BibDatabaseContext::getDatabasePath)</span>
+<span class="nc" id="L350">                    .forEachOrdered(pathOptional -&gt; pathOptional.ifPresentOrElse(</span>
+<span class="nc" id="L351">                            path -&gt; list.add(path.toAbsolutePath().toString()),</span>
+<span class="nc" id="L352">                            () -&gt; list.add(&quot;&quot;)));</span>
+<span class="nc" id="L353">        return list;</span>
+    }
+
+    @Subscribe
+    public void listen(BibDatabaseContextChangedEvent event) {
+<span class="nc" id="L358">        this.changedProperty.setValue(true);</span>
+<span class="nc" id="L359">    }</span>
+
+    /**
+     * Returns a collection of suggestion providers, which are populated from the current library.
+     */
+    public SuggestionProviders getSuggestionProviders() {
+<span class="nc" id="L365">        return suggestionProviders;</span>
+    }
+
+    public BasePanelMode getMode() {
+<span class="nc" id="L369">        return mode;</span>
+    }
+
+    public void setMode(BasePanelMode mode) {
+<span class="nc" id="L373">        this.mode = mode;</span>
+<span class="nc" id="L374">    }</span>
+
+    public JabRefFrame frame() {
+<span class="nc" id="L377">        return frame;</span>
+    }
+
+    /**
+     * Removes the selected entries from the database
+     *
+     * @param cut If false the user will get asked if he really wants to delete the entries, and it will be localized as &quot;deleted&quot;. If true the action will be localized as &quot;cut&quot;
+     */
+    public void delete(boolean cut) {
+<span class="nc" id="L386">        delete(cut, mainTable.getSelectedEntries());</span>
+<span class="nc" id="L387">    }</span>
+
+    /**
+     * Removes the selected entries from the database
+     *
+     * @param cut If false the user will get asked if he really wants to delete the entries, and it will be localized as &quot;deleted&quot;. If true the action will be localized as &quot;cut&quot;
+     */
+    private void delete(boolean cut, List&lt;BibEntry&gt; entries) {
+<span class="nc bnc" id="L395" title="All 2 branches missed.">        if (entries.isEmpty()) {</span>
+<span class="nc" id="L396">            return;</span>
+        }
+<span class="nc bnc" id="L398" title="All 4 branches missed.">        if (!cut &amp;&amp; !showDeleteConfirmationDialog(entries.size())) {</span>
+<span class="nc" id="L399">            return;</span>
+        }
+
+<span class="nc" id="L402">        getUndoManager().addEdit(new UndoableRemoveEntries(bibDatabaseContext.getDatabase(), entries, cut));</span>
+<span class="nc" id="L403">        bibDatabaseContext.getDatabase().removeEntries(entries);</span>
+<span class="nc" id="L404">        ensureNotShowingBottomPanel(entries);</span>
+
+<span class="nc" id="L406">        this.changedProperty.setValue(true);</span>
+<span class="nc bnc" id="L407" title="All 2 branches missed.">        dialogService.notify(formatOutputMessage(cut ? Localization.lang(&quot;Cut&quot;) : Localization.lang(&quot;Deleted&quot;), entries.size()));</span>
+
+        // prevent the main table from loosing focus
+<span class="nc" id="L410">        mainTable.requestFocus();</span>
+<span class="nc" id="L411">    }</span>
+
+    public void delete(BibEntry entry) {
+<span class="nc" id="L414">        delete(false, Collections.singletonList(entry));</span>
+<span class="nc" id="L415">    }</span>
+
+    public void registerUndoableChanges(List&lt;FieldChange&gt; changes) {
+<span class="nc" id="L418">        NamedCompound ce = new NamedCompound(Localization.lang(&quot;Save actions&quot;));</span>
+<span class="nc bnc" id="L419" title="All 2 branches missed.">        for (FieldChange change : changes) {</span>
+<span class="nc" id="L420">            ce.addEdit(new UndoableFieldChange(change));</span>
+<span class="nc" id="L421">        }</span>
+<span class="nc" id="L422">        ce.end();</span>
+<span class="nc bnc" id="L423" title="All 2 branches missed.">        if (ce.hasEdits()) {</span>
+<span class="nc" id="L424">            getUndoManager().addEdit(ce);</span>
+        }
+<span class="nc" id="L426">    }</span>
+
+    public void insertEntry(final BibEntry bibEntry) {
+<span class="nc bnc" id="L429" title="All 2 branches missed.">        if (bibEntry != null) {</span>
+<span class="nc" id="L430">            insertEntries(Collections.singletonList(bibEntry));</span>
+        }
+<span class="nc" id="L432">    }</span>
+
+    /**
+     * This method is called from JabRefFrame when the user wants to create a new entry or entries. It is necessary when the user would expect the added entry or one of the added entries to be selected in the entry editor
+     *
+     * @param entries The new entries.
+     */
+
+    public void insertEntries(final List&lt;BibEntry&gt; entries) {
+<span class="nc bnc" id="L441" title="All 2 branches missed.">        if (!entries.isEmpty()) {</span>
+<span class="nc" id="L442">            bibDatabaseContext.getDatabase().insertEntries(entries);</span>
+
+            // Set owner and timestamp
+<span class="nc bnc" id="L445" title="All 2 branches missed.">            for (BibEntry entry : entries) {</span>
+<span class="nc" id="L446">                UpdateField.setAutomaticFields(entry,</span>
+                        true,
+                        true,
+<span class="nc" id="L449">                        preferencesService.getOwnerPreferences(),</span>
+<span class="nc" id="L450">                        preferencesService.getTimestampPreferences());</span>
+<span class="nc" id="L451">            }</span>
+            // Create an UndoableInsertEntries object.
+<span class="nc" id="L453">            getUndoManager().addEdit(new UndoableInsertEntries(bibDatabaseContext.getDatabase(), entries));</span>
+
+<span class="nc" id="L455">            this.changedProperty.setValue(true); // The database just changed.</span>
+<span class="nc bnc" id="L456" title="All 2 branches missed.">            if (preferencesService.getEntryEditorPreferences().shouldOpenOnNewEntry()) {</span>
+<span class="nc" id="L457">                showAndEdit(entries.get(0));</span>
+            }
+<span class="nc" id="L459">            clearAndSelect(entries.get(0));</span>
+        }
+<span class="nc" id="L461">    }</span>
+
+    public void editEntryAndFocusField(BibEntry entry, Field field) {
+<span class="nc" id="L464">        showAndEdit(entry);</span>
+<span class="nc" id="L465">        Platform.runLater(() -&gt; {</span>
+            // Focus field and entry in main table (async to give entry editor time to load)
+<span class="nc" id="L467">            entryEditor.setFocusToField(field);</span>
+<span class="nc" id="L468">            clearAndSelect(entry);</span>
+<span class="nc" id="L469">        });</span>
+<span class="nc" id="L470">    }</span>
+
+    private void createMainTable() {
+<span class="nc" id="L473">        mainTable = new MainTable(tableModel,</span>
+                this,
+                bibDatabaseContext,
+                preferencesService,
+                dialogService,
+                stateManager,
+                externalFileTypes,
+<span class="nc" id="L480">                Globals.getKeyPrefs());</span>
+
+        // Add the listener that binds selection to state manager (TODO: should be replaced by proper JavaFX binding as soon as table is implemented in JavaFX)
+<span class="nc" id="L483">        mainTable.addSelectionListener(listEvent -&gt; stateManager.setSelectedEntries(mainTable.getSelectedEntries()));</span>
+
+        // Update entry editor and preview according to selected entries
+<span class="nc" id="L486">        mainTable.addSelectionListener(event -&gt; mainTable.getSelectedEntries()</span>
+<span class="nc" id="L487">                                                         .stream()</span>
+<span class="nc" id="L488">                                                         .findFirst()</span>
+<span class="nc" id="L489">                                                         .ifPresent(entryEditor::setEntry));</span>
+<span class="nc" id="L490">    }</span>
+
+    public void setupMainPanel() {
+<span class="nc" id="L493">        splitPane = new SplitPane();</span>
+<span class="nc" id="L494">        splitPane.setOrientation(Orientation.VERTICAL);</span>
+
+<span class="nc" id="L496">        createMainTable();</span>
+
+<span class="nc" id="L498">        splitPane.getItems().add(mainTable);</span>
+
+        // Saves the divider position as soon as it changes
+        // We need to keep a reference to the subscription, otherwise the binding gets garbage collected
+<span class="nc" id="L502">        dividerPositionSubscription = EasyBind.valueAt(splitPane.getDividers(), 0)</span>
+<span class="nc" id="L503">                                              .mapObservable(SplitPane.Divider::positionProperty)</span>
+<span class="nc" id="L504">                                              .subscribeToValues(this::saveDividerLocation);</span>
+
+        // Add changePane in case a file is present - otherwise just add the splitPane to the panel
+<span class="nc" id="L507">        Optional&lt;Path&gt; file = bibDatabaseContext.getDatabasePath();</span>
+<span class="nc bnc" id="L508" title="All 2 branches missed.">        if (file.isPresent()) {</span>
+            // create changeMonitor and changePane so we get notifications about outside changes to the file.
+<span class="nc" id="L510">            resetChangeMonitorAndChangePane();</span>
+        } else {
+<span class="nc bnc" id="L512" title="All 2 branches missed.">            if (bibDatabaseContext.getDatabase().hasEntries()) {</span>
+                // if the database is not empty and no file is assigned,
+                // the database came from an import and has to be treated somehow
+                // -&gt; mark as changed
+<span class="nc" id="L516">                this.changedProperty.setValue(true);</span>
+            }
+<span class="nc" id="L518">            changePane = null;</span>
+<span class="nc" id="L519">            this.setContent(splitPane);</span>
+        }
+<span class="nc" id="L521">    }</span>
+
+    /**
+     * Set up auto completion for this database
+     */
+    private void setupAutoCompletion() {
+<span class="nc" id="L527">        AutoCompletePreferences autoCompletePreferences = preferencesService.getAutoCompletePreferences();</span>
+<span class="nc bnc" id="L528" title="All 2 branches missed.">        if (autoCompletePreferences.shouldAutoComplete()) {</span>
+<span class="nc" id="L529">            suggestionProviders = new SuggestionProviders(getDatabase(), Globals.journalAbbreviationRepository, autoCompletePreferences);</span>
+        } else {
+            // Create empty suggestion providers if auto completion is deactivated
+<span class="nc" id="L532">            suggestionProviders = new SuggestionProviders();</span>
+        }
+<span class="nc" id="L534">        searchAutoCompleter = new PersonNameSuggestionProvider(FieldFactory.getPersonNameFields(), getDatabase());</span>
+<span class="nc" id="L535">    }</span>
+
+    public void updateSearchManager() {
+<span class="nc" id="L538">        frame.getGlobalSearchBar().setAutoCompleter(searchAutoCompleter);</span>
+<span class="nc" id="L539">    }</span>
+
+    public EntryEditor getEntryEditor() {
+<span class="nc" id="L542">        return entryEditor;</span>
+    }
+
+    /**
+     * Sets the entry editor as the bottom component in the split pane. If an entry editor already was shown, makes sure that the divider doesn't move. Updates the mode to SHOWING_EDITOR. Then shows the given entry.
+     *
+     * @param entry The entry to edit.
+     */
+    public void showAndEdit(BibEntry entry) {
+<span class="nc" id="L551">        showBottomPane(BasePanelMode.SHOWING_EDITOR);</span>
+
+<span class="nc bnc" id="L553" title="All 2 branches missed.">        if (entry != getShowing()) {</span>
+<span class="nc" id="L554">            entryEditor.setEntry(entry);</span>
+<span class="nc" id="L555">            showing = entry;</span>
+        }
+<span class="nc" id="L557">        entryEditor.requestFocus();</span>
+<span class="nc" id="L558">    }</span>
+
+    private void showBottomPane(BasePanelMode newMode) {
+<span class="nc bnc" id="L561" title="All 2 branches missed.">        if (newMode != BasePanelMode.SHOWING_EDITOR) {</span>
+<span class="nc" id="L562">            throw new UnsupportedOperationException(&quot;new mode not recognized: &quot; + newMode.name());</span>
+        }
+<span class="nc" id="L564">        Node pane = entryEditor;</span>
+
+<span class="nc bnc" id="L566" title="All 2 branches missed.">        if (splitPane.getItems().size() == 2) {</span>
+<span class="nc" id="L567">            splitPane.getItems().set(1, pane);</span>
+        } else {
+<span class="nc" id="L569">            splitPane.getItems().add(1, pane);</span>
+        }
+<span class="nc" id="L571">        mode = newMode;</span>
+
+<span class="nc" id="L573">        splitPane.setDividerPositions(preferencesService.getEntryEditorPreferences().getDividerPosition());</span>
+<span class="nc" id="L574">    }</span>
+
+    /**
+     * Removes the bottom component.
+     */
+    public void closeBottomPane() {
+<span class="nc" id="L580">        mode = BasePanelMode.SHOWING_NOTHING;</span>
+<span class="nc" id="L581">        splitPane.getItems().remove(entryEditor);</span>
+<span class="nc" id="L582">    }</span>
+
+    /**
+     * This method selects the given entry, and scrolls it into view in the table. If an entryEditor is shown, it is given focus afterwards.
+     */
+    public void clearAndSelect(final BibEntry bibEntry) {
+<span class="nc" id="L588">        mainTable.clearAndSelect(bibEntry);</span>
+<span class="nc" id="L589">    }</span>
+
+    public void selectPreviousEntry() {
+<span class="nc" id="L592">        mainTable.getSelectionModel().clearAndSelect(mainTable.getSelectionModel().getSelectedIndex() - 1);</span>
+<span class="nc" id="L593">    }</span>
+
+    public void selectNextEntry() {
+<span class="nc" id="L596">        mainTable.getSelectionModel().clearAndSelect(mainTable.getSelectionModel().getSelectedIndex() + 1);</span>
+<span class="nc" id="L597">    }</span>
+
+    /**
+     * This method is called from an EntryEditor when it should be closed. We relay to the selection listener, which takes care of the rest.
+     */
+    public void entryEditorClosing() {
+<span class="nc" id="L603">        closeBottomPane();</span>
+<span class="nc" id="L604">        mainTable.requestFocus();</span>
+<span class="nc" id="L605">    }</span>
+
+    /**
+     * Closes the entry editor if it is showing any of the given entries.
+     */
+    private void ensureNotShowingBottomPanel(List&lt;BibEntry&gt; entriesToCheck) {
+
+        // This method is not able to close the bottom pane currently
+
+<span class="nc bnc" id="L614" title="All 4 branches missed.">        if ((mode == BasePanelMode.SHOWING_EDITOR) &amp;&amp; (entriesToCheck.contains(entryEditor.getEntry()))) {</span>
+<span class="nc" id="L615">            closeBottomPane();</span>
+        }
+<span class="nc" id="L617">    }</span>
+
+    public void updateEntryEditorIfShowing() {
+<span class="nc bnc" id="L620" title="All 2 branches missed.">        if (mode == BasePanelMode.SHOWING_EDITOR) {</span>
+<span class="nc" id="L621">            BibEntry currentEntry = entryEditor.getEntry();</span>
+<span class="nc" id="L622">            showAndEdit(currentEntry);</span>
+        }
+<span class="nc" id="L624">    }</span>
+
+    /**
+     * Put an asterisk behind the filename to indicate the database has changed.
+     */
+
+    public synchronized void markChangedOrUnChanged() {
+<span class="nc bnc" id="L631" title="All 2 branches missed.">        if (getUndoManager().hasChanged()) {</span>
+<span class="nc" id="L632">            this.changedProperty.setValue(true);</span>
+<span class="nc bnc" id="L633" title="All 4 branches missed.">        } else if (changedProperty.getValue() &amp;&amp; !nonUndoableChangeProperty.getValue()) {</span>
+<span class="nc" id="L634">            this.changedProperty.setValue(false);</span>
+        }
+<span class="nc" id="L636">    }</span>
+
+    public BibDatabase getDatabase() {
+<span class="nc" id="L639">        return bibDatabaseContext.getDatabase();</span>
+    }
+
+    private boolean showDeleteConfirmationDialog(int numberOfEntries) {
+<span class="nc bnc" id="L643" title="All 2 branches missed.">        if (preferencesService.getGeneralPreferences().shouldConfirmDelete()) {</span>
+<span class="nc" id="L644">            String title = Localization.lang(&quot;Delete entry&quot;);</span>
+<span class="nc" id="L645">            String message = Localization.lang(&quot;Really delete the selected entry?&quot;);</span>
+<span class="nc" id="L646">            String okButton = Localization.lang(&quot;Delete entry&quot;);</span>
+<span class="nc" id="L647">            String cancelButton = Localization.lang(&quot;Keep entry&quot;);</span>
+<span class="nc bnc" id="L648" title="All 2 branches missed.">            if (numberOfEntries &gt; 1) {</span>
+<span class="nc" id="L649">                title = Localization.lang(&quot;Delete multiple entries&quot;);</span>
+<span class="nc" id="L650">                message = Localization.lang(&quot;Really delete the %0 selected entries?&quot;, Integer.toString(numberOfEntries));</span>
+<span class="nc" id="L651">                okButton = Localization.lang(&quot;Delete entries&quot;);</span>
+<span class="nc" id="L652">                cancelButton = Localization.lang(&quot;Keep entries&quot;);</span>
+            }
+
+<span class="nc" id="L655">            return dialogService.showConfirmationDialogWithOptOutAndWait(title,</span>
+                    message,
+                    okButton,
+                    cancelButton,
+<span class="nc" id="L659">                    Localization.lang(&quot;Do not ask again&quot;),</span>
+<span class="nc bnc" id="L660" title="All 2 branches missed.">                    optOut -&gt; preferencesService.getGeneralPreferences().setConfirmDelete(!optOut));</span>
+        } else {
+<span class="nc" id="L662">            return true;</span>
+        }
+    }
+
+    /**
+     * Depending on whether a preview or an entry editor is showing, save the current divider location in the correct preference setting.
+     */
+    private void saveDividerLocation(Number position) {
+<span class="nc bnc" id="L670" title="All 2 branches missed.">        if (mode == BasePanelMode.SHOWING_EDITOR) {</span>
+<span class="nc" id="L671">            preferencesService.getEntryEditorPreferences().setDividerPosition(position.doubleValue());</span>
+        }
+<span class="nc" id="L673">    }</span>
+
+    /**
+     * Perform necessary cleanup when this BasePanel is closed.
+     */
+    public void cleanUp() {
+<span class="nc" id="L679">        changeMonitor.ifPresent(DatabaseChangeMonitor::unregister);</span>
+<span class="nc" id="L680">        AutosaveManager.shutdown(bibDatabaseContext);</span>
+<span class="nc" id="L681">        BackupManager.shutdown(bibDatabaseContext);</span>
+<span class="nc" id="L682">    }</span>
+
+    /**
+     * Get an array containing the currently selected entries. The array is stable and not changed if the selection changes
+     *
+     * @return A list containing the selected entries. Is never null.
+     */
+    public List&lt;BibEntry&gt; getSelectedEntries() {
+<span class="nc" id="L690">        return mainTable.getSelectedEntries();</span>
+    }
+
+    public BibDatabaseContext getBibDatabaseContext() {
+<span class="nc" id="L694">        return this.bibDatabaseContext;</span>
+    }
+
+    public boolean isSaving() {
+<span class="nc" id="L698">        return saving;</span>
+    }
+
+    public void setSaving(boolean saving) {
+<span class="nc" id="L702">        this.saving = saving;</span>
+<span class="nc" id="L703">    }</span>
+
+    private BibEntry getShowing() {
+<span class="nc" id="L706">        return showing;</span>
+    }
+
+    public String formatOutputMessage(String start, int count) {
+<span class="nc bnc" id="L710" title="All 2 branches missed.">        return String.format(&quot;%s %d %s.&quot;, start, count, (count &gt; 1 ? Localization.lang(&quot;entries&quot;) : Localization.lang(&quot;entry&quot;)));</span>
+    }
+
+    public CountingUndoManager getUndoManager() {
+<span class="nc" id="L714">        return undoManager;</span>
+    }
+
+    public MainTable getMainTable() {
+<span class="nc" id="L718">        return mainTable;</span>
+    }
+
+    public Optional&lt;SearchQuery&gt; getCurrentSearchQuery() {
+<span class="nc" id="L722">        return currentSearchQuery;</span>
+    }
+
+    /**
+     * Set the query the user currently searches while this basepanel is active
+     */
+    public void setCurrentSearchQuery(Optional&lt;SearchQuery&gt; currentSearchQuery) {
+<span class="nc" id="L729">        this.currentSearchQuery = currentSearchQuery;</span>
+<span class="nc" id="L730">    }</span>
+
+    public CitationStyleCache getCitationStyleCache() {
+<span class="nc" id="L733">        return citationStyleCache;</span>
+    }
+
+    public FileAnnotationCache getAnnotationCache() {
+<span class="nc" id="L737">        return annotationCache;</span>
+    }
+
+    public void resetChangeMonitorAndChangePane() {
+<span class="nc" id="L741">        changeMonitor.ifPresent(DatabaseChangeMonitor::unregister);</span>
+<span class="nc" id="L742">        changeMonitor = Optional.of(new DatabaseChangeMonitor(bibDatabaseContext,</span>
+<span class="nc" id="L743">                Globals.getFileUpdateMonitor(),</span>
+                Globals.TASK_EXECUTOR,
+                dialogService,
+                preferencesService,
+                stateManager,
+                themeManager));
+
+<span class="nc" id="L750">        changePane = new DatabaseChangePane(splitPane, bibDatabaseContext, changeMonitor.get());</span>
+
+<span class="nc" id="L752">        this.setContent(changePane);</span>
+<span class="nc" id="L753">    }</span>
+
+    public void copy() {
+<span class="nc" id="L756">        mainTable.copy();</span>
+<span class="nc" id="L757">    }</span>
+
+    public void paste() {
+<span class="nc" id="L760">        mainTable.paste(this.bibDatabaseContext.getMode());</span>
+<span class="nc" id="L761">    }</span>
+
+    public void cut() {
+<span class="nc" id="L764">        mainTable.cut();</span>
+<span class="nc" id="L765">    }</span>
+
+    public BooleanProperty changedProperty() {
+<span class="nc" id="L768">        return changedProperty;</span>
+    }
+
+    public boolean isModified() {
+<span class="nc" id="L772">        return changedProperty.getValue();</span>
+    }
+
+    public void markBaseChanged() {
+<span class="nc" id="L776">        this.changedProperty.setValue(true);</span>
+<span class="nc" id="L777">    }</span>
+
+    public BooleanProperty nonUndoableChangeProperty() {
+<span class="nc" id="L780">        return nonUndoableChangeProperty;</span>
+    }
+
+    public void markNonUndoableBaseChanged() {
+<span class="nc" id="L784">        this.nonUndoableChangeProperty.setValue(true);</span>
+<span class="nc" id="L785">        this.changedProperty.setValue(true);</span>
+<span class="nc" id="L786">    }</span>
+
+    public void resetChangedProperties() {
+<span class="nc" id="L789">        this.nonUndoableChangeProperty.setValue(false);</span>
+<span class="nc" id="L790">        this.changedProperty.setValue(false);</span>
+<span class="nc" id="L791">    }</span>
+
+<span class="nc" id="L793">    public static class Factory {</span>
+        public LibraryTab createLibraryTab(JabRefFrame frame, PreferencesService preferencesService, StateManager stateManager, ThemeManager themeManager, Path file, BackgroundTask&lt;ParserResult&gt; dataLoadingTask) {
+<span class="nc" id="L795">            BibDatabaseContext context = new BibDatabaseContext();</span>
+<span class="nc" id="L796">            context.setDatabasePath(file);</span>
+
+<span class="nc" id="L798">            LibraryTab newTab = new LibraryTab(frame, preferencesService, stateManager, themeManager, context, ExternalFileTypes.getInstance());</span>
+<span class="nc" id="L799">            newTab.setDataLoadingTask(dataLoadingTask);</span>
+
+<span class="nc" id="L801">            dataLoadingTask.onRunning(newTab::onDatabaseLoadingStarted)</span>
+<span class="nc" id="L802">                           .onSuccess(newTab::onDatabaseLoadingSucceed)</span>
+<span class="nc" id="L803">                           .onFailure(newTab::onDatabaseLoadingFailed)</span>
+<span class="nc" id="L804">                           .executeWith(Globals.TASK_EXECUTOR);</span>
+
+<span class="nc" id="L806">            return newTab;</span>
+        }
+    }
+
+<span class="nc" id="L810">    private class GroupTreeListener {</span>
+
+        @Subscribe
+        public void listen(EntriesAddedEvent addedEntriesEvent) {
+            // if the event is an undo, don't add it to the current group
+<span class="nc bnc" id="L815" title="All 2 branches missed.">            if (addedEntriesEvent.getEntriesEventSource() == EntriesEventSource.UNDO) {</span>
+<span class="nc" id="L816">                return;</span>
+            }
+
+            // Automatically add new entries to the selected group (or set of groups)
+<span class="nc bnc" id="L820" title="All 2 branches missed.">            if (preferencesService.getGroupsPreferences().shouldAutoAssignGroup()) {</span>
+<span class="nc" id="L821">                stateManager.getSelectedGroup(bibDatabaseContext).forEach(</span>
+<span class="nc" id="L822">                        selectedGroup -&gt; selectedGroup.addEntriesToGroup(addedEntriesEvent.getBibEntries()));</span>
+            }
+<span class="nc" id="L824">        }</span>
+    }
+
+<span class="nc" id="L827">    private class EntriesRemovedListener {</span>
+
+        @Subscribe
+        public void listen(EntriesRemovedEvent entriesRemovedEvent) {
+<span class="nc" id="L831">            ensureNotShowingBottomPanel(entriesRemovedEvent.getBibEntries());</span>
+<span class="nc" id="L832">        }</span>
+    }
+
+    /**
+     * Ensures that the results of the current search are updated when a new entry is inserted into the database Actual methods for performing search must run in javafx thread
+     */
+<span class="nc" id="L838">    private class SearchListener {</span>
+
+        @Subscribe
+        public void listen(EntriesAddedEvent addedEntryEvent) {
+<span class="nc" id="L842">            DefaultTaskExecutor.runInJavaFXThread(() -&gt; frame.getGlobalSearchBar().performSearch());</span>
+<span class="nc" id="L843">        }</span>
+
+        @Subscribe
+        public void listen(EntryChangedEvent entryChangedEvent) {
+<span class="nc" id="L847">            DefaultTaskExecutor.runInJavaFXThread(() -&gt; frame.getGlobalSearchBar().performSearch());</span>
+<span class="nc" id="L848">        }</span>
+
+        @Subscribe
+        public void listen(EntriesRemovedEvent removedEntriesEvent) {
+            // IMO only used to update the status (found X entries)
+<span class="nc" id="L853">            DefaultTaskExecutor.runInJavaFXThread(() -&gt; frame.getGlobalSearchBar().performSearch());</span>
+<span class="nc" id="L854">        }</span>
+    }
+
+    private class IndexUpdateListener {
+
+<span class="nc" id="L859">        public IndexUpdateListener() {</span>
+<span class="nc bnc" id="L860" title="All 2 branches missed.">            if (preferencesService.getFilePreferences().shouldFulltextIndexLinkedFiles()) {</span>
+                try {
+<span class="nc" id="L862">                    indexingTaskManager.addToIndex(PdfIndexer.of(bibDatabaseContext, preferencesService.getFilePreferences()), bibDatabaseContext);</span>
+<span class="nc" id="L863">                } catch (IOException e) {</span>
+<span class="nc" id="L864">                    LOGGER.error(&quot;Cannot access lucene index&quot;, e);</span>
+<span class="nc" id="L865">                }</span>
+            }
+<span class="nc" id="L867">        }</span>
+
+        @Subscribe
+        public void listen(EntriesAddedEvent addedEntryEvent) {
+<span class="nc bnc" id="L871" title="All 2 branches missed.">            if (preferencesService.getFilePreferences().shouldFulltextIndexLinkedFiles()) {</span>
+                try {
+<span class="nc" id="L873">                    PdfIndexer pdfIndexer = PdfIndexer.of(bibDatabaseContext, preferencesService.getFilePreferences());</span>
+<span class="nc bnc" id="L874" title="All 2 branches missed.">                    for (BibEntry addedEntry : addedEntryEvent.getBibEntries()) {</span>
+<span class="nc" id="L875">                        indexingTaskManager.addToIndex(pdfIndexer, addedEntry, bibDatabaseContext);</span>
+<span class="nc" id="L876">                    }</span>
+<span class="nc" id="L877">                } catch (IOException e) {</span>
+<span class="nc" id="L878">                    LOGGER.error(&quot;Cannot access lucene index&quot;, e);</span>
+<span class="nc" id="L879">                }</span>
+            }
+<span class="nc" id="L881">        }</span>
+
+        @Subscribe
+        public void listen(EntriesRemovedEvent removedEntriesEvent) {
+<span class="nc bnc" id="L885" title="All 2 branches missed.">            if (preferencesService.getFilePreferences().shouldFulltextIndexLinkedFiles()) {</span>
+                try {
+<span class="nc" id="L887">                    PdfIndexer pdfIndexer = PdfIndexer.of(bibDatabaseContext, preferencesService.getFilePreferences());</span>
+<span class="nc bnc" id="L888" title="All 2 branches missed.">                    for (BibEntry removedEntry : removedEntriesEvent.getBibEntries()) {</span>
+<span class="nc" id="L889">                        indexingTaskManager.removeFromIndex(pdfIndexer, removedEntry);</span>
+<span class="nc" id="L890">                    }</span>
+<span class="nc" id="L891">                } catch (IOException e) {</span>
+<span class="nc" id="L892">                    LOGGER.error(&quot;Cannot access lucene index&quot;, e);</span>
+<span class="nc" id="L893">                }</span>
+            }
+<span class="nc" id="L895">        }</span>
+
+        @Subscribe
+        public void listen(FieldChangedEvent fieldChangedEvent) {
+<span class="nc bnc" id="L899" title="All 2 branches missed.">            if (preferencesService.getFilePreferences().shouldFulltextIndexLinkedFiles()) {</span>
+<span class="nc bnc" id="L900" title="All 2 branches missed.">                if (fieldChangedEvent.getField().equals(StandardField.FILE)) {</span>
+<span class="nc" id="L901">                    List&lt;LinkedFile&gt; oldFileList = FileFieldParser.parse(fieldChangedEvent.getOldValue());</span>
+<span class="nc" id="L902">                    List&lt;LinkedFile&gt; newFileList = FileFieldParser.parse(fieldChangedEvent.getNewValue());</span>
+
+<span class="nc" id="L904">                    List&lt;LinkedFile&gt; addedFiles = new ArrayList&lt;&gt;(newFileList);</span>
+<span class="nc" id="L905">                    addedFiles.remove(oldFileList);</span>
+<span class="nc" id="L906">                    List&lt;LinkedFile&gt; removedFiles = new ArrayList&lt;&gt;(oldFileList);</span>
+<span class="nc" id="L907">                    removedFiles.remove(newFileList);</span>
+
+                    try {
+<span class="nc" id="L910">                        indexingTaskManager.addToIndex(PdfIndexer.of(bibDatabaseContext, preferencesService.getFilePreferences()), fieldChangedEvent.getBibEntry(), addedFiles, bibDatabaseContext);</span>
+<span class="nc" id="L911">                        indexingTaskManager.removeFromIndex(PdfIndexer.of(bibDatabaseContext, preferencesService.getFilePreferences()), fieldChangedEvent.getBibEntry(), removedFiles);</span>
+<span class="nc" id="L912">                    } catch (IOException e) {</span>
+<span class="nc" id="L913">                        LOGGER.warn(&quot;I/O error when writing lucene index&quot;, e);</span>
+<span class="nc" id="L914">                    }</span>
+                }
+            }
+<span class="nc" id="L917">        }</span>
+    }
+
+    public IndexingTaskManager getIndexingTaskManager() {
+<span class="nc" id="L921">        return indexingTaskManager;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

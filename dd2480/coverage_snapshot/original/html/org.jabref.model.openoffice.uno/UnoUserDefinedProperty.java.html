@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UnoUserDefinedProperty.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.model.openoffice.uno</a> &gt; <span class="el_source">UnoUserDefinedProperty.java</span></div><h1>UnoUserDefinedProperty.java</h1><pre class="source lang-java linenums">package org.jabref.model.openoffice.uno;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+
+import com.sun.star.beans.IllegalTypeException;
+import com.sun.star.beans.NotRemoveableException;
+import com.sun.star.beans.PropertyAttribute;
+import com.sun.star.beans.PropertyExistException;
+import com.sun.star.beans.PropertyVetoException;
+import com.sun.star.beans.UnknownPropertyException;
+import com.sun.star.beans.XPropertyContainer;
+import com.sun.star.beans.XPropertySet;
+import com.sun.star.beans.XPropertySetInfo;
+import com.sun.star.document.XDocumentProperties;
+import com.sun.star.lang.WrappedTargetException;
+import com.sun.star.text.XTextDocument;
+import com.sun.star.uno.Any;
+import com.sun.star.uno.Type;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Document level user-defined properties.
+ *
+ *  LibreOffice GUI: [File]/[Properties]/[Custom Properties]
+ */
+public class UnoUserDefinedProperty {
+
+<span class="nc" id="L32">    private static final Logger LOGGER = LoggerFactory.getLogger(UnoUserDefinedProperty.class);</span>
+
+    private UnoUserDefinedProperty() { }
+
+    public static Optional&lt;XPropertyContainer&gt; getPropertyContainer(XTextDocument doc) {
+<span class="nc" id="L37">        return UnoTextDocument.getDocumentProperties(doc).map(XDocumentProperties::getUserDefinedProperties);</span>
+    }
+
+    public static List&lt;String&gt; getListOfNames(XTextDocument doc) {
+<span class="nc" id="L41">        return (UnoUserDefinedProperty.getPropertyContainer(doc)</span>
+<span class="nc" id="L42">                .map(UnoProperties::getPropertyNames)</span>
+<span class="nc" id="L43">                .orElse(new ArrayList&lt;&gt;()));</span>
+    }
+
+    /**
+     * @param property Name of a custom document property in the current document.
+     *
+     * @return The value of the property or Optional.empty()
+     *
+     * These properties are used to store extra data about individual citation.
+     * In particular, the `pageInfo` part.
+     *
+     */
+    public static Optional&lt;String&gt; getStringValue(XTextDocument doc, String property)
+        throws
+        WrappedTargetException {
+<span class="nc" id="L58">        Optional&lt;XPropertySet&gt; propertySet = (UnoUserDefinedProperty.getPropertyContainer(doc)</span>
+<span class="nc" id="L59">                                              .flatMap(UnoProperties::asPropertySet));</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">        if (propertySet.isEmpty()) {</span>
+<span class="nc" id="L61">            throw new java.lang.IllegalArgumentException(&quot;getting UserDefinedProperties as XPropertySet failed&quot;);</span>
+        }
+        try {
+<span class="nc" id="L64">            String value = propertySet.get().getPropertyValue(property).toString();</span>
+<span class="nc" id="L65">            return Optional.ofNullable(value);</span>
+<span class="nc" id="L66">        } catch (UnknownPropertyException ex) {</span>
+<span class="nc" id="L67">            return Optional.empty();</span>
+        }
+    }
+
+    /**
+     * @param property Name of a custom document property in the current document.
+     *                 Created if does not exist yet.
+     *
+     * @param value The value to be stored.
+     */
+    public static void setStringProperty(XTextDocument doc, String property, String value)
+        throws
+        IllegalTypeException,
+        PropertyVetoException,
+        WrappedTargetException {
+
+<span class="nc" id="L83">        Objects.requireNonNull(property);</span>
+<span class="nc" id="L84">        Objects.requireNonNull(value);</span>
+
+<span class="nc" id="L86">        Optional&lt;XPropertyContainer&gt; container = UnoUserDefinedProperty.getPropertyContainer(doc);</span>
+
+<span class="nc bnc" id="L88" title="All 2 branches missed.">        if (container.isEmpty()) {</span>
+<span class="nc" id="L89">            throw new java.lang.IllegalArgumentException(&quot;UnoUserDefinedProperty.getPropertyContainer failed&quot;);</span>
+        }
+
+<span class="nc" id="L92">        Optional&lt;XPropertySet&gt; propertySet = container.flatMap(UnoProperties::asPropertySet);</span>
+<span class="nc bnc" id="L93" title="All 2 branches missed.">        if (propertySet.isEmpty()) {</span>
+<span class="nc" id="L94">            throw new java.lang.IllegalArgumentException(&quot;asPropertySet failed&quot;);</span>
+        }
+
+<span class="nc" id="L97">        XPropertySetInfo propertySetInfo = propertySet.get().getPropertySetInfo();</span>
+
+<span class="nc bnc" id="L99" title="All 2 branches missed.">        if (propertySetInfo.hasPropertyByName(property)) {</span>
+            try {
+<span class="nc" id="L101">                propertySet.get().setPropertyValue(property, value);</span>
+<span class="nc" id="L102">                return;</span>
+<span class="nc" id="L103">            } catch (UnknownPropertyException ex) {</span>
+                // fall through to addProperty
+            }
+        }
+
+        try {
+<span class="nc" id="L109">            container.get().addProperty(property, PropertyAttribute.REMOVEABLE, new Any(Type.STRING, value));</span>
+<span class="nc" id="L110">        } catch (PropertyExistException ex) {</span>
+<span class="nc" id="L111">            throw new java.lang.IllegalStateException(&quot;Caught PropertyExistException for property assumed not to exist&quot;);</span>
+<span class="nc" id="L112">        }</span>
+<span class="nc" id="L113">    }</span>
+
+    /**
+     * @param property Name of a custom document property in the current document.
+     *
+     *  Logs warning if does not exist.
+     */
+    public static void remove(XTextDocument doc, String property)
+        throws
+        NotRemoveableException {
+
+<span class="nc" id="L124">        Objects.requireNonNull(property);</span>
+
+<span class="nc" id="L126">        Optional&lt;XPropertyContainer&gt; container = UnoUserDefinedProperty.getPropertyContainer(doc);</span>
+
+<span class="nc bnc" id="L128" title="All 2 branches missed.">        if (container.isEmpty()) {</span>
+<span class="nc" id="L129">            throw new java.lang.IllegalArgumentException(&quot;getUserDefinedPropertiesAsXPropertyContainer failed&quot;);</span>
+        }
+
+        try {
+<span class="nc" id="L133">            container.get().removeProperty(property);</span>
+<span class="nc" id="L134">        } catch (UnknownPropertyException ex) {</span>
+<span class="nc" id="L135">            LOGGER.warn(String.format(&quot;UnoUserDefinedProperty.remove(%s) This property was not there to remove&quot;,</span>
+                                      property));
+<span class="nc" id="L137">        }</span>
+<span class="nc" id="L138">    }</span>
+
+    /**
+     * @param property Name of a custom document property in the current document.
+     *
+     * Keep silent if property did not exist.
+     */
+    public static void removeIfExists(XTextDocument doc, String property)
+        throws
+        NotRemoveableException {
+
+<span class="nc" id="L149">        Objects.requireNonNull(property);</span>
+
+<span class="nc" id="L151">        Optional&lt;XPropertyContainer&gt; container = UnoUserDefinedProperty.getPropertyContainer(doc);</span>
+
+<span class="nc bnc" id="L153" title="All 2 branches missed.">        if (container.isEmpty()) {</span>
+<span class="nc" id="L154">            throw new java.lang.IllegalArgumentException(&quot;getUserDefinedPropertiesAsXPropertyContainer failed&quot;);</span>
+        }
+
+        try {
+<span class="nc" id="L158">            container.get().removeProperty(property);</span>
+<span class="nc" id="L159">        } catch (UnknownPropertyException ex) {</span>
+            // did not exist
+<span class="nc" id="L161">        }</span>
+<span class="nc" id="L162">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CustomExporterTab.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.preferences.customexporter</a> &gt; <span class="el_source">CustomExporterTab.java</span></div><h1>CustomExporterTab.java</h1><pre class="source lang-java linenums">package org.jabref.gui.preferences.customexporter;
+
+import javax.inject.Inject;
+
+import javafx.fxml.FXML;
+import javafx.scene.control.SelectionMode;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+
+import org.jabref.gui.exporter.ExporterViewModel;
+import org.jabref.gui.preferences.AbstractPreferenceTabView;
+import org.jabref.gui.preferences.PreferencesTab;
+import org.jabref.logic.journals.JournalAbbreviationRepository;
+import org.jabref.logic.l10n.Localization;
+
+import com.airhacks.afterburner.views.ViewLoader;
+import com.tobiasdiez.easybind.EasyBind;
+
+public class CustomExporterTab extends AbstractPreferenceTabView&lt;CustomExporterTabViewModel&gt; implements PreferencesTab {
+
+    @FXML private TableView&lt;ExporterViewModel&gt; exporterTable;
+    @FXML private TableColumn&lt;ExporterViewModel, String&gt; nameColumn;
+    @FXML private TableColumn&lt;ExporterViewModel, String&gt; layoutColumn;
+    @FXML private TableColumn&lt;ExporterViewModel, String&gt; extensionColumn;
+
+    @Inject private JournalAbbreviationRepository repository;
+
+<span class="nc" id="L28">    public CustomExporterTab() {</span>
+<span class="nc" id="L29">        ViewLoader.view(this)</span>
+<span class="nc" id="L30">                  .root(this)</span>
+<span class="nc" id="L31">                  .load();</span>
+<span class="nc" id="L32">    }</span>
+
+    @Override
+    public String getTabName() {
+<span class="nc" id="L36">        return Localization.lang(&quot;Custom export formats&quot;);</span>
+    }
+
+    @FXML
+    private void initialize() {
+<span class="nc" id="L41">        viewModel = new CustomExporterTabViewModel(preferencesService, dialogService, repository);</span>
+
+<span class="nc" id="L43">        exporterTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);</span>
+<span class="nc" id="L44">        exporterTable.itemsProperty().bind(viewModel.exportersProperty());</span>
+<span class="nc" id="L45">        EasyBind.bindContent(viewModel.selectedExportersProperty(), exporterTable.getSelectionModel().getSelectedItems());</span>
+<span class="nc" id="L46">        nameColumn.setCellValueFactory(cellData -&gt; cellData.getValue().name());</span>
+<span class="nc" id="L47">        layoutColumn.setCellValueFactory(cellData -&gt; cellData.getValue().layoutFileName());</span>
+<span class="nc" id="L48">        extensionColumn.setCellValueFactory(cellData -&gt; cellData.getValue().extension());</span>
+<span class="nc" id="L49">    }</span>
+
+    @FXML
+    private void add() {
+<span class="nc" id="L53">        viewModel.addExporter();</span>
+<span class="nc" id="L54">    }</span>
+
+    @FXML
+    private void modify() {
+<span class="nc" id="L58">        viewModel.modifyExporter();</span>
+<span class="nc" id="L59">    }</span>
+
+    @FXML
+    private void remove() {
+<span class="nc" id="L63">        viewModel.removeExporters();</span>
+<span class="nc" id="L64">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

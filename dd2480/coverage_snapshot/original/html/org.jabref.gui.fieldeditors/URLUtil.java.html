@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>URLUtil.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.fieldeditors</a> &gt; <span class="el_source">URLUtil.java</span></div><h1>URLUtil.java</h1><pre class="source lang-java linenums">package org.jabref.gui.fieldeditors;
+
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
+import java.util.Optional;
+
+import org.jabref.gui.externalfiletype.ExternalFileTypes;
+
+public class URLUtil {
+    private static final String URL_EXP = &quot;^(https?|ftp)://.+&quot;;
+
+    // Detect Google search URL
+    private static final String GOOGLE_SEARCH_EXP = &quot;^https?://(?:www\\.)?google\\.[\\.a-z]+?/url.*&quot;;
+
+    private URLUtil() {
+    }
+
+    /**
+     * Cleans URLs returned by Google search.
+     *
+     * &lt;example&gt;
+     *  If you copy links from search results from Google, all links will be enriched with search meta data, e.g.
+     *  https://www.google.de/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cad=rja&amp;uact=8&amp;&amp;url=http%3A%2F%2Fwww.inrg.csie.ntu.edu.tw%2Falgorithm2014%2Fhomework%2FWagner-74.pdf&amp;ei=DifeVYHkDYWqU5W0j6gD&amp;usg=AFQjCNFl638rl5KVta1jIMWLyb4CPSZidg&amp;sig2=0hSSMw9XZXL3HJWwEcJtOg
+     * &lt;/example&gt;
+     *
+     * @param url the Google search URL string
+     * @return the cleaned Google URL or @code{url} if no search URL was detected
+     */
+    public static String cleanGoogleSearchURL(String url) {
+<span class="fc" id="L33">        Objects.requireNonNull(url);</span>
+
+<span class="fc bfc" id="L35" title="All 2 branches covered.">        if (!url.matches(GOOGLE_SEARCH_EXP)) {</span>
+<span class="fc" id="L36">            return url;</span>
+        }
+        // Extract destination URL
+        try {
+<span class="fc" id="L40">            URL searchURL = new URL(url);</span>
+            // URL parameters
+<span class="fc" id="L42">            String query = searchURL.getQuery();</span>
+            // no parameters
+<span class="fc bfc" id="L44" title="All 2 branches covered.">            if (query == null) {</span>
+<span class="fc" id="L45">                return url;</span>
+            }
+            // extract url parameter
+<span class="fc" id="L48">            String[] pairs = query.split(&quot;&amp;&quot;);</span>
+
+<span class="fc bfc" id="L50" title="All 2 branches covered.">            for (String pair : pairs) {</span>
+                // &quot;clean&quot; url is decoded value of &quot;url&quot; parameter
+<span class="fc bfc" id="L52" title="All 2 branches covered.">                if (pair.startsWith(&quot;url=&quot;)) {</span>
+<span class="fc" id="L53">                    String value = pair.substring(pair.indexOf('=') + 1);</span>
+
+<span class="fc" id="L55">                    String decode = URLDecoder.decode(value, StandardCharsets.UTF_8);</span>
+                    // url?
+<span class="fc bfc" id="L57" title="All 2 branches covered.">                    if (decode.matches(URL_EXP)) {</span>
+<span class="fc" id="L58">                        return decode;</span>
+                    }
+                }
+            }
+<span class="fc" id="L62">            return url;</span>
+<span class="nc" id="L63">        } catch (MalformedURLException e) {</span>
+<span class="nc" id="L64">            return url;</span>
+        }
+    }
+
+    /**
+     * Checks whether the given String is a URL.
+     * &lt;p&gt;
+     * Currently only checks for a protocol String.
+     *
+     * @param url the String to check for a URL
+     * @return true if &lt;c&gt;url&lt;/c&gt; contains a valid URL
+     */
+    public static boolean isURL(String url) {
+<span class="fc" id="L77">        return url.contains(&quot;://&quot;);</span>
+    }
+
+    /**
+     * Look for the last '.' in the link, and return the following characters.
+     * &lt;p&gt;
+     * This gives the extension for most reasonably named links.
+     *
+     * @param link The link
+     * @return The suffix, excluding the dot (e.g. &quot;pdf&quot;)
+     */
+    public static Optional&lt;String&gt; getSuffix(final String link) {
+<span class="nc" id="L89">        String strippedLink = link;</span>
+        try {
+            // Try to strip the query string, if any, to get the correct suffix:
+<span class="nc" id="L92">            URL url = new URL(link);</span>
+<span class="nc bnc" id="L93" title="All 4 branches missed.">            if ((url.getQuery() != null) &amp;&amp; (url.getQuery().length() &lt; (link.length() - 1))) {</span>
+<span class="nc" id="L94">                strippedLink = link.substring(0, link.length() - url.getQuery().length() - 1);</span>
+            }
+<span class="nc" id="L96">        } catch (MalformedURLException e) {</span>
+            // Don't report this error, since this getting the suffix is a non-critical
+            // operation, and this error will be triggered and reported elsewhere.
+<span class="nc" id="L99">        }</span>
+        // First see if the stripped link gives a reasonable suffix:
+        String suffix;
+<span class="nc" id="L102">        int strippedLinkIndex = strippedLink.lastIndexOf('.');</span>
+<span class="nc bnc" id="L103" title="All 4 branches missed.">        if ((strippedLinkIndex &lt;= 0) || (strippedLinkIndex == (strippedLink.length() - 1))) {</span>
+<span class="nc" id="L104">            suffix = null;</span>
+        } else {
+<span class="nc" id="L106">            suffix = strippedLink.substring(strippedLinkIndex + 1);</span>
+        }
+<span class="nc bnc" id="L108" title="All 2 branches missed.">        if (!ExternalFileTypes.getInstance().isExternalFileTypeByExt(suffix)) {</span>
+            // If the suffix doesn't seem to give any reasonable file type, try
+            // with the non-stripped link:
+<span class="nc" id="L111">            int index = link.lastIndexOf('.');</span>
+<span class="nc bnc" id="L112" title="All 4 branches missed.">            if ((index &lt;= 0) || (index == (link.length() - 1))) {</span>
+                // No occurrence, or at the end
+                // Check if there are path separators in the suffix - if so, it is definitely
+                // not a proper suffix, so we should give up:
+<span class="nc bnc" id="L116" title="All 2 branches missed.">                if (strippedLink.substring(strippedLinkIndex + 1).indexOf('/') &gt;= 1) {</span>
+<span class="nc" id="L117">                    return Optional.empty();</span>
+                } else {
+<span class="nc" id="L119">                    return Optional.of(suffix); // return the first one we found, anyway.</span>
+                }
+            } else {
+                // Check if there are path separators in the suffix - if so, it is definitely
+                // not a proper suffix, so we should give up:
+<span class="nc bnc" id="L124" title="All 2 branches missed.">                if (link.substring(index + 1).indexOf('/') &gt;= 1) {</span>
+<span class="nc" id="L125">                    return Optional.empty();</span>
+                } else {
+<span class="nc" id="L127">                    return Optional.of(link.substring(index + 1));</span>
+                }
+            }
+        } else {
+<span class="nc" id="L131">            return Optional.ofNullable(suffix);</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

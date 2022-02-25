@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>UpdateField.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.util</a> &gt; <span class="el_source">UpdateField.java</span></div><h1>UpdateField.java</h1><pre class="source lang-java linenums">package org.jabref.logic.util;
+
+import java.util.Collection;
+import java.util.Optional;
+
+import org.jabref.logic.preferences.OwnerPreferences;
+import org.jabref.logic.preferences.TimestampPreferences;
+import org.jabref.model.FieldChange;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.field.Field;
+import org.jabref.model.entry.field.StandardField;
+
+public class UpdateField {
+
+    private UpdateField() {
+    }
+
+    /**
+     * Updating a field will result in the entry being reformatted on save
+     *
+     * @param be       BibEntry
+     * @param field    Field name
+     * @param newValue New field value
+     */
+    public static Optional&lt;FieldChange&gt; updateField(BibEntry be, Field field, String newValue) {
+<span class="fc" id="L26">        return updateField(be, field, newValue, false);</span>
+    }
+
+    /**
+     * Updating a non-displayable field does not result in the entry being reformatted on save
+     *
+     * @param be       BibEntry
+     * @param field    Field name
+     * @param newValue New field value
+     */
+    public static Optional&lt;FieldChange&gt; updateNonDisplayableField(BibEntry be, Field field, String newValue) {
+<span class="fc" id="L37">        boolean changed = be.hasChanged();</span>
+<span class="fc" id="L38">        Optional&lt;FieldChange&gt; fieldChange = updateField(be, field, newValue, false);</span>
+<span class="fc" id="L39">        be.setChanged(changed);</span>
+<span class="fc" id="L40">        return fieldChange;</span>
+    }
+
+    /**
+     * Undoable change of field value
+     *
+     * @param be                        BibEntry
+     * @param field                     Field name
+     * @param newValue                  New field value
+     * @param nullFieldIfValueIsTheSame If true the field value is removed when the current value is equals to newValue
+     */
+    public static Optional&lt;FieldChange&gt; updateField(BibEntry be, Field field, String newValue,
+                                                    Boolean nullFieldIfValueIsTheSame) {
+<span class="fc" id="L53">        String writtenValue = null;</span>
+<span class="fc" id="L54">        String oldValue = null;</span>
+<span class="fc bfc" id="L55" title="All 2 branches covered.">        if (be.hasField(field)) {</span>
+<span class="fc" id="L56">            oldValue = be.getField(field).get();</span>
+<span class="fc bfc" id="L57" title="All 6 branches covered.">            if ((newValue == null) || (oldValue.equals(newValue) &amp;&amp; nullFieldIfValueIsTheSame)) {</span>
+                // If the new field value is null or the old and the new value are the same and flag is set
+                // Clear the field
+<span class="fc" id="L60">                be.clearField(field);</span>
+<span class="fc bfc" id="L61" title="All 2 branches covered.">            } else if (!oldValue.equals(newValue)) {</span>
+                // Update
+<span class="fc" id="L63">                writtenValue = newValue;</span>
+<span class="fc" id="L64">                be.setField(field, newValue);</span>
+            } else {
+                // Values are the same, do nothing
+<span class="fc" id="L67">                return Optional.empty();</span>
+            }
+        } else {
+            // old field value not set
+<span class="fc bfc" id="L71" title="All 2 branches covered.">            if (newValue == null) {</span>
+                // Do nothing
+<span class="fc" id="L73">                return Optional.empty();</span>
+            } else {
+                // Set new value
+<span class="fc" id="L76">                writtenValue = newValue;</span>
+<span class="fc" id="L77">                be.setField(field, newValue);</span>
+            }
+        }
+<span class="fc" id="L80">        return Optional.of(new FieldChange(be, field, oldValue, writtenValue));</span>
+    }
+
+    /**
+     * Sets empty or non-existing owner fields of a bibtex entry to a specified default value. Timestamp field is also
+     * set. Preferences are checked to see if these options are enabled.
+     *
+     * @param entry              The entry to set fields for.
+     * @param overwriteOwner     Indicates whether owner should be set if it is already set.
+     * @param overwriteTimestamp Indicates whether timestamp should be set if it is already set.
+     */
+    public static void setAutomaticFields(BibEntry entry, boolean overwriteOwner, boolean overwriteTimestamp,
+                                          OwnerPreferences ownerPreferences, TimestampPreferences timestampPreferences) {
+<span class="fc" id="L93">        String defaultOwner = ownerPreferences.getDefaultOwner();</span>
+<span class="fc" id="L94">        String timestamp = timestampPreferences.now();</span>
+<span class="pc bpc" id="L95" title="2 of 6 branches missed.">        boolean setOwner = ownerPreferences.isUseOwner() &amp;&amp; (overwriteOwner || (!entry.hasField(StandardField.OWNER)));</span>
+<span class="fc" id="L96">        boolean setTimeStamp = timestampPreferences.shouldAddCreationDate();</span>
+
+<span class="fc" id="L98">        setAutomaticFields(entry, setOwner, defaultOwner, setTimeStamp, timestamp);</span>
+<span class="fc" id="L99">    }</span>
+
+    private static void setAutomaticFields(BibEntry entry, boolean setOwner, String owner, boolean setTimeStamp, String timeStamp) {
+
+        // Set owner field if this option is enabled:
+<span class="fc bfc" id="L104" title="All 2 branches covered.">        if (setOwner) {</span>
+            // Set owner field to default value
+<span class="fc" id="L106">            entry.setField(StandardField.OWNER, owner);</span>
+        }
+
+<span class="pc bpc" id="L109" title="1 of 2 branches missed.">        if (setTimeStamp) {</span>
+<span class="fc" id="L110">            entry.setField(StandardField.CREATIONDATE, timeStamp);</span>
+        }
+<span class="fc" id="L112">    }</span>
+
+    /**
+     * Sets empty or non-existing owner fields of bibtex entries inside a List to a specified default value. Timestamp
+     * field is also set. Preferences are checked to see if these options are enabled.
+     *
+     * @param bibs List of bibtex entries
+     */
+    public static void setAutomaticFields(Collection&lt;BibEntry&gt; bibs, boolean overwriteOwner,
+                                          OwnerPreferences ownerPreferences, TimestampPreferences timestampPreferences) {
+
+<span class="fc" id="L123">        boolean globalSetOwner = ownerPreferences.isUseOwner();</span>
+<span class="fc" id="L124">        boolean setTimeStamp = timestampPreferences.shouldAddCreationDate();</span>
+
+        // Do not need to do anything if all options are disabled
+<span class="pc bpc" id="L127" title="3 of 4 branches missed.">        if (!(globalSetOwner || setTimeStamp)) {</span>
+<span class="nc" id="L128">            return;</span>
+        }
+
+<span class="fc" id="L131">        String defaultOwner = ownerPreferences.getDefaultOwner();</span>
+<span class="fc" id="L132">        String timestamp = timestampPreferences.now();</span>
+
+        // Iterate through all entries
+<span class="fc bfc" id="L135" title="All 2 branches covered.">        for (BibEntry curEntry : bibs) {</span>
+<span class="pc bpc" id="L136" title="2 of 6 branches missed.">            boolean setOwner = globalSetOwner &amp;&amp; (overwriteOwner || (!curEntry.hasField(StandardField.OWNER)));</span>
+<span class="fc" id="L137">            setAutomaticFields(curEntry, setOwner, defaultOwner, setTimeStamp, timestamp);</span>
+<span class="fc" id="L138">        }</span>
+<span class="fc" id="L139">    }</span>
+
+    public static void setAutomaticFields(Collection&lt;BibEntry&gt; bibs,
+                                          OwnerPreferences ownerPreferences, TimestampPreferences timestampPreferences) {
+<span class="nc" id="L143">        UpdateField.setAutomaticFields(bibs,</span>
+<span class="nc" id="L144">                ownerPreferences.isOverwriteOwner(),</span>
+                ownerPreferences,
+                timestampPreferences);
+<span class="nc" id="L147">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

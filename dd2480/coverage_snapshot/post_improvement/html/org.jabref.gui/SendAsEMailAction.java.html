@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SendAsEMailAction.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui</a> &gt; <span class="el_source">SendAsEMailAction.java</span></div><h1>SendAsEMailAction.java</h1><pre class="source lang-java linenums">package org.jabref.gui;
+
+import java.awt.Desktop;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.net.URI;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.jabref.architecture.AllowedToUseAwt;
+import org.jabref.gui.actions.ActionHelper;
+import org.jabref.gui.actions.SimpleCommand;
+import org.jabref.gui.desktop.JabRefDesktop;
+import org.jabref.gui.util.BackgroundTask;
+import org.jabref.logic.bibtex.BibEntryWriter;
+import org.jabref.logic.bibtex.FieldWriter;
+import org.jabref.logic.exporter.BibWriter;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.logic.util.OS;
+import org.jabref.logic.util.io.FileUtil;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.preferences.PreferencesService;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Sends the selected entry as email
+ * &lt;p&gt;
+ * It uses the mailto:-mechanism
+ * &lt;p&gt;
+ * Microsoft Outlook does not support attachments via mailto
+ * Therefore, the folder(s), where the file(s) belonging to the entry are stored,
+ * are opened. This feature is disabled by default and can be switched on at
+ * preferences/external programs
+ */
+@AllowedToUseAwt(&quot;Requires AWT to send an email&quot;)
+public class SendAsEMailAction extends SimpleCommand {
+
+<span class="nc" id="L42">    private static final Logger LOGGER = LoggerFactory.getLogger(SendAsEMailAction.class);</span>
+    private final DialogService dialogService;
+    private final PreferencesService preferencesService;
+    private final StateManager stateManager;
+
+<span class="nc" id="L47">    public SendAsEMailAction(DialogService dialogService, PreferencesService preferencesService, StateManager stateManager) {</span>
+<span class="nc" id="L48">        this.dialogService = dialogService;</span>
+<span class="nc" id="L49">        this.preferencesService = preferencesService;</span>
+<span class="nc" id="L50">        this.stateManager = stateManager;</span>
+
+<span class="nc" id="L52">        this.executable.bind(ActionHelper.needsEntriesSelected(stateManager));</span>
+<span class="nc" id="L53">    }</span>
+
+    @Override
+    public void execute() {
+<span class="nc" id="L57">        BackgroundTask.wrap(this::sendEmail)</span>
+<span class="nc" id="L58">                      .onSuccess(dialogService::notify)</span>
+<span class="nc" id="L59">                      .onFailure(e -&gt; {</span>
+<span class="nc" id="L60">                          String message = Localization.lang(&quot;Error creating email&quot;);</span>
+<span class="nc" id="L61">                          LOGGER.warn(message, e);</span>
+<span class="nc" id="L62">                          dialogService.notify(message);</span>
+<span class="nc" id="L63">                      })</span>
+<span class="nc" id="L64">                      .executeWith(Globals.TASK_EXECUTOR);</span>
+<span class="nc" id="L65">    }</span>
+
+    private String sendEmail() throws Exception {
+<span class="nc bnc" id="L68" title="All 4 branches missed.">        if (!Desktop.isDesktopSupported() || stateManager.getActiveDatabase().isEmpty()) {</span>
+<span class="nc" id="L69">            return Localization.lang(&quot;Error creating email&quot;);</span>
+        }
+
+<span class="nc bnc" id="L72" title="All 2 branches missed.">        if (stateManager.getSelectedEntries().isEmpty()) {</span>
+<span class="nc" id="L73">            return Localization.lang(&quot;This operation requires one or more entries to be selected.&quot;);</span>
+        }
+
+<span class="nc" id="L76">        StringWriter rawEntries = new StringWriter();</span>
+<span class="nc" id="L77">        BibWriter bibWriter = new BibWriter(rawEntries, OS.NEWLINE);</span>
+<span class="nc" id="L78">        BibDatabaseContext databaseContext = stateManager.getActiveDatabase().get();</span>
+<span class="nc" id="L79">        List&lt;BibEntry&gt; entries = stateManager.getSelectedEntries();</span>
+
+        // write the entries using sw, which is used later to form the email content
+<span class="nc" id="L82">        BibEntryWriter bibtexEntryWriter = new BibEntryWriter(new FieldWriter(preferencesService.getFieldWriterPreferences()), Globals.entryTypesManager);</span>
+
+<span class="nc bnc" id="L84" title="All 2 branches missed.">        for (BibEntry entry : entries) {</span>
+            try {
+<span class="nc" id="L86">                bibtexEntryWriter.write(entry, bibWriter, databaseContext.getMode());</span>
+<span class="nc" id="L87">            } catch (IOException e) {</span>
+<span class="nc" id="L88">                LOGGER.warn(&quot;Problem creating BibTeX file for mailing.&quot;, e);</span>
+<span class="nc" id="L89">            }</span>
+<span class="nc" id="L90">        }</span>
+
+<span class="nc" id="L92">        List&lt;String&gt; attachments = new ArrayList&lt;&gt;();</span>
+
+        // open folders is needed to indirectly support email programs, which cannot handle
+        //   the unofficial &quot;mailto:attachment&quot; property
+<span class="nc" id="L96">        boolean openFolders = preferencesService.getExternalApplicationsPreferences().shouldAutoOpenEmailAttachmentsFolder();</span>
+
+<span class="nc" id="L98">        List&lt;Path&gt; fileList = FileUtil.getListOfLinkedFiles(entries, databaseContext.getFileDirectories(preferencesService.getFilePreferences()));</span>
+<span class="nc bnc" id="L99" title="All 2 branches missed.">        for (Path path : fileList) {</span>
+<span class="nc" id="L100">            attachments.add(path.toAbsolutePath().toString());</span>
+<span class="nc bnc" id="L101" title="All 2 branches missed.">            if (openFolders) {</span>
+                try {
+<span class="nc" id="L103">                    JabRefDesktop.openFolderAndSelectFile(path.toAbsolutePath(), preferencesService);</span>
+<span class="nc" id="L104">                } catch (IOException e) {</span>
+<span class="nc" id="L105">                    LOGGER.debug(&quot;Cannot open file&quot;, e);</span>
+<span class="nc" id="L106">                }</span>
+            }
+<span class="nc" id="L108">        }</span>
+
+<span class="nc" id="L110">        String mailTo = &quot;?Body=&quot;.concat(rawEntries.toString());</span>
+<span class="nc" id="L111">        mailTo = mailTo.concat(&quot;&amp;Subject=&quot;);</span>
+<span class="nc" id="L112">        mailTo = mailTo.concat(preferencesService.getExternalApplicationsPreferences().getEmailSubject());</span>
+<span class="nc bnc" id="L113" title="All 2 branches missed.">        for (String path : attachments) {</span>
+<span class="nc" id="L114">            mailTo = mailTo.concat(&quot;&amp;Attachment=\&quot;&quot;).concat(path);</span>
+<span class="nc" id="L115">            mailTo = mailTo.concat(&quot;\&quot;&quot;);</span>
+<span class="nc" id="L116">        }</span>
+
+<span class="nc" id="L118">        URI uriMailTo = new URI(&quot;mailto&quot;, mailTo, null);</span>
+
+<span class="nc" id="L120">        Desktop desktop = Desktop.getDesktop();</span>
+<span class="nc" id="L121">        desktop.mail(uriMailTo);</span>
+
+<span class="nc" id="L123">        return String.format(&quot;%s: %d&quot;, Localization.lang(&quot;Entries added to an email&quot;), entries.size());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

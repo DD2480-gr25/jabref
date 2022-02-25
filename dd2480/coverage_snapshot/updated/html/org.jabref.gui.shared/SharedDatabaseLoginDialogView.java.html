@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SharedDatabaseLoginDialogView.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.shared</a> &gt; <span class="el_source">SharedDatabaseLoginDialogView.java</span></div><h1>SharedDatabaseLoginDialogView.java</h1><pre class="source lang-java linenums">package org.jabref.gui.shared;
+
+import javax.inject.Inject;
+
+import javafx.application.Platform;
+import javafx.event.ActionEvent;
+import javafx.fxml.FXML;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.TextField;
+
+import org.jabref.gui.DialogService;
+import org.jabref.gui.JabRefFrame;
+import org.jabref.gui.util.BaseDialog;
+import org.jabref.gui.util.ControlHelper;
+import org.jabref.gui.util.IconValidationDecorator;
+import org.jabref.logic.l10n.Localization;
+import org.jabref.logic.shared.DBMSType;
+import org.jabref.preferences.PreferencesService;
+
+import com.airhacks.afterburner.views.ViewLoader;
+import com.tobiasdiez.easybind.EasyBind;
+import de.saxsys.mvvmfx.utils.validation.visualization.ControlsFxVisualizer;
+
+public class SharedDatabaseLoginDialogView extends BaseDialog&lt;Void&gt; {
+
+    private final JabRefFrame frame;
+
+    @FXML private ComboBox&lt;DBMSType&gt; databaseType;
+    @FXML private TextField host;
+    @FXML private TextField database;
+    @FXML private TextField port;
+    @FXML private TextField user;
+    @FXML private PasswordField password;
+    @FXML private CheckBox rememberPassword;
+    @FXML private TextField folder;
+    @FXML private Button browseButton;
+    @FXML private CheckBox autosave;
+    @FXML private ButtonType connectButton;
+    @FXML private CheckBox useSSL;
+    @FXML private TextField fileKeystore;
+    @FXML private PasswordField passwordKeystore;
+    @FXML private Button browseKeystore;
+    @FXML private TextField serverTimezone;
+
+    @Inject private DialogService dialogService;
+    @Inject private PreferencesService preferencesService;
+
+    private SharedDatabaseLoginDialogViewModel viewModel;
+<span class="nc" id="L53">    private final ControlsFxVisualizer visualizer = new ControlsFxVisualizer();</span>
+
+<span class="nc" id="L55">    public SharedDatabaseLoginDialogView(JabRefFrame frame) {</span>
+<span class="nc" id="L56">        this.frame = frame;</span>
+<span class="nc" id="L57">        this.setTitle(Localization.lang(&quot;Connect to shared database&quot;));</span>
+
+<span class="nc" id="L59">        ViewLoader.view(this)</span>
+<span class="nc" id="L60">                  .load()</span>
+<span class="nc" id="L61">                  .setAsDialogPane(this);</span>
+
+<span class="nc" id="L63">        ControlHelper.setAction(connectButton, this.getDialogPane(), event -&gt; openDatabase());</span>
+<span class="nc" id="L64">        Button btnConnect = (Button) this.getDialogPane().lookupButton(connectButton);</span>
+        // must be set here, because in initialize the button is still null
+<span class="nc" id="L66">        btnConnect.disableProperty().bind(viewModel.formValidation().validProperty().not());</span>
+<span class="nc bnc" id="L67" title="All 2 branches missed.">        btnConnect.textProperty().bind(EasyBind.map(viewModel.loadingProperty(), loading -&gt; (loading) ? Localization.lang(&quot;Connecting...&quot;) : Localization.lang(&quot;Connect&quot;)));</span>
+<span class="nc" id="L68">    }</span>
+
+    @FXML
+    private void openDatabase() {
+<span class="nc" id="L72">        boolean connected = viewModel.openDatabase();</span>
+
+<span class="nc bnc" id="L74" title="All 2 branches missed.">        if (connected) {</span>
+<span class="nc" id="L75">            this.close();</span>
+        }
+<span class="nc" id="L77">    }</span>
+
+    @FXML
+    private void initialize() {
+<span class="nc" id="L81">        visualizer.setDecoration(new IconValidationDecorator());</span>
+
+<span class="nc" id="L83">        viewModel = new SharedDatabaseLoginDialogViewModel(frame, dialogService, preferencesService);</span>
+<span class="nc" id="L84">        databaseType.getItems().addAll(DBMSType.values());</span>
+<span class="nc" id="L85">        databaseType.getSelectionModel().select(0);</span>
+
+<span class="nc" id="L87">        database.textProperty().bindBidirectional(viewModel.databaseproperty());</span>
+<span class="nc" id="L88">        host.textProperty().bindBidirectional(viewModel.hostProperty());</span>
+<span class="nc" id="L89">        user.textProperty().bindBidirectional(viewModel.userProperty());</span>
+<span class="nc" id="L90">        password.textProperty().bindBidirectional(viewModel.passwordProperty());</span>
+<span class="nc" id="L91">        port.textProperty().bindBidirectional(viewModel.portProperty());</span>
+<span class="nc" id="L92">        serverTimezone.textProperty().bindBidirectional(viewModel.serverTimezoneProperty());</span>
+<span class="nc" id="L93">        databaseType.valueProperty().bindBidirectional(viewModel.selectedDbmstypeProperty());</span>
+
+<span class="nc" id="L95">        folder.textProperty().bindBidirectional(viewModel.folderProperty());</span>
+<span class="nc" id="L96">        browseButton.disableProperty().bind(viewModel.autosaveProperty().not());</span>
+<span class="nc" id="L97">        folder.disableProperty().bind(viewModel.autosaveProperty().not());</span>
+<span class="nc" id="L98">        autosave.selectedProperty().bindBidirectional(viewModel.autosaveProperty());</span>
+
+<span class="nc" id="L100">        useSSL.selectedProperty().bindBidirectional(viewModel.useSSLProperty());</span>
+
+<span class="nc" id="L102">        fileKeystore.textProperty().bindBidirectional(viewModel.keyStoreProperty());</span>
+
+<span class="nc" id="L104">        browseKeystore.disableProperty().bind(viewModel.useSSLProperty().not());</span>
+<span class="nc" id="L105">        passwordKeystore.disableProperty().bind(viewModel.useSSLProperty().not());</span>
+<span class="nc" id="L106">        passwordKeystore.textProperty().bindBidirectional(viewModel.keyStorePasswordProperty());</span>
+<span class="nc" id="L107">        rememberPassword.selectedProperty().bindBidirectional(viewModel.rememberPasswordProperty());</span>
+
+        // Must be executed after the initialization of the view, otherwise it doesn't work
+<span class="nc" id="L110">        Platform.runLater(() -&gt; {</span>
+<span class="nc" id="L111">            visualizer.initVisualization(viewModel.dbValidation(), database, true);</span>
+<span class="nc" id="L112">            visualizer.initVisualization(viewModel.hostValidation(), host, true);</span>
+<span class="nc" id="L113">            visualizer.initVisualization(viewModel.portValidation(), port, true);</span>
+<span class="nc" id="L114">            visualizer.initVisualization(viewModel.userValidation(), user, true);</span>
+
+<span class="nc" id="L116">            EasyBind.subscribe(autosave.selectedProperty(), selected -&gt;</span>
+<span class="nc" id="L117">                    visualizer.initVisualization(viewModel.folderValidation(), folder, true));</span>
+
+<span class="nc" id="L119">            EasyBind.subscribe(useSSL.selectedProperty(), selected -&gt;</span>
+<span class="nc" id="L120">                    visualizer.initVisualization(viewModel.keystoreValidation(), fileKeystore, true));</span>
+<span class="nc" id="L121">        });</span>
+<span class="nc" id="L122">    }</span>
+
+    @FXML
+    private void showSaveDbToFileDialog(ActionEvent event) {
+<span class="nc" id="L126">        viewModel.showSaveDbToFileDialog();</span>
+<span class="nc" id="L127">    }</span>
+
+    @FXML
+    private void showOpenKeystoreFileDialog(ActionEvent event) {
+<span class="nc" id="L131">        viewModel.showOpenKeystoreFileDialog();</span>
+<span class="nc" id="L132">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

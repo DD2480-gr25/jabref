@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IEEEQueryTransformer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.importer.fetcher.transformers</a> &gt; <span class="el_source">IEEEQueryTransformer.java</span></div><h1>IEEEQueryTransformer.java</h1><pre class="source lang-java linenums">package org.jabref.logic.importer.fetcher.transformers;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+
+import org.jabref.model.strings.StringUtil;
+
+/**
+ * Needs to be instantiated for each new query
+ */
+<span class="fc" id="L12">public class IEEEQueryTransformer extends YearRangeByFilteringQueryTransformer {</span>
+    /**
+     * Returns words ignored by the engine. Need to be removed when querying for them.
+     * See ADR-0022
+     */
+<span class="fc" id="L17">    private static final List&lt;String&gt; STOP_WORDS = List.of(&quot;a&quot;, &quot;and&quot;, &quot;for&quot;, &quot;or&quot;, &quot;with&quot;);</span>
+
+    // These have to be integrated into the IEEE query URL as these are just supported as query parameters
+    // Journal is wrapped in quotes by the transformer
+    private String journal;
+    private String articleNumber;
+
+    @Override
+    protected String getLogicalAndOperator() {
+<span class="fc" id="L26">        return &quot; AND &quot;;</span>
+    }
+
+    @Override
+    protected String getLogicalOrOperator() {
+<span class="fc" id="L31">        return &quot; OR &quot;;</span>
+    }
+
+    @Override
+    protected String getLogicalNotOperator() {
+<span class="fc" id="L36">        return &quot;NOT &quot;;</span>
+    }
+
+    @Override
+    protected String handleAuthor(String author) {
+<span class="fc" id="L41">        return createKeyValuePair(&quot;author&quot;, author);</span>
+    }
+
+    @Override
+    protected String handleTitle(String title) {
+<span class="fc" id="L46">        return createKeyValuePair(&quot;article_title&quot;, title);</span>
+    }
+
+    @Override
+    protected String handleJournal(String journal) {
+<span class="fc" id="L51">        this.journal = journal;</span>
+<span class="fc" id="L52">        return StringUtil.quoteStringIfSpaceIsContained(journal);</span>
+    }
+
+    @Override
+    protected String handleYear(String year) {
+<span class="fc" id="L57">        startYear = Math.min(startYear, Integer.parseInt(year));</span>
+<span class="fc" id="L58">        endYear = Math.max(endYear, Integer.parseInt(year));</span>
+<span class="fc" id="L59">        return &quot;&quot;;</span>
+    }
+
+    @Override
+    protected Optional&lt;String&gt; handleOtherField(String fieldAsString, String term) {
+<span class="pc bpc" id="L64" title="1 of 2 branches missed.">        return switch (fieldAsString) {</span>
+<span class="fc" id="L65">            case &quot;article_number&quot; -&gt; handleArticleNumber(term);</span>
+<span class="nc" id="L66">            default -&gt; super.handleOtherField(fieldAsString, term);</span>
+        };
+    }
+
+    @Override
+    protected Optional&lt;String&gt; handleUnFieldedTerm(String term) {
+<span class="fc bfc" id="L72" title="All 2 branches covered.">        if (STOP_WORDS.contains(term)) {</span>
+<span class="fc" id="L73">            return Optional.empty();</span>
+        }
+<span class="fc" id="L75">        return super.handleUnFieldedTerm(term);</span>
+    }
+
+    private Optional&lt;String&gt; handleArticleNumber(String term) {
+<span class="fc" id="L79">        articleNumber = term;</span>
+<span class="fc" id="L80">        return Optional.empty();</span>
+    }
+
+    public Optional&lt;String&gt; getJournal() {
+<span class="fc bfc" id="L84" title="All 2 branches covered.">        return Objects.isNull(journal) ? Optional.empty() : Optional.of(journal);</span>
+    }
+
+    public Optional&lt;String&gt; getArticleNumber() {
+<span class="fc bfc" id="L88" title="All 2 branches covered.">        return Objects.isNull(articleNumber) ? Optional.empty() : Optional.of(articleNumber);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

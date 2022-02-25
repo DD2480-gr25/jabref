@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ImportExportTab.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.preferences.importexport</a> &gt; <span class="el_source">ImportExportTab.java</span></div><h1>ImportExportTab.java</h1><pre class="source lang-java linenums">package org.jabref.gui.preferences.importexport;
+
+import javafx.fxml.FXML;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.TextField;
+
+import org.jabref.gui.commonfxcontrols.SaveOrderConfigPanel;
+import org.jabref.gui.preferences.AbstractPreferenceTabView;
+import org.jabref.gui.preferences.PreferencesTab;
+import org.jabref.logic.l10n.Localization;
+
+import com.airhacks.afterburner.views.ViewLoader;
+
+public class ImportExportTab extends AbstractPreferenceTabView&lt;ImportExportTabViewModel&gt; implements PreferencesTab {
+
+    @FXML private CheckBox generateNewKeyOnImport;
+    @FXML private CheckBox useCustomDOI;
+    @FXML private TextField useCustomDOIName;
+
+    @FXML private SaveOrderConfigPanel exportOrderPanel;
+
+    @FXML private CheckBox grobidEnabled;
+    @FXML private TextField grobidURL;
+
+<span class="nc" id="L25">    public ImportExportTab() {</span>
+<span class="nc" id="L26">        ViewLoader.view(this)</span>
+<span class="nc" id="L27">                  .root(this)</span>
+<span class="nc" id="L28">                  .load();</span>
+<span class="nc" id="L29">    }</span>
+
+    @Override
+    public String getTabName() {
+<span class="nc" id="L33">        return Localization.lang(&quot;Import and Export&quot;);</span>
+    }
+
+    public void initialize() {
+<span class="nc" id="L37">        this.viewModel = new ImportExportTabViewModel(preferencesService, preferencesService.getDOIPreferences());</span>
+
+<span class="nc" id="L39">        useCustomDOI.selectedProperty().bindBidirectional(viewModel.useCustomDOIProperty());</span>
+<span class="nc" id="L40">        useCustomDOIName.textProperty().bindBidirectional(viewModel.useCustomDOINameProperty());</span>
+<span class="nc" id="L41">        useCustomDOIName.disableProperty().bind(useCustomDOI.selectedProperty().not());</span>
+
+<span class="nc" id="L43">        generateNewKeyOnImport.selectedProperty().bindBidirectional(viewModel.generateKeyOnImportProperty());</span>
+
+<span class="nc" id="L45">        exportOrderPanel.saveInOriginalProperty().bindBidirectional(viewModel.saveInOriginalProperty());</span>
+<span class="nc" id="L46">        exportOrderPanel.saveInTableOrderProperty().bindBidirectional(viewModel.saveInTableOrderProperty());</span>
+<span class="nc" id="L47">        exportOrderPanel.saveInSpecifiedOrderProperty().bindBidirectional(viewModel.saveInSpecifiedOrderProperty());</span>
+<span class="nc" id="L48">        exportOrderPanel.sortableFieldsProperty().bind(viewModel.sortableFieldsProperty());</span>
+<span class="nc" id="L49">        exportOrderPanel.sortCriteriaProperty().bindBidirectional(viewModel.sortCriteriaProperty());</span>
+<span class="nc" id="L50">        exportOrderPanel.setCriteriaLimit(3);</span>
+
+<span class="nc" id="L52">        grobidEnabled.selectedProperty().bindBidirectional(viewModel.grobidEnabledProperty());</span>
+<span class="nc" id="L53">        grobidURL.textProperty().bindBidirectional(viewModel.grobidURLProperty());</span>
+<span class="nc" id="L54">        grobidURL.disableProperty().bind(grobidEnabled.selectedProperty().not());</span>
+<span class="nc" id="L55">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

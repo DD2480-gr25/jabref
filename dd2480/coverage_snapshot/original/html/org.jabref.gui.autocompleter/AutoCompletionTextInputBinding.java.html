@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AutoCompletionTextInputBinding.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.gui.autocompleter</a> &gt; <span class="el_source">AutoCompletionTextInputBinding.java</span></div><h1>AutoCompletionTextInputBinding.java</h1><pre class="source lang-java linenums">/**
+ * Copyright (c) 2014, 2015, ControlsFX
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ * * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
+ * * Neither the name of ControlsFX, any associated website, nor the
+ * names of its contributors may be used to endorse or promote products
+ * derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS &quot;AS IS&quot; AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL CONTROLSFX BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+package org.jabref.gui.autocompleter;
+
+import java.util.Collection;
+
+import javafx.beans.value.ChangeListener;
+import javafx.scene.control.TextInputControl;
+import javafx.util.Callback;
+import javafx.util.StringConverter;
+
+import org.jabref.gui.util.DefaultTaskExecutor;
+
+import org.controlsfx.control.textfield.AutoCompletionBinding;
+
+/**
+ * Represents a binding between a text input control and a auto-completion popup
+ * This class is a slightly modified version of {@link impl.org.controlsfx.autocompletion.AutoCompletionTextFieldBinding}
+ * that works with general text input controls instead of just text fields.
+ * @param &lt;T&gt;
+ *
+ */
+public class AutoCompletionTextInputBinding&lt;T&gt; extends AutoCompletionBinding&lt;T&gt; {
+
+    /**
+     * String converter to be used to convert suggestions to strings.
+     */
+    private StringConverter&lt;T&gt; converter;
+    private AutoCompletionStrategy inputAnalyzer;
+<span class="nc" id="L54">    private final ChangeListener&lt;String&gt; textChangeListener = (obs, oldText, newText) -&gt; {</span>
+<span class="nc bnc" id="L55" title="All 2 branches missed.">        if (getCompletionTarget().isFocused()) {</span>
+<span class="nc" id="L56">            setUserInputText(newText);</span>
+        }
+<span class="nc" id="L58">    };</span>
+    private boolean showOnFocus;
+<span class="nc" id="L60">    private final ChangeListener&lt;Boolean&gt; focusChangedListener = (obs, oldFocused, newFocused) -&gt; {</span>
+<span class="nc bnc" id="L61" title="All 2 branches missed.">        if (newFocused) {</span>
+<span class="nc bnc" id="L62" title="All 2 branches missed.">            if (showOnFocus) {</span>
+<span class="nc" id="L63">                setUserInputText(getCompletionTarget().getText());</span>
+            }
+        } else {
+<span class="nc" id="L66">            hidePopup();</span>
+        }
+<span class="nc" id="L68">    };</span>
+
+    /**
+     * Creates a new auto-completion binding between the given textInputControl
+     * and the given suggestion provider.
+     */
+    private AutoCompletionTextInputBinding(final TextInputControl textInputControl,
+                                           Callback&lt;ISuggestionRequest, Collection&lt;T&gt;&gt; suggestionProvider) {
+
+<span class="nc" id="L77">        this(textInputControl,</span>
+                suggestionProvider,
+<span class="nc" id="L79">                AutoCompletionTextInputBinding.defaultStringConverter(),</span>
+                new ReplaceStrategy());
+<span class="nc" id="L81">    }</span>
+
+    private AutoCompletionTextInputBinding(final TextInputControl textInputControl,
+                                           final Callback&lt;ISuggestionRequest, Collection&lt;T&gt;&gt; suggestionProvider,
+                                           final StringConverter&lt;T&gt; converter) {
+<span class="nc" id="L86">        this(textInputControl, suggestionProvider, converter, new ReplaceStrategy());</span>
+<span class="nc" id="L87">    }</span>
+
+    private AutoCompletionTextInputBinding(final TextInputControl textInputControl,
+                                           final Callback&lt;ISuggestionRequest, Collection&lt;T&gt;&gt; suggestionProvider,
+                                           final StringConverter&lt;T&gt; converter,
+                                           final AutoCompletionStrategy inputAnalyzer) {
+
+<span class="nc" id="L94">        super(textInputControl, suggestionProvider, converter);</span>
+<span class="nc" id="L95">        this.converter = converter;</span>
+<span class="nc" id="L96">        this.inputAnalyzer = inputAnalyzer;</span>
+
+<span class="nc" id="L98">        getCompletionTarget().textProperty().addListener(textChangeListener);</span>
+<span class="nc" id="L99">        getCompletionTarget().focusedProperty().addListener(focusChangedListener);</span>
+<span class="nc" id="L100">    }</span>
+
+    private static &lt;T&gt; StringConverter&lt;T&gt; defaultStringConverter() {
+<span class="nc" id="L103">        return new StringConverter&lt;&gt;() {</span>
+            @Override
+            public String toString(T t) {
+<span class="nc bnc" id="L106" title="All 2 branches missed.">                return t == null ? null : t.toString();</span>
+            }
+
+            @SuppressWarnings(&quot;unchecked&quot;)
+            @Override
+            public T fromString(String string) {
+<span class="nc" id="L112">                return (T) string;</span>
+            }
+        };
+    }
+
+    public static &lt;T&gt; void autoComplete(TextInputControl textArea, Callback&lt;ISuggestionRequest, Collection&lt;T&gt;&gt; suggestionProvider) {
+<span class="nc" id="L118">        new AutoCompletionTextInputBinding&lt;&gt;(textArea, suggestionProvider);</span>
+<span class="nc" id="L119">    }</span>
+
+    public static &lt;T&gt; void autoComplete(TextInputControl textArea, Callback&lt;ISuggestionRequest, Collection&lt;T&gt;&gt; suggestionProvider, StringConverter&lt;T&gt; converter) {
+<span class="nc" id="L122">        new AutoCompletionTextInputBinding&lt;&gt;(textArea, suggestionProvider, converter);</span>
+<span class="nc" id="L123">    }</span>
+
+    public static &lt;T&gt; AutoCompletionTextInputBinding&lt;T&gt; autoComplete(TextInputControl textArea, Callback&lt;ISuggestionRequest, Collection&lt;T&gt;&gt; suggestionProvider, StringConverter&lt;T&gt; converter, AutoCompletionStrategy inputAnalyzer) {
+<span class="nc" id="L126">        return new AutoCompletionTextInputBinding&lt;&gt;(textArea, suggestionProvider, converter, inputAnalyzer);</span>
+    }
+
+    public static &lt;T&gt; AutoCompletionTextInputBinding&lt;T&gt; autoComplete(TextInputControl textArea, Callback&lt;ISuggestionRequest, Collection&lt;T&gt;&gt; suggestionProvider, AutoCompletionStrategy inputAnalyzer) {
+<span class="nc" id="L130">        return autoComplete(textArea, suggestionProvider, AutoCompletionTextInputBinding.defaultStringConverter(), inputAnalyzer);</span>
+    }
+
+    private void setUserInputText(String newText) {
+<span class="nc bnc" id="L134" title="All 2 branches missed.">        if (newText == null) {</span>
+<span class="nc" id="L135">            newText = &quot;&quot;;</span>
+        }
+<span class="nc" id="L137">        AutoCompletionInput input = inputAnalyzer.analyze(newText);</span>
+<span class="nc" id="L138">        DefaultTaskExecutor.runInJavaFXThread(() -&gt; setUserInput(input.getUnfinishedPart()));</span>
+<span class="nc" id="L139">    }</span>
+
+    @Override
+    public TextInputControl getCompletionTarget() {
+<span class="nc" id="L143">        return (TextInputControl) super.getCompletionTarget();</span>
+    }
+
+    @Override
+    public void dispose() {
+<span class="nc" id="L148">        getCompletionTarget().textProperty().removeListener(textChangeListener);</span>
+<span class="nc" id="L149">        getCompletionTarget().focusedProperty().removeListener(focusChangedListener);</span>
+<span class="nc" id="L150">    }</span>
+
+    @Override
+    protected void completeUserInput(T completion) {
+<span class="nc" id="L154">        String completionText = converter.toString(completion);</span>
+<span class="nc" id="L155">        String inputText = getCompletionTarget().getText();</span>
+<span class="nc bnc" id="L156" title="All 2 branches missed.">        if (inputText == null) {</span>
+<span class="nc" id="L157">            inputText = &quot;&quot;;</span>
+        }
+<span class="nc" id="L159">        AutoCompletionInput input = inputAnalyzer.analyze(inputText);</span>
+<span class="nc" id="L160">        String newText = input.getPrefix() + completionText;</span>
+<span class="nc" id="L161">        getCompletionTarget().setText(newText);</span>
+<span class="nc" id="L162">        getCompletionTarget().positionCaret(newText.length());</span>
+<span class="nc" id="L163">    }</span>
+
+    public void setShowOnFocus(boolean showOnFocus) {
+<span class="nc" id="L166">        this.showOnFocus = showOnFocus;</span>
+<span class="nc" id="L167">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

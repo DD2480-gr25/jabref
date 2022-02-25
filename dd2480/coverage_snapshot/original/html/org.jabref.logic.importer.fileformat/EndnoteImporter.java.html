@@ -1,0 +1,292 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EndnoteImporter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.importer.fileformat</a> &gt; <span class="el_source">EndnoteImporter.java</span></div><h1>EndnoteImporter.java</h1><pre class="source lang-java linenums">package org.jabref.logic.importer.fileformat;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
+
+import org.jabref.logic.citationkeypattern.CitationKeyGenerator;
+import org.jabref.logic.importer.ImportFormatPreferences;
+import org.jabref.logic.importer.Importer;
+import org.jabref.logic.importer.ParserResult;
+import org.jabref.logic.util.StandardFileType;
+import org.jabref.model.entry.AuthorList;
+import org.jabref.model.entry.BibEntry;
+import org.jabref.model.entry.field.Field;
+import org.jabref.model.entry.field.InternalField;
+import org.jabref.model.entry.field.StandardField;
+import org.jabref.model.entry.types.EntryType;
+import org.jabref.model.entry.types.StandardEntryType;
+
+/**
+ * Importer for the Refer/Endnote format.
+ * modified to use article number for pages if pages are missing (some
+ * journals, e.g., Physical Review Letters, don't use pages anymore)
+ *
+ * check here for details on the format
+ * http://libguides.csuchico.edu/c.php?g=414245&amp;p=2822898
+ */
+public class EndnoteImporter extends Importer {
+
+    private static final String ENDOFRECORD = &quot;__EOREOR__&quot;;
+
+<span class="fc" id="L36">    private static final Pattern A_PATTERN = Pattern.compile(&quot;%A .*&quot;);</span>
+<span class="fc" id="L37">    private static final Pattern E_PATTERN = Pattern.compile(&quot;%E .*&quot;);</span>
+
+    private final ImportFormatPreferences preferences;
+
+<span class="fc" id="L41">    public EndnoteImporter(ImportFormatPreferences preferences) {</span>
+<span class="fc" id="L42">        this.preferences = preferences;</span>
+<span class="fc" id="L43">    }</span>
+
+    @Override
+    public String getName() {
+<span class="fc" id="L47">        return &quot;Refer/Endnote&quot;;</span>
+    }
+
+    @Override
+    public StandardFileType getFileType() {
+<span class="fc" id="L52">        return StandardFileType.ENDNOTE;</span>
+    }
+
+    @Override
+    public String getId() {
+<span class="fc" id="L57">        return &quot;refer&quot;;</span>
+    }
+
+    @Override
+    public String getDescription() {
+<span class="fc" id="L62">        return &quot;Importer for the Refer/Endnote format. Modified to use article number for pages if pages are missing.&quot;;</span>
+    }
+
+    @Override
+    public boolean isRecognizedFormat(BufferedReader reader) throws IOException {
+        // Our strategy is to look for the &quot;%A *&quot; line.
+        String str;
+<span class="fc bfc" id="L69" title="All 2 branches covered.">        while ((str = reader.readLine()) != null) {</span>
+<span class="fc bfc" id="L70" title="All 4 branches covered.">            if (A_PATTERN.matcher(str).matches() || E_PATTERN.matcher(str).matches()) {</span>
+<span class="fc" id="L71">                return true;</span>
+            }
+        }
+<span class="fc" id="L74">        return false;</span>
+    }
+
+    @Override
+    public ParserResult importDatabase(BufferedReader reader) throws IOException {
+<span class="fc" id="L79">        List&lt;BibEntry&gt; bibitems = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L80">        StringBuilder sb = new StringBuilder();</span>
+        String str;
+<span class="fc" id="L82">        boolean first = true;</span>
+<span class="fc bfc" id="L83" title="All 2 branches covered.">        while ((str = reader.readLine()) != null) {</span>
+<span class="fc" id="L84">            str = str.trim();</span>
+<span class="fc bfc" id="L85" title="All 2 branches covered.">            if (str.indexOf(&quot;%0&quot;) == 0) {</span>
+<span class="fc bfc" id="L86" title="All 2 branches covered.">                if (first) {</span>
+<span class="fc" id="L87">                    first = false;</span>
+                } else {
+<span class="fc" id="L89">                    sb.append(ENDOFRECORD);</span>
+                }
+<span class="fc" id="L91">                sb.append(str);</span>
+            } else {
+<span class="fc" id="L93">                sb.append(str);</span>
+            }
+<span class="fc" id="L95">            sb.append('\n');</span>
+        }
+
+<span class="fc" id="L98">        String[] entries = sb.toString().split(ENDOFRECORD);</span>
+<span class="fc" id="L99">        Map&lt;Field, String&gt; hm = new HashMap&lt;&gt;();</span>
+        String author;
+        EntryType type;
+        String editor;
+        String artnum;
+<span class="fc bfc" id="L104" title="All 2 branches covered.">        for (String entry : entries) {</span>
+<span class="fc" id="L105">            hm.clear();</span>
+<span class="fc" id="L106">            author = &quot;&quot;;</span>
+<span class="fc" id="L107">            type = BibEntry.DEFAULT_TYPE;</span>
+<span class="fc" id="L108">            editor = &quot;&quot;;</span>
+<span class="fc" id="L109">            artnum = &quot;&quot;;</span>
+
+<span class="fc" id="L111">            boolean isEditedBook = false;</span>
+<span class="fc" id="L112">            String[] fields = entry.trim().substring(1).split(&quot;\n%&quot;);</span>
+<span class="fc bfc" id="L113" title="All 2 branches covered.">            for (String field : fields) {</span>
+
+<span class="fc bfc" id="L115" title="All 2 branches covered.">                if (field.length() &lt; 3) {</span>
+<span class="fc" id="L116">                    continue;</span>
+                }
+
+                /*
+                 * Details of Refer format for Journal Article and Book:
+                 *
+                 * Generic Ref Journal Article Book Code Author %A Author Author Year %D
+                 * Year Year Title %T Title Title Secondary Author %E Series Editor
+                 * Secondary Title %B Journal Series Title Place Published %C City
+                 * Publisher %I Publisher Volume %V Volume Volume Number of Volumes %6
+                 * Number of Volumes Number %N Issue Pages %P Pages Number of Pages
+                 * Edition %7 Edition Subsidiary Author %? Translator Alternate Title %J
+                 * Alternate Journal Label %F Label Label Keywords %K Keywords Keywords
+                 * Abstract %X Abstract Abstract Notes %O Notes Notes
+                 */
+
+<span class="fc" id="L132">                String prefix = field.substring(0, 1);</span>
+
+<span class="fc" id="L134">                String val = field.substring(2);</span>
+
+<span class="fc bfc" id="L136" title="All 2 branches covered.">                if (&quot;A&quot;.equals(prefix)) {</span>
+<span class="fc bfc" id="L137" title="All 2 branches covered.">                    if (&quot;&quot;.equals(author)) {</span>
+<span class="fc" id="L138">                        author = val;</span>
+                    } else {
+<span class="fc" id="L140">                        author += &quot; and &quot; + val;</span>
+                    }
+<span class="fc bfc" id="L142" title="All 2 branches covered.">                } else if (&quot;E&quot;.equals(prefix)) {</span>
+<span class="fc bfc" id="L143" title="All 2 branches covered.">                    if (&quot;&quot;.equals(editor)) {</span>
+<span class="fc" id="L144">                        editor = val;</span>
+                    } else {
+<span class="fc" id="L146">                        editor += &quot; and &quot; + val;</span>
+                    }
+<span class="fc bfc" id="L148" title="All 2 branches covered.">                } else if (&quot;T&quot;.equals(prefix)) {</span>
+<span class="fc" id="L149">                    hm.put(StandardField.TITLE, val);</span>
+<span class="fc bfc" id="L150" title="All 2 branches covered.">                } else if (&quot;0&quot;.equals(prefix)) {</span>
+<span class="fc bfc" id="L151" title="All 2 branches covered.">                    if (val.indexOf(&quot;Journal&quot;) == 0) {</span>
+<span class="fc" id="L152">                        type = StandardEntryType.Article;</span>
+<span class="fc bfc" id="L153" title="All 2 branches covered.">                    } else if (val.indexOf(&quot;Book Section&quot;) == 0) {</span>
+<span class="fc" id="L154">                        type = StandardEntryType.InCollection;</span>
+<span class="fc bfc" id="L155" title="All 2 branches covered.">                    } else if (val.indexOf(&quot;Book&quot;) == 0) {</span>
+<span class="fc" id="L156">                        type = StandardEntryType.Book;</span>
+<span class="fc bfc" id="L157" title="All 2 branches covered.">                    } else if (val.indexOf(&quot;Edited Book&quot;) == 0) {</span>
+<span class="fc" id="L158">                        type = StandardEntryType.Book;</span>
+<span class="fc" id="L159">                        isEditedBook = true;</span>
+<span class="fc bfc" id="L160" title="All 2 branches covered.">                    } else if (val.indexOf(&quot;Conference&quot;) == 0) {</span>
+<span class="fc" id="L161">                        type = StandardEntryType.InProceedings;</span>
+<span class="fc bfc" id="L162" title="All 2 branches covered.">                    } else if (val.indexOf(&quot;Report&quot;) == 0) {</span>
+<span class="fc" id="L163">                        type = StandardEntryType.TechReport;</span>
+<span class="fc bfc" id="L164" title="All 2 branches covered.">                    } else if (val.indexOf(&quot;Review&quot;) == 0) {</span>
+<span class="fc" id="L165">                        type = StandardEntryType.Article;</span>
+<span class="fc bfc" id="L166" title="All 2 branches covered.">                    } else if (val.indexOf(&quot;Thesis&quot;) == 0) {</span>
+<span class="fc" id="L167">                        type = StandardEntryType.PhdThesis;</span>
+                    } else {
+<span class="fc" id="L169">                        type = BibEntry.DEFAULT_TYPE; //</span>
+                    }
+<span class="fc bfc" id="L171" title="All 2 branches covered.">                } else if (&quot;7&quot;.equals(prefix)) {</span>
+<span class="fc" id="L172">                    hm.put(StandardField.EDITION, val);</span>
+<span class="fc bfc" id="L173" title="All 2 branches covered.">                } else if (&quot;C&quot;.equals(prefix)) {</span>
+<span class="fc" id="L174">                    hm.put(StandardField.ADDRESS, val);</span>
+<span class="fc bfc" id="L175" title="All 2 branches covered.">                } else if (&quot;D&quot;.equals(prefix)) {</span>
+<span class="fc" id="L176">                    hm.put(StandardField.YEAR, val);</span>
+<span class="fc bfc" id="L177" title="All 2 branches covered.">                } else if (&quot;8&quot;.equals(prefix)) {</span>
+<span class="fc" id="L178">                    hm.put(StandardField.DATE, val);</span>
+<span class="fc bfc" id="L179" title="All 2 branches covered.">                } else if (&quot;J&quot;.equals(prefix)) {</span>
+                    // &quot;Alternate journal. Let's set it only if no journal
+                    // has been set with %B.
+<span class="fc" id="L182">                    hm.putIfAbsent(StandardField.JOURNAL, val);</span>
+<span class="fc bfc" id="L183" title="All 2 branches covered.">                } else if (&quot;B&quot;.equals(prefix)) {</span>
+                    // This prefix stands for &quot;journal&quot; in a journal entry, and
+                    // &quot;series&quot; in a book entry.
+<span class="fc bfc" id="L186" title="All 2 branches covered.">                    if (type.equals(StandardEntryType.Article)) {</span>
+<span class="fc" id="L187">                        hm.put(StandardField.JOURNAL, val);</span>
+<span class="pc bpc" id="L188" title="1 of 4 branches missed.">                    } else if (type.equals(StandardEntryType.Book) || type.equals(StandardEntryType.InBook)) {</span>
+<span class="fc" id="L189">                        hm.put(StandardField.SERIES, val);</span>
+                    } else {
+                        /* type = inproceedings */
+<span class="fc" id="L192">                        hm.put(StandardField.BOOKTITLE, val);</span>
+                    }
+<span class="fc bfc" id="L194" title="All 2 branches covered.">                } else if (&quot;I&quot;.equals(prefix)) {</span>
+<span class="fc bfc" id="L195" title="All 2 branches covered.">                    if (type.equals(StandardEntryType.PhdThesis)) {</span>
+<span class="fc" id="L196">                        hm.put(StandardField.SCHOOL, val);</span>
+                    } else {
+<span class="fc" id="L198">                        hm.put(StandardField.PUBLISHER, val);</span>
+                    }
+<span class="fc bfc" id="L200" title="All 2 branches covered.">                } else if (&quot;P&quot;.equals(prefix)) {</span>
+                    // replace single dash page ranges (23-45) with double dashes (23--45):
+<span class="fc" id="L202">                    hm.put(StandardField.PAGES, val.replaceAll(&quot;([0-9]) *- *([0-9])&quot;, &quot;$1--$2&quot;));</span>
+<span class="fc bfc" id="L203" title="All 2 branches covered.">                } else if (&quot;V&quot;.equals(prefix)) {</span>
+<span class="fc" id="L204">                    hm.put(StandardField.VOLUME, val);</span>
+<span class="fc bfc" id="L205" title="All 2 branches covered.">                } else if (&quot;N&quot;.equals(prefix)) {</span>
+<span class="fc" id="L206">                    hm.put(StandardField.NUMBER, val);</span>
+<span class="fc bfc" id="L207" title="All 2 branches covered.">                } else if (&quot;U&quot;.equals(prefix)) {</span>
+<span class="fc" id="L208">                    hm.put(StandardField.URL, val);</span>
+<span class="fc bfc" id="L209" title="All 2 branches covered.">                } else if (&quot;R&quot;.equals(prefix)) {</span>
+<span class="fc" id="L210">                    String doi = val;</span>
+<span class="fc bfc" id="L211" title="All 2 branches covered.">                    if (doi.startsWith(&quot;doi:&quot;)) {</span>
+<span class="fc" id="L212">                        doi = doi.substring(4);</span>
+                    }
+<span class="fc" id="L214">                    hm.put(StandardField.DOI, doi);</span>
+<span class="fc bfc" id="L215" title="All 2 branches covered.">                } else if (&quot;O&quot;.equals(prefix)) {</span>
+                    // Notes may contain Article number
+<span class="fc bfc" id="L217" title="All 2 branches covered.">                    if (val.startsWith(&quot;Artn&quot;)) {</span>
+<span class="fc" id="L218">                        String[] tokens = val.split(&quot;\\s&quot;);</span>
+<span class="fc" id="L219">                        artnum = tokens[1];</span>
+<span class="fc" id="L220">                    } else {</span>
+<span class="fc" id="L221">                        hm.put(StandardField.NOTE, val);</span>
+                    }
+<span class="fc bfc" id="L223" title="All 2 branches covered.">                } else if (&quot;K&quot;.equals(prefix)) {</span>
+<span class="fc" id="L224">                    hm.put(StandardField.KEYWORDS, val);</span>
+<span class="fc bfc" id="L225" title="All 2 branches covered.">                } else if (&quot;X&quot;.equals(prefix)) {</span>
+<span class="fc" id="L226">                    hm.put(StandardField.ABSTRACT, val);</span>
+<span class="fc bfc" id="L227" title="All 2 branches covered.">                } else if (&quot;9&quot;.equals(prefix)) {</span>
+<span class="fc bfc" id="L228" title="All 2 branches covered.">                    if (val.indexOf(&quot;Ph.D.&quot;) == 0) {</span>
+<span class="fc" id="L229">                        type = StandardEntryType.PhdThesis;</span>
+                    }
+<span class="fc bfc" id="L231" title="All 2 branches covered.">                    if (val.indexOf(&quot;Masters&quot;) == 0) {</span>
+<span class="fc" id="L232">                        type = StandardEntryType.MastersThesis;</span>
+                    }
+<span class="fc bfc" id="L234" title="All 2 branches covered.">                } else if (&quot;F&quot;.equals(prefix)) {</span>
+<span class="fc" id="L235">                    hm.put(InternalField.KEY_FIELD, CitationKeyGenerator.cleanKey(val, &quot;&quot;));</span>
+                }
+            }
+
+            // For Edited Book, EndNote puts the editors in the author field.
+            // We want them in the editor field so that bibtex knows it's an edited book
+<span class="pc bpc" id="L241" title="1 of 4 branches missed.">            if (isEditedBook &amp;&amp; &quot;&quot;.equals(editor)) {</span>
+<span class="fc" id="L242">                editor = author;</span>
+<span class="fc" id="L243">                author = &quot;&quot;;</span>
+            }
+
+            // fixauthorscomma
+<span class="fc bfc" id="L247" title="All 2 branches covered.">            if (!&quot;&quot;.equals(author)) {</span>
+<span class="fc" id="L248">                hm.put(StandardField.AUTHOR, fixAuthor(author));</span>
+            }
+<span class="fc bfc" id="L250" title="All 2 branches covered.">            if (!&quot;&quot;.equals(editor)) {</span>
+<span class="fc" id="L251">                hm.put(StandardField.EDITOR, fixAuthor(editor));</span>
+            }
+            // if pages missing and article number given, use the article number
+<span class="pc bpc" id="L254" title="1 of 6 branches missed.">            if (((hm.get(StandardField.PAGES) == null) || &quot;-&quot;.equals(hm.get(StandardField.PAGES))) &amp;&amp; !&quot;&quot;.equals(artnum)) {</span>
+<span class="fc" id="L255">                hm.put(StandardField.PAGES, artnum);</span>
+            }
+
+<span class="fc" id="L258">            BibEntry b = new BibEntry(type);</span>
+<span class="fc" id="L259">            b.setField(hm);</span>
+<span class="fc bfc" id="L260" title="All 2 branches covered.">            if (!b.getFields().isEmpty()) {</span>
+<span class="fc" id="L261">                bibitems.add(b);</span>
+            }
+        }
+
+<span class="fc" id="L265">        return new ParserResult(bibitems);</span>
+    }
+
+    /**
+     * We must be careful about the author names, since they can be presented differently
+     * by different sources. Normally each %A tag brings one name, and we get the authors
+     * separated by &quot; and &quot;. This is the correct behaviour.
+     * One source lists the names separated by comma, with a comma at the end. We can detect
+     * this format and fix it.
+     * @param s The author string
+     * @return The fixed author string
+     */
+    private static String fixAuthor(String s) {
+<span class="fc" id="L278">        int index = s.indexOf(&quot; and &quot;);</span>
+<span class="fc bfc" id="L279" title="All 2 branches covered.">        if (index &gt;= 0) {</span>
+<span class="fc" id="L280">            return AuthorList.fixAuthorLastNameFirst(s);</span>
+        }
+        // Look for the comma at the end:
+<span class="fc" id="L283">        index = s.lastIndexOf(',');</span>
+<span class="fc bfc" id="L284" title="All 2 branches covered.">        if (index == (s.length() - 1)) {</span>
+<span class="fc" id="L285">            String mod = s.substring(0, s.length() - 1).replace(&quot;, &quot;, &quot; and &quot;);</span>
+<span class="fc" id="L286">            return AuthorList.fixAuthorLastNameFirst(mod);</span>
+        } else {
+<span class="fc" id="L288">            return AuthorList.fixAuthorLastNameFirst(s);</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

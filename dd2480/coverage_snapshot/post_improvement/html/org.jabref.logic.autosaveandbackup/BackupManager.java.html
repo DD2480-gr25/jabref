@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="sv"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BackupManager.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">JabRef</a> &gt; <a href="index.source.html" class="el_package">org.jabref.logic.autosaveandbackup</a> &gt; <span class="el_source">BackupManager.java</span></div><h1>BackupManager.java</h1><pre class="source lang-java linenums">package org.jabref.logic.autosaveandbackup;
+
+import java.io.IOException;
+import java.io.Writer;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+
+import org.jabref.logic.bibtex.InvalidFieldValueException;
+import org.jabref.logic.exporter.AtomicFileWriter;
+import org.jabref.logic.exporter.BibWriter;
+import org.jabref.logic.exporter.BibtexDatabaseWriter;
+import org.jabref.logic.exporter.SavePreferences;
+import org.jabref.logic.util.CoarseChangeFilter;
+import org.jabref.logic.util.DelayTaskThrottler;
+import org.jabref.logic.util.OS;
+import org.jabref.logic.util.io.FileUtil;
+import org.jabref.model.database.BibDatabaseContext;
+import org.jabref.model.database.event.BibDatabaseContextChangedEvent;
+import org.jabref.model.entry.BibEntryTypesManager;
+import org.jabref.preferences.GeneralPreferences;
+import org.jabref.preferences.PreferencesService;
+
+import com.google.common.eventbus.Subscribe;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Backups the given bib database file from {@link BibDatabaseContext} on every {@link BibDatabaseContextChangedEvent}.
+ * An intelligent {@link ExecutorService} with a {@link BlockingQueue} prevents a high load while making backups and
+ * rejects all redundant backup tasks. This class does not manage the .bak file which is created when opening a
+ * database.
+ */
+public class BackupManager {
+
+<span class="fc" id="L42">    private static final Logger LOGGER = LoggerFactory.getLogger(BackupManager.class);</span>
+
+    // This differs from org.jabref.logic.exporter.AtomicFileOutputStream.BACKUP_EXTENSION, which is used for copying the .bib away before overwriting on save.
+    private static final String AUTOSAVE_FILE_EXTENSION = &quot;.sav&quot;;
+
+<span class="fc" id="L47">    private static Set&lt;BackupManager&gt; runningInstances = new HashSet&lt;&gt;();</span>
+
+    private final BibDatabaseContext bibDatabaseContext;
+    private final PreferencesService preferences;
+    private final DelayTaskThrottler throttler;
+    private final CoarseChangeFilter changeFilter;
+    private final BibEntryTypesManager entryTypesManager;
+
+<span class="nc" id="L55">    private BackupManager(BibDatabaseContext bibDatabaseContext, BibEntryTypesManager entryTypesManager, PreferencesService preferences) {</span>
+<span class="nc" id="L56">        this.bibDatabaseContext = bibDatabaseContext;</span>
+<span class="nc" id="L57">        this.entryTypesManager = entryTypesManager;</span>
+<span class="nc" id="L58">        this.preferences = preferences;</span>
+<span class="nc" id="L59">        this.throttler = new DelayTaskThrottler(15000);</span>
+
+<span class="nc" id="L61">        changeFilter = new CoarseChangeFilter(bibDatabaseContext);</span>
+<span class="nc" id="L62">        changeFilter.registerListener(this);</span>
+<span class="nc" id="L63">    }</span>
+
+    static Path getBackupPath(Path originalPath) {
+<span class="fc" id="L66">        return FileUtil.addExtension(originalPath, AUTOSAVE_FILE_EXTENSION);</span>
+    }
+
+    /**
+     * Starts the BackupManager which is associated with the given {@link BibDatabaseContext}. As long as no database
+     * file is present in {@link BibDatabaseContext}, the {@link BackupManager} will do nothing.
+     *
+     * @param bibDatabaseContext Associated {@link BibDatabaseContext}
+     */
+    public static BackupManager start(BibDatabaseContext bibDatabaseContext, BibEntryTypesManager entryTypesManager, PreferencesService preferences) {
+<span class="nc" id="L76">        BackupManager backupManager = new BackupManager(bibDatabaseContext, entryTypesManager, preferences);</span>
+<span class="nc" id="L77">        backupManager.startBackupTask();</span>
+<span class="nc" id="L78">        runningInstances.add(backupManager);</span>
+<span class="nc" id="L79">        return backupManager;</span>
+    }
+
+    /**
+     * Shuts down the BackupManager which is associated with the given {@link BibDatabaseContext}.
+     *
+     * @param bibDatabaseContext Associated {@link BibDatabaseContext}
+     */
+    public static void shutdown(BibDatabaseContext bibDatabaseContext) {
+<span class="nc bnc" id="L88" title="All 2 branches missed.">        runningInstances.stream().filter(instance -&gt; instance.bibDatabaseContext == bibDatabaseContext).forEach(</span>
+                BackupManager::shutdown);
+<span class="nc bnc" id="L90" title="All 2 branches missed.">        runningInstances.removeIf(instance -&gt; instance.bibDatabaseContext == bibDatabaseContext);</span>
+<span class="nc" id="L91">    }</span>
+
+    /**
+     * Checks whether a backup file exists for the given database file. If it exists, it is checked whether it is
+     * different from the original.
+     *
+     * @param originalPath Path to the file a backup should be checked for. Example: jabref.bib.
+     * @return &lt;code&gt;true&lt;/code&gt; if backup file exists AND differs from originalPath. &lt;code&gt;false&lt;/code&gt; is the
+     * &quot;default&quot; return value in the good case. In the case of an exception &lt;code&gt;true&lt;/code&gt; is returned to ensure that
+     * the user checks the output.
+     */
+    public static boolean backupFileDiffers(Path originalPath) {
+<span class="fc" id="L103">        Path backupPath = getBackupPath(originalPath);</span>
+<span class="pc bpc" id="L104" title="1 of 4 branches missed.">        if (!Files.exists(backupPath) || Files.isDirectory(backupPath)) {</span>
+<span class="fc" id="L105">            return false;</span>
+        }
+
+        try {
+<span class="fc bfc" id="L109" title="All 2 branches covered.">            return Files.mismatch(originalPath, backupPath) != -1L;</span>
+<span class="nc" id="L110">        } catch (IOException e) {</span>
+<span class="nc" id="L111">            LOGGER.debug(&quot;Could not compare original file and backup file.&quot;, e);</span>
+            // User has to investigate in this case
+<span class="nc" id="L113">            return true;</span>
+        }
+    }
+
+    /**
+     * Restores the backup file by copying and overwriting the original one.
+     *
+     * @param originalPath Path to the file which should be equalized to the backup file.
+     */
+    public static void restoreBackup(Path originalPath) {
+<span class="nc" id="L123">        Path backupPath = getBackupPath(originalPath);</span>
+        try {
+<span class="nc" id="L125">            Files.copy(backupPath, originalPath, StandardCopyOption.REPLACE_EXISTING);</span>
+<span class="nc" id="L126">        } catch (IOException e) {</span>
+<span class="nc" id="L127">            LOGGER.error(&quot;Error while restoring the backup file.&quot;, e);</span>
+<span class="nc" id="L128">        }</span>
+<span class="nc" id="L129">    }</span>
+
+    private Optional&lt;Path&gt; determineBackupPath() {
+<span class="nc" id="L132">        return bibDatabaseContext.getDatabasePath().map(BackupManager::getBackupPath);</span>
+    }
+
+    private void performBackup(Path backupPath) {
+        try {
+<span class="nc" id="L137">            Charset charset = bibDatabaseContext.getMetaData().getEncoding().orElse(preferences.getGeneralPreferences().getDefaultEncoding());</span>
+<span class="nc" id="L138">            GeneralPreferences generalPreferences = preferences.getGeneralPreferences();</span>
+<span class="nc" id="L139">            SavePreferences savePreferences = preferences.getSavePreferences()</span>
+<span class="nc" id="L140">                                                         .withMakeBackup(false);</span>
+<span class="nc" id="L141">            Writer writer = new AtomicFileWriter(backupPath, charset);</span>
+<span class="nc" id="L142">            BibWriter bibWriter = new BibWriter(writer, OS.NEWLINE);</span>
+<span class="nc" id="L143">            new BibtexDatabaseWriter(bibWriter, generalPreferences, savePreferences, entryTypesManager)</span>
+<span class="nc" id="L144">                    .saveDatabase(bibDatabaseContext);</span>
+<span class="nc" id="L145">        } catch (IOException e) {</span>
+<span class="nc" id="L146">            logIfCritical(backupPath, e);</span>
+<span class="nc" id="L147">        }</span>
+<span class="nc" id="L148">    }</span>
+
+    private void logIfCritical(Path backupPath, IOException e) {
+<span class="nc" id="L151">        Throwable innermostCause = e;</span>
+<span class="nc bnc" id="L152" title="All 2 branches missed.">        while (innermostCause.getCause() != null) {</span>
+<span class="nc" id="L153">            innermostCause = innermostCause.getCause();</span>
+        }
+<span class="nc" id="L155">        boolean isErrorInField = innermostCause instanceof InvalidFieldValueException;</span>
+
+        // do not print errors in field values into the log during autosave
+<span class="nc bnc" id="L158" title="All 2 branches missed.">        if (!isErrorInField) {</span>
+<span class="nc" id="L159">            LOGGER.error(&quot;Error while saving to file&quot; + backupPath, e);</span>
+        }
+<span class="nc" id="L161">    }</span>
+
+    @Subscribe
+    public synchronized void listen(@SuppressWarnings(&quot;unused&quot;) BibDatabaseContextChangedEvent event) {
+<span class="nc bnc" id="L165" title="All 2 branches missed.">        if (!event.isFilteredOut()) {</span>
+<span class="nc" id="L166">            startBackupTask();</span>
+        }
+<span class="nc" id="L168">    }</span>
+
+    private void startBackupTask() {
+<span class="nc" id="L171">        throttler.schedule(() -&gt; determineBackupPath().ifPresent(this::performBackup));</span>
+<span class="nc" id="L172">    }</span>
+
+    /**
+     * Unregisters the BackupManager from the eventBus of {@link BibDatabaseContext} and deletes the backup file. This
+     * method should only be used when closing a database/JabRef legally.
+     */
+    private void shutdown() {
+<span class="nc" id="L179">        changeFilter.unregisterListener(this);</span>
+<span class="nc" id="L180">        changeFilter.shutdown();</span>
+<span class="nc" id="L181">        throttler.shutdown();</span>
+<span class="nc" id="L182">        determineBackupPath().ifPresent(this::deleteBackupFile);</span>
+<span class="nc" id="L183">    }</span>
+
+    private void deleteBackupFile(Path backupPath) {
+        try {
+<span class="nc bnc" id="L187" title="All 4 branches missed.">            if (Files.exists(backupPath) &amp;&amp; !Files.isDirectory(backupPath)) {</span>
+<span class="nc" id="L188">                Files.delete(backupPath);</span>
+            }
+<span class="nc" id="L190">        } catch (IOException e) {</span>
+<span class="nc" id="L191">            LOGGER.error(&quot;Error while deleting the backup file.&quot;, e);</span>
+<span class="nc" id="L192">        }</span>
+<span class="nc" id="L193">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>
