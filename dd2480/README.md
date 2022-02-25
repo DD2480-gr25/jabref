@@ -263,3 +263,17 @@ The following test cases i.e. test files were added:
 3. `RisImporterTest11`: Tests parsing of previously untested RIS tags RN, C2, and TA
 4. `RisImporterTest12`: Tests parsing of previously untested RIS tags SE and NV
 5. `RisImporterTestUnmappedTags`: Tests RIS tags with no direct bibtext-mapping namely RP, AV, CN, OP, RI
+
+
+
+###BibEntry::getSourceField
+
+One way of refactoring this function is to split the many if statements into separate functions. In places where an if statement first evaluates if something is true regarding the variables `sourceEntry` and `targetEntry` and the body of the if statement consists of additional if functions evaluating `targetField`, the nested if functions could be cut out into a separate function. The problem with this is that in the original function, if the first if statement evaluates to true, but none of the nested ones do, the function will simply proceeed to the next statement, which can't really be acheived when excangilng the nested if statements for something like: `return newFunction(targetField);`. Thus, this is only trivial when none of the specific requirements for entering the if statement body reoccur in some other if statement later the function. 
+
+In a similar vein, there are several if statements with the format: 
+
+`if ((sourceEntry == x && targetEntry == a) || (sourceEntry == x && targetEntry == b) || (sourceEntry == x && targetEntry == c))`
+
+which can be refactored into:
+
+`if (sourceEntry == x) {evaluateTargetEntry(targetEntry)}`
