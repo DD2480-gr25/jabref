@@ -263,3 +263,12 @@ The following test cases i.e. test files were added:
 3. `RisImporterTest11`: Tests parsing of previously untested RIS tags RN, C2, and TA
 4. `RisImporterTest12`: Tests parsing of previously untested RIS tags SE and NV
 5. `RisImporterTestUnmappedTags`: Tests RIS tags with no direct bibtext-mapping namely RP, AV, CN, OP, RI
+
+
+
+### FieldNameLabel::getDescription
+This function is used to get the description message of each fields.
+The decriptions of three fields are combined in this function.
+
+I split the methods into three parts for each field. And the decriptions for each
+field are indiviually stored in a new class. So in the target method, it would call other methods for specific field to get the descriptions which avoid lots of switch statements and reduce complexity.
