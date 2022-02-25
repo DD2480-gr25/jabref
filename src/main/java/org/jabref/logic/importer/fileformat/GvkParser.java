@@ -114,53 +114,23 @@ public class GvkParser implements Parser {
             }
 
             // ppn
-            if ("003@".equals(tag)) {
-                ppn = getSubfield("0", datafield);
-            }
-
+            ppn = checkAndGetSingleSubfield("003@", tag, "0", datafield, ppn);
             // author
             if ("028A".equals(tag)) {
-                String vorname = getSubfield("d", datafield);
-                String nachname = getSubfield("a", datafield);
-
-                if (author == null) {
-                    author = "";
-                } else {
-                    author = author.concat(" and ");
-                }
-                author = author.concat(vorname + " " + nachname);
+                author = checkAndGetAuthorOrEditorNames(datafield, author);
             }
             // author (weiterer)
             if ("028B".equals(tag)) {
-                String vorname = getSubfield("d", datafield);
-                String nachname = getSubfield("a", datafield);
-
-                if (author == null) {
-                    author = "";
-                } else {
-                    author = author.concat(" and ");
-                }
-                author = author.concat(vorname + " " + nachname);
+                author = checkAndGetAuthorOrEditorNames(datafield, author);
             }
-
             // editor
             if ("028C".equals(tag)) {
-                String vorname = getSubfield("d", datafield);
-                String nachname = getSubfield("a", datafield);
-
-                if (editor == null) {
-                    editor = "";
-                } else {
-                    editor = editor.concat(" and ");
-                }
-                editor = editor.concat(vorname + " " + nachname);
+                editor = checkAndGetAuthorOrEditorNames(datafield, editor);
             }
-
-            // title and subtitle
-            if ("021A".equals(tag)) {
-                title = getSubfield("a", datafield);
-                subtitle = getSubfield("d", datafield);
-            }
+            
+            // title and subtitle (subtitle must not be null)
+            title = checkAndGetSingleSubfield("021A", tag, "a", datafield, title);
+            subtitle = checkAndGetSingleSubfield("021A", tag, "d", datafield, subtitle);
 
             // publisher and address
             if ("033A".equals(tag)) {
@@ -169,14 +139,11 @@ public class GvkParser implements Parser {
             }
 
             // year
-            if ("011@".equals(tag)) {
-                year = getSubfield("a", datafield);
-            }
+            year = checkAndGetSingleSubfield("011@", tag, "a", datafield, year);
 
             // year, volume, number, pages (year bei Zeitschriften (evtl. redundant mit 011@))
             if ("031A".equals(tag)) {
                 year = getSubfield("j", datafield);
-
                 volume = getSubfield("e", datafield);
                 number = getSubfield("a", datafield);
                 pages = getSubfield("h", datafield);
@@ -218,9 +185,7 @@ public class GvkParser implements Parser {
             }
 
             // edition
-            if ("032@".equals(tag)) {
-                edition = getSubfield("a", datafield);
-            }
+            edition = checkAndGetSingleSubfield("032@", tag, "a", datafield, edition);
 
             // isbn
             if ("004A".equals(tag)) {
@@ -240,10 +205,7 @@ public class GvkParser implements Parser {
             // Bei einer Verlagsdissertation ist der Ort schon eingetragen
             if ("037C".equals(tag)) {
                 if (address == null) {
-                    address = getSubfield("b", datafield);
-                    if (address != null) {
-                        address = removeSortCharacters(address);
-                    }
+                    address = checkAndRemoveSortCharacters(getSubfield("b", datafield));
                 }
 
                 String st = getSubfield("a", datafield);
@@ -304,9 +266,7 @@ public class GvkParser implements Parser {
             // SRU-Schnittstelle gelieferten Daten zur
             // Quelle unvollständig sind (z.B. nicht Serie
             // und Nummer angegeben werden)
-            if ("039B".equals(tag)) {
-                quelle = getSubfield("8", datafield);
-            }
+            quelle = checkAndGetSingleSubfield("039B", tag, "8", datafield, quelle);
             if ("046R".equals(tag) && ((quelle == null) || quelle.isEmpty())) {
                 quelle = getSubfield("a", datafield);
             }
@@ -324,21 +284,12 @@ public class GvkParser implements Parser {
         }
 
         // Nichtsortierzeichen entfernen
-        if (author != null) {
-            author = removeSortCharacters(author);
-        }
-        if (editor != null) {
-            editor = removeSortCharacters(editor);
-        }
-        if (title != null) {
-            title = removeSortCharacters(title);
-        }
-        if (subtitle != null) {
-            subtitle = removeSortCharacters(subtitle);
-        }
+        author = checkAndRemoveSortCharacters(author);
+        editor = checkAndRemoveSortCharacters(editor);
+        title = checkAndRemoveSortCharacters(title);
+        subtitle = checkAndRemoveSortCharacters(subtitle);
 
         // Dokumenttyp bestimmen und Eintrag anlegen
-
         if (mak.startsWith("As")) {
             entryType = BibEntry.DEFAULT_TYPE;
 
@@ -366,15 +317,10 @@ public class GvkParser implements Parser {
         BibEntry result = new BibEntry(entryType);
 
         // Zuordnung der Felder in Abhängigkeit vom Dokumenttyp
-        if (author != null) {
-            result.setField(StandardField.AUTHOR, author);
-        }
-        if (editor != null) {
-            result.setField(StandardField.EDITOR, editor);
-        }
-        if (title != null) {
-            result.setField(StandardField.TITLE, title);
-        }
+        result = checkAndSetStandardField(result, StandardField.AUTHOR, author);
+        result = checkAndSetStandardField(result, StandardField.EDITOR, editor);
+        result = checkAndSetStandardField(result, StandardField.TITLE, title);
+
         if (!Strings.isNullOrEmpty(subtitle)) {
             // ensure that first letter is an upper case letter
             // there could be the edge case that the string is only one character long, therefore, this special treatment
@@ -386,52 +332,24 @@ public class GvkParser implements Parser {
             }
             result.setField(StandardField.SUBTITLE, newSubtitle.toString());
         }
-        if (publisher != null) {
-            result.setField(StandardField.PUBLISHER, publisher);
-        }
-        if (year != null) {
-            result.setField(StandardField.YEAR, year);
-        }
-        if (address != null) {
-            result.setField(StandardField.ADDRESS, address);
-        }
-        if (series != null) {
-            result.setField(StandardField.SERIES, series);
-        }
-        if (edition != null) {
-            result.setField(StandardField.EDITION, edition);
-        }
-        if (isbn != null) {
-            result.setField(StandardField.ISBN, isbn);
-        }
-        if (issn != null) {
-            result.setField(StandardField.ISSN, issn);
-        }
-        if (number != null) {
-            result.setField(StandardField.NUMBER, number);
-        }
-        if (pagetotal != null) {
-            result.setField(StandardField.PAGETOTAL, pagetotal);
-        }
-        if (pages != null) {
-            result.setField(StandardField.PAGES, pages);
-        }
-        if (volume != null) {
-            result.setField(StandardField.VOLUME, volume);
-        }
-        if (journal != null) {
-            result.setField(StandardField.JOURNAL, journal);
-        }
+        result = checkAndSetStandardField(result, StandardField.PUBLISHER, publisher);
+        result = checkAndSetStandardField(result, StandardField.YEAR, year);
+        result = checkAndSetStandardField(result, StandardField.ADDRESS, address);
+        result = checkAndSetStandardField(result, StandardField.SERIES, series);
+        result = checkAndSetStandardField(result, StandardField.EDITION, edition);
+        result = checkAndSetStandardField(result, StandardField.ISBN, isbn);
+        result = checkAndSetStandardField(result, StandardField.ISSN, issn);
+        result = checkAndSetStandardField(result, StandardField.NUMBER, number);
+        result = checkAndSetStandardField(result, StandardField.PAGETOTAL, pagetotal);
+        result = checkAndSetStandardField(result, StandardField.PAGES, pages);
+        result = checkAndSetStandardField(result, StandardField.VOLUME, volume);
+        result = checkAndSetStandardField(result, StandardField.JOURNAL, journal);
         if (ppn != null) {
             result.setField(new UnknownField("ppn_GVK"), ppn);
-        }
-        if (url != null) {
-            result.setField(StandardField.URL, url);
-        }
-        if (note != null) {
-            result.setField(StandardField.NOTE, note);
-        }
-
+        }        
+        result = checkAndSetStandardField(result, StandardField.URL, url);
+        result = checkAndSetStandardField(result, StandardField.NOTE, note);
+        
         if ("article".equals(entryType) && (journal != null)) {
             result.setField(StandardField.JOURNAL, journal);
         } else if ("incollection".equals(entryType) && (booktitle != null)) {
@@ -439,6 +357,32 @@ public class GvkParser implements Parser {
         }
 
         return result;
+    }
+
+    private BibEntry checkAndSetStandardField(BibEntry result, StandardField field, String fieldString){
+        if (fieldString != null) {
+            result.setField(field, fieldString);
+        }
+        return result;
+    }
+
+    private String checkAndGetAuthorOrEditorNames(Element datafield, String nameHolder) {
+        String firstname = getSubfield("d", datafield);
+        String lastname = getSubfield("a", datafield);
+        if (nameHolder == null) {
+            nameHolder = "";
+        } else {
+            nameHolder = nameHolder.concat(" and ");
+        }
+        nameHolder = nameHolder.concat(firstname + " " + lastname);
+        return nameHolder;
+    }
+
+    private String checkAndGetSingleSubfield(String gvkCode, String tag, String subFieldCode, Element datafield, String dataHolder){
+        if (gvkCode.equals(tag)) {
+            return getSubfield(subFieldCode, datafield);
+        }
+        return dataHolder;
     }
 
     private String getSubfield(String a, Element datafield) {
@@ -489,7 +433,10 @@ public class GvkParser implements Parser {
         return result;
     }
 
-    private String removeSortCharacters(String input) {
-        return input.replaceAll("\\@", "");
+    private String checkAndRemoveSortCharacters(String input) {
+        if (input != null) {
+            return input.replaceAll("\\@", "");
+        }
+        return input;
     }
 }
