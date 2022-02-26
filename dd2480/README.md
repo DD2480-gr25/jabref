@@ -263,3 +263,25 @@ The following test cases i.e. test files were added:
 3. `RisImporterTest11`: Tests parsing of previously untested RIS tags RN, C2, and TA
 4. `RisImporterTest12`: Tests parsing of previously untested RIS tags SE and NV
 5. `RisImporterTestUnmappedTags`: Tests RIS tags with no direct bibtext-mapping namely RP, AV, CN, OP, RI
+
+
+## Task 3 - Refactoring Plan
+
+### RisImporter::importDatabase
+There are many opportunities to split up the code into smaller functions. We would:
+1. Extract all logic for processing a single RIS entry into a separate method called `parseEntry(entryText)`
+2. Simplify and extract line "preprocessing" (on lines 90-103)
+   1. Simplify logic by leveraging regex matching and removing unnecessary inner loop
+   2. Extract logic to a separate method called `preprocessLines(String[] lines)`
+   3. Run `preprocessLines` method once on all lines ahead of the for loop starting on line 88
+3. Extract the if/else nest on lines 110-128 for handling the "TY" tag into method `parseType`
+4. Remove redundant predicate for tag "JF"on line 163
+5. Remove redundant predicate for tag "N1" on line 238
+6. Remove redundant `else if` for tag "DB" on line 253
+7. Extract the month parsing logic
+8. Extract multi-predicate `else if` statements with methods  
+
+## Task 3 - Refactoring Implementation
+
+### RisImporter::importDatabase
+By applying the refactoring plan, we have managed to reduce CCN from 110 down to 71 which constitutes a 35% reduction
