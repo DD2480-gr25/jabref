@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 public class WordKeywordGroupTest {
 
@@ -120,5 +121,22 @@ public class WordKeywordGroupTest {
         testGroup.remove(entry);
 
         assertEquals(Optional.of("blubb"), entry.getField(StandardField.KEYWORDS));
+    }
+
+    @Test
+    public void notEqualsIfNotWordKeywordGroupInstance() throws Exception {
+        Object o = new Object();
+
+        assertNotEquals(testGroup, o);
+    }
+
+    @Test
+    public void equalsIfSameObject() throws Exception {
+        assertEquals(testGroup, testGroup);
+    }
+
+    @Test
+    public void equalsIfDeepCopied() throws Exception {
+        assertEquals(testGroup, testGroup.deepCopy());
     }
 }
