@@ -1,3 +1,4 @@
+
 # DD2480 Group 25 Workspace
 
 A working markdown file to write down any findings throughout our work on assignment 3
@@ -290,6 +291,12 @@ The following test cases i.e. test files were added:F
 
 ## Task 3 - Refactoring Plan
 
+### GvkParser::parseEntry
+1. Creating helper method for checking and setting StandardFields. Replaces lines 369-377 and 389-433 consisting of many if statements with method calls, reduces code duplication.
+2. Reducing code duplication for tag 028A and 028B (author) and 028C (editor) by creating separate helper method.
+3. Move the null-check into the RemoveSortCharacters method. Reduces code duplication.
+4. Create method for checking tag and getting single subfield. Removes several if statements and reduces code duplication.
+
 ### RisImporter::importDatabase
 
 There are many opportunities to split up the code into smaller functions. We would:
@@ -318,9 +325,11 @@ switch statements and reduce complexity.
 
 ## Task 3 - Refactoring Implementation
 
+#### GvkParser::parseEntry
+The refactoring reduces complexity with 38% From CCN=79 to CCN=49
+
 ### RisImporter::importDatabase
 By applying the refactoring plan, we have managed to reduce CCN from 110 down to 71 which constitutes a 35% reduction
 
 ### FieldNameLabel::getDescription
-
 By applying the refactoring plan, we have managed to reduce CCN from 103 down to 4 which constitutes a 96% reduction
