@@ -281,7 +281,7 @@ There are many opportunities to split up the code into smaller functions. We wou
 7. Extract the month parsing logic
 8. Extract multi-predicate `else if` statements with methods  
 
-###BibEntry::getSourceField
+### BibEntry::getSourceField
 
 One way of refactoring this function is to split the many if statements into separate functions. In places where an if statement first evaluates if something is true regarding the variables `sourceEntry` and `targetEntry` and the body of the if statement consists of additional if functions evaluating `targetField`, the nested if functions could be cut out into a separate function. The problem with this is that in the original function, if the first if statement evaluates to true, but none of the nested ones do, the function will simply proceeed to the next statement, which can't really be acheived when excangilng the nested if statements for something like: `return newFunction(targetField);`. Thus, this is only trivial when none of the specific requirements for entering the if statement body reoccur in some other if statement later the function. 
 
@@ -297,4 +297,7 @@ which can be refactored into:
 
 ### RisImporter::importDatabase
 By applying the refactoring plan, we have managed to reduce CCN from 110 down to 71 which constitutes a 35% reduction
+
+### BibEntry::getSourceField
+By applying the refactoring plan, we have managed to reduce CCn from 63 to 38, which is a reduction by 39%
 
