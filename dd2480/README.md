@@ -323,6 +323,18 @@ The decriptions for each field are indiviually stored in a new class. So in the 
 it would call other methods for specific field to get the descriptions which avoid lots of
 switch statements and reduce complexity.
 
+### BibEntry::getSourceField
+
+One way of refactoring this function is to split the many if statements into separate functions. In places where an if statement first evaluates if something is true regarding the variables `sourceEntry` and `targetEntry` and the body of the if statement consists of additional if functions evaluating `targetField`, the nested if functions could be cut out into a separate function. The problem with this is that in the original function, if the first if statement evaluates to true, but none of the nested ones do, the function will simply proceeed to the next statement, which can't really be acheived when excangilng the nested if statements for something like: `return newFunction(targetField);`. Thus, this is only trivial when none of the specific requirements for entering the if statement body reoccur in some other if statement later the function. 
+
+In a similar vein, there are several if statements with the format: 
+
+`if ((sourceEntry == x && targetEntry == a) || (sourceEntry == x && targetEntry == b) || (sourceEntry == x && targetEntry == c))`
+
+which can be refactored into:
+
+`if (sourceEntry == x) {evaluateTargetEntry(targetEntry)}`
+
 ## Task 3 - Refactoring Implementation
 
 #### GvkParser::parseEntry
@@ -333,3 +345,6 @@ By applying the refactoring plan, we have managed to reduce CCN from 110 down to
 
 ### FieldNameLabel::getDescription
 By applying the refactoring plan, we have managed to reduce CCN from 103 down to 4 which constitutes a 96% reduction
+
+### BibEntry::getSourceField
+By applying the refactoring plan, we have managed to reduce CCN from 63 down to 38, which constitutes a 39% reduction
