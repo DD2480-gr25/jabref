@@ -50,13 +50,8 @@ In one class, the documentation was in german. In most cases, the documentation 
 
 ## Refactoring
 
-Plan for refactoring complex code:
-
-Estimated impact of refactoring (lower CC, but other drawbacks?).
-
-Carried out refactoring (optional, P+):
-
-git diff ...
+Refactoring is described here:
+https://github.com/DD2480-gr25/jabref/tree/dd2480/dd2480#readme
 
 ## Coverage
 
