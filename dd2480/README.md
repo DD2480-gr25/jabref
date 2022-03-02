@@ -289,7 +289,18 @@ The following test cases i.e. test files were added:F
 4. `RisImporterTest12`: Tests parsing of previously untested RIS tags SE and NV
 5. `RisImporterTestUnmappedTags`: Tests RIS tags with no direct bibtext-mapping namely RP, AV, CN, OP, RI
 
+
+
 ## Task 3 - Refactoring Plan
+
+### RTFChars::transformSpecialCharacter
+This function is used for converting special unicode characters to their base character counterpart. Example: é -> e.
+This is done using if-statements. I identified two main ways to reduce the number of branches in this method:
+1. Set up a lookup table (HashMap?) that stores all special character codes and their base character counterparts
+2. Split the function into two methods; one for lower case letters and one for upper case, just like in RTFCharsTest (the unit test class).
+
+The first refactor was implemented. It decreased the CCN from 148 to 3, with the drawback of extra memory complexity and a more heavy instance construction of RTFChars. Furthermore, the implementation was not bulletproof as some RTFChar-tests fail after implementation.
+These need to be debugged if to be used in production.
 
 ### GvkParser::parseEntry
 1. Creating helper method for checking and setting StandardFields. Replaces lines 369-377 and 389-433 consisting of many if statements with method calls, reduces code duplication.
@@ -343,8 +354,6 @@ The refactoring reduces complexity with 38% From CCN=79 to CCN=49
 ### RisImporter::importDatabase
 By applying the refactoring plan, we have managed to reduce CCN from 110 down to 71 which constitutes a 35% reduction
 
-### FieldNameLabel::getDescription
-By applying the refactoring plan, we have managed to reduce CCN from 103 down to 4 which constitutes a 96% reduction
-
 ### BibEntry::getSourceField
 By applying the refactoring plan, we have managed to reduce CCN from 63 down to 38, which constitutes a 39% reduction
+

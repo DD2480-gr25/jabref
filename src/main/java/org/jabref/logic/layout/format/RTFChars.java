@@ -8,6 +8,9 @@ import org.jabref.model.strings.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Transform a LaTeX-String to RTF.
  *
@@ -28,6 +31,14 @@ public class RTFChars implements LayoutFormatter {
     private static final Logger LOGGER = LoggerFactory.getLogger(LayoutFormatter.class);
 
     private static final RtfCharMap RTF_CHARS = new RtfCharMap();
+
+    private static final Map<Long, String> baseCharDictionary = new HashMap<>();
+
+    public RTFChars() {
+        // Instantiate special char to base char lookup table for
+        // use in the transformSpecialCharacter method
+        loadBaseCharDictionary();
+    }
 
     @Override
     public String format(String field) {
@@ -206,141 +217,144 @@ public class RTFChars implements LayoutFormatter {
      * @return returns the basic character of the given unicode
      */
     private String transformSpecialCharacter(long c) {
-        if (((192 <= c) && (c <= 197)) || (c == 256) || (c == 258) || (c == 260)) {
-            return "A";
-        }
-        if (((224 <= c) && (c <= 229)) || (c == 257) || (c == 259) || (c == 261)) {
-            return "a";
-        }
-        if ((199 == c) || (262 == c) || (264 == c) || (266 == c) || (268 == c)) {
-            return "C";
-        }
-        if ((231 == c) || (263 == c) || (265 == c) || (267 == c) || (269 == c)) {
-            return "c";
-        }
-        if ((208 == c) || (272 == c)) {
-            return "D";
-        }
-        if ((240 == c) || (273 == c)) {
-            return "d";
-        }
-        if (((200 <= c) && (c <= 203)) || (274 == c) || (276 == c) || (278 == c) || (280 == c) || (282 == c)) {
-            return "E";
-        }
-        if (((232 <= c) && (c <= 235)) || (275 == c) || (277 == c) || (279 == c) || (281 == c) || (283 == c)) {
-            return "e";
-        }
-        if (((284 == c) || (286 == c)) || (288 == c) || (290 == c) || (330 == c)) {
-            return "G";
-        }
-        if ((285 == c) || (287 == c) || (289 == c) || (291 == c) || (331 == c)) {
-            return "g";
-        }
-        if ((292 == c) || (294 == c)) {
-            return "H";
-        }
-        if ((293 == c) || (295 == c)) {
-            return "h";
-        }
-        if (((204 <= c) && (c <= 207)) || (296 == c) || (298 == c) || (300 == c) || (302 == c) || (304 == c)) {
-            return "I";
-        }
-        if (((236 <= c) && (c <= 239)) || (297 == c) || (299 == c) || (301 == c) || (303 == c)) {
-            return "i";
-        }
-        if (308 == c) {
-            return "J";
-        }
-        if (309 == c) {
-            return "j";
-        }
-        if (310 == c) {
-            return "K";
-        }
-        if (311 == c) {
-            return "k";
-        }
-        if ((313 == c) || (315 == c) || (319 == c)) {
-            return "L";
-        }
-        if ((314 == c) || (316 == c) || (320 == c) || (322 == c)) {
-            return "l";
-        }
-        if ((209 == c) || (323 == c) || (325 == c) || (327 == c)) {
-            return "N";
-        }
-        if ((241 == c) || (324 == c) || (326 == c) || (328 == c)) {
-            return "n";
-        }
-        if (((210 <= c) && (c <= 214)) || (c == 216) || (332 == c) || (334 == c)) {
-            return "O";
-        }
-        if (((242 <= c) && (c <= 248) && (247 != c)) || (333 == c) || (335 == c)) {
-            return "o";
-        }
-        if ((340 == c) || (342 == c) || (344 == c)) {
-            return "R";
-        }
-        if ((341 == c) || (343 == c) || (345 == c)) {
-            return "r";
-        }
-        if ((346 == c) || (348 == c) || (350 == c) || (352 == c)) {
-            return "S";
-        }
-        if ((347 == c) || (349 == c) || (351 == c) || (353 == c)) {
-            return "s";
-        }
-        if ((354 == c) || (356 == c) || (358 == c)) {
-            return "T";
-        }
-        if ((355 == c) || (359 == c)) {
-            return "t";
-        }
-        if (((217 <= c) && (c <= 220)) || (360 == c) || (362 == c) || (364 == c) || (366 == c) || (370 == c)) {
-            return "U";
-        }
-        if (((249 <= c) && (c <= 251)) || (361 == c) || (363 == c) || (365 == c) || (367 == c) || (371 == c)) {
-            return "u";
-        }
-        if (372 == c) {
-            return "W";
-        }
-        if (373 == c) {
-            return "w";
-        }
-        if ((374 == c) || (376 == c) || (221 == c)) {
-            return "Y";
-        }
-        if ((375 == c) || (255 == c)) {
-            return "y";
-        }
-        if ((377 == c) || (379 == c) || (381 == c)) {
-            return "Z";
-        }
-        if ((378 == c) || (380 == c) || (382 == c)) {
-            return "z";
-        }
-        if (198 == c) {
-            return "AE";
-        }
-        if (230 == c) {
-            return "ae";
-        }
-        if (338 == c) {
-            return "OE";
-        }
-        if (339 == c) {
-            return "oe";
-        }
-        if (222 == c) {
-            return "TH";
-        }
-        if (223 == c) {
-            return "ss";
-        }
-        if (161 == c) {
-            return "!";
+        while (c >= 192) {
+            if (baseCharDictionary.get(c) != null) {
+                return baseCharDictionary.get(c);
+            } else {
+                c--;
+            }
         }
         return "?";
+    }
+
+    private void loadBaseCharDictionary() {
+        baseCharDictionary.put(192L, "A");
+        baseCharDictionary.put(224L, "a");
+        baseCharDictionary.put(199L, "C");
+        baseCharDictionary.put(262L, "C");
+        baseCharDictionary.put(264L, "C");
+        baseCharDictionary.put(266L, "C");
+        baseCharDictionary.put(268L, "C");
+        baseCharDictionary.put(231L, "c");
+        baseCharDictionary.put(263L, "c");
+        baseCharDictionary.put(265L, "c");
+        baseCharDictionary.put(267L, "c");
+        baseCharDictionary.put(269L, "c");
+        baseCharDictionary.put(208L, "D");
+        baseCharDictionary.put(272L, "D");
+        baseCharDictionary.put(240L, "d");
+        baseCharDictionary.put(273L, "d");
+        baseCharDictionary.put(200L, "E");
+        baseCharDictionary.put(274L, "E");
+        baseCharDictionary.put(276L, "E");
+        baseCharDictionary.put(278L, "E");
+        baseCharDictionary.put(280L, "E");
+        baseCharDictionary.put(282L, "E");
+        baseCharDictionary.put(232L, "e");
+        baseCharDictionary.put(275L, "e");
+        baseCharDictionary.put(277L, "e");
+        baseCharDictionary.put(279L, "e");
+        baseCharDictionary.put(281L, "e");
+        baseCharDictionary.put(283L, "e");
+        baseCharDictionary.put(284L, "G");
+        baseCharDictionary.put(286L, "G");
+        baseCharDictionary.put(288L, "G");
+        baseCharDictionary.put(290L, "G");
+        baseCharDictionary.put(330L, "G");
+        baseCharDictionary.put(285L, "g");
+        baseCharDictionary.put(287L, "g");
+        baseCharDictionary.put(289L, "g");
+        baseCharDictionary.put(291L, "g");
+        baseCharDictionary.put(331L, "g");
+        baseCharDictionary.put(292L, "H");
+        baseCharDictionary.put(294L, "H");
+        baseCharDictionary.put(293L, "h");
+        baseCharDictionary.put(295L, "h");
+        baseCharDictionary.put(204L, "I");
+        baseCharDictionary.put(296L, "I");
+        baseCharDictionary.put(298L, "I");
+        baseCharDictionary.put(300L, "I");
+        baseCharDictionary.put(302L, "I");
+        baseCharDictionary.put(304L, "I");
+        baseCharDictionary.put(236L, "i");
+        baseCharDictionary.put(297L, "i");
+        baseCharDictionary.put(299L, "i");
+        baseCharDictionary.put(301L, "i");
+        baseCharDictionary.put(303L, "i");
+        baseCharDictionary.put(308L, "J");
+        baseCharDictionary.put(309L, "j");
+        baseCharDictionary.put(310L, "K");
+        baseCharDictionary.put(311L, "k");
+        baseCharDictionary.put(313L, "L");
+        baseCharDictionary.put(315L, "L");
+        baseCharDictionary.put(319L, "L");
+        baseCharDictionary.put(314L, "l");
+        baseCharDictionary.put(316L, "l");
+        baseCharDictionary.put(320L, "l");
+        baseCharDictionary.put(322L, "l");
+        baseCharDictionary.put(209L, "N");
+        baseCharDictionary.put(323L, "N");
+        baseCharDictionary.put(325L, "N");
+        baseCharDictionary.put(327L, "N");
+        baseCharDictionary.put(241L, "n");
+        baseCharDictionary.put(324L, "n");
+        baseCharDictionary.put(326L, "n");
+        baseCharDictionary.put(328L, "n");
+        baseCharDictionary.put(210L, "O");
+        baseCharDictionary.put(332L, "O");
+        baseCharDictionary.put(334L, "O");
+        baseCharDictionary.put(242L, "o");
+        baseCharDictionary.put(333L, "o");
+        baseCharDictionary.put(335L, "o");
+        baseCharDictionary.put(340L, "R");
+        baseCharDictionary.put(342L, "R");
+        baseCharDictionary.put(344L, "R");
+        baseCharDictionary.put(341L, "r");
+        baseCharDictionary.put(343L, "r");
+        baseCharDictionary.put(345L, "r");
+        baseCharDictionary.put(346L, "S");
+        baseCharDictionary.put(348L, "S");
+        baseCharDictionary.put(350L, "S");
+        baseCharDictionary.put(352L, "S");
+        baseCharDictionary.put(347L, "s");
+        baseCharDictionary.put(349L, "s");
+        baseCharDictionary.put(351L, "s");
+        baseCharDictionary.put(353L, "s");
+        baseCharDictionary.put(354L, "T");
+        baseCharDictionary.put(356L, "T");
+        baseCharDictionary.put(358L, "T");
+        baseCharDictionary.put(355L, "t");
+        baseCharDictionary.put(359L, "t");
+        baseCharDictionary.put(217L, "U");
+        baseCharDictionary.put(360L, "U");
+        baseCharDictionary.put(362L, "U");
+        baseCharDictionary.put(364L, "U");
+        baseCharDictionary.put(366L, "U");
+        baseCharDictionary.put(370L, "U");
+        baseCharDictionary.put(249L, "u");
+        baseCharDictionary.put(361L, "u");
+        baseCharDictionary.put(363L, "u");
+        baseCharDictionary.put(365L, "u");
+        baseCharDictionary.put(367L, "u");
+        baseCharDictionary.put(371L, "u");
+        baseCharDictionary.put(372L, "W");
+        baseCharDictionary.put(373L, "w");
+        baseCharDictionary.put(374L, "Y");
+        baseCharDictionary.put(376L, "Y");
+        baseCharDictionary.put(221L, "Y");
+        baseCharDictionary.put(375L, "y");
+        baseCharDictionary.put(255L, "y");
+        baseCharDictionary.put(377L, "Z");
+        baseCharDictionary.put(379L, "Z");
+        baseCharDictionary.put(381L, "Z");
+        baseCharDictionary.put(378L, "z");
+        baseCharDictionary.put(380L, "z");
+        baseCharDictionary.put(382L, "z");
+        baseCharDictionary.put(198L, "AE");
+        baseCharDictionary.put(230L, "ae");
+        baseCharDictionary.put(338L, "OE");
+        baseCharDictionary.put(339L, "oe");
+        baseCharDictionary.put(222L, "TH");
+        baseCharDictionary.put(223L, "ss");
     }
 }
