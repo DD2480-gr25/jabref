@@ -275,6 +275,7 @@ This is done using if-statements. I identified two main ways to reduce the numbe
 1. Set up a lookup table (HashMap?) that stores all special character codes and their base character counterparts
 2. Split the function into two methods; one for lower case letters and one for upper case, just like in RTFCharsTest (the unit test class).
 
+The first refactor was implemented. It decreased the CCN from 148 to 3, with the drawback of extra memory complexity and a more heavy instance construction of RTFChars. Furthermore, the implementation was not bulletproof as some RTFChar-tests fail after implementation. These need to be debugged if to be used in production.
 
 ### RisImporter::importDatabase
 There are many opportunities to split up the code into smaller functions. We would:
