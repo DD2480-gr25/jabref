@@ -1,4 +1,3 @@
-
 # DD2480 Group 25 Workspace
 
 A working markdown file to write down any findings throughout our work on assignment 3
@@ -289,13 +288,13 @@ The following test cases i.e. test files were added:F
 4. `RisImporterTest12`: Tests parsing of previously untested RIS tags SE and NV
 5. `RisImporterTestUnmappedTags`: Tests RIS tags with no direct bibtext-mapping namely RP, AV, CN, OP, RI
 
-
-
 ## Task 3 - Refactoring Plan
 
 ### RTFChars::transformSpecialCharacter
+
 This function is used for converting special unicode characters to their base character counterpart. Example: é -> e.
 This is done using if-statements. I identified two main ways to reduce the number of branches in this method:
+
 1. Set up a lookup table (HashMap?) that stores all special character codes and their base character counterparts
 2. Split the function into two methods; one for lower case letters and one for upper case, just like in RTFCharsTest (the unit test class).
 
@@ -303,6 +302,7 @@ The first refactor was implemented. It decreased the CCN from 148 to 3, with the
 These need to be debugged if to be used in production.
 
 ### GvkParser::parseEntry
+
 1. Creating helper method for checking and setting StandardFields. Replaces lines 369-377 and 389-433 consisting of many if statements with method calls, reduces code duplication.
 2. Reducing code duplication for tag 028A and 028B (author) and 028C (editor) by creating separate helper method.
 3. Move the null-check into the RemoveSortCharacters method. Reduces code duplication.
@@ -336,9 +336,9 @@ switch statements and reduce complexity.
 
 ### BibEntry::getSourceField
 
-One way of refactoring this function is to split the many if statements into separate functions. In places where an if statement first evaluates if something is true regarding the variables `sourceEntry` and `targetEntry` and the body of the if statement consists of additional if functions evaluating `targetField`, the nested if functions could be cut out into a separate function. The problem with this is that in the original function, if the first if statement evaluates to true, but none of the nested ones do, the function will simply proceeed to the next statement, which can't really be acheived when excangilng the nested if statements for something like: `return newFunction(targetField);`. Thus, this is only trivial when none of the specific requirements for entering the if statement body reoccur in some other if statement later the function. 
+One way of refactoring this function is to split the many if statements into separate functions. In places where an if statement first evaluates if something is true regarding the variables `sourceEntry` and `targetEntry` and the body of the if statement consists of additional if functions evaluating `targetField`, the nested if functions could be cut out into a separate function. The problem with this is that in the original function, if the first if statement evaluates to true, but none of the nested ones do, the function will simply proceeed to the next statement, which can't really be acheived when excangilng the nested if statements for something like: `return newFunction(targetField);`. Thus, this is only trivial when none of the specific requirements for entering the if statement body reoccur in some other if statement later the function.
 
-In a similar vein, there are several if statements with the format: 
+In a similar vein, there are several if statements with the format:
 
 `if ((sourceEntry == x && targetEntry == a) || (sourceEntry == x && targetEntry == b) || (sourceEntry == x && targetEntry == c))`
 
@@ -349,11 +349,17 @@ which can be refactored into:
 ## Task 3 - Refactoring Implementation
 
 #### GvkParser::parseEntry
+
 The refactoring reduces complexity with 38% From CCN=79 to CCN=49
 
 ### RisImporter::importDatabase
+
 By applying the refactoring plan, we have managed to reduce CCN from 110 down to 71 which constitutes a 35% reduction
 
 ### BibEntry::getSourceField
+
 By applying the refactoring plan, we have managed to reduce CCN from 63 down to 38, which constitutes a 39% reduction
 
+### FieldNameLabel::getDescription
+
+By applying the refactoring plan, we have managed to reduce CCN from 103 down to 4 which constitutes a 96% reduction
