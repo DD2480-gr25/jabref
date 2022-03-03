@@ -298,9 +298,6 @@ This is done using if-statements. I identified two main ways to reduce the numbe
 1. Set up a lookup table (HashMap?) that stores all special character codes and their base character counterparts
 2. Split the function into two methods; one for lower case letters and one for upper case, just like in RTFCharsTest (the unit test class).
 
-The first refactor was implemented. It decreased the CCN from 148 to 3, with the drawback of extra memory complexity and a more heavy instance construction of RTFChars. Furthermore, the implementation was not bulletproof as some RTFChar-tests fail after implementation.
-These need to be debugged if to be used in production.
-
 ### GvkParser::parseEntry
 
 1. Creating helper method for checking and setting StandardFields. Replaces lines 369-377 and 389-433 consisting of many if statements with method calls, reduces code duplication.
@@ -348,7 +345,12 @@ which can be refactored into:
 
 ## Task 3 - Refactoring Implementation
 
-#### GvkParser::parseEntry
+### RTFChars
+
+The first part of the refactoring plan was implemented. It decreased the CCN from 148 to 3, with the drawback of extra memory complexity and a more heavy instance construction of RTFChars. Furthermore, the implementation was not bulletproof as some RTFChar-tests fail after implementation.
+These need to be debugged if to be used in production.
+
+### GvkParser::parseEntry
 
 The refactoring reduces complexity with 38% From CCN=79 to CCN=49
 
