@@ -92,6 +92,7 @@ repositories {
     mavenCentral()
     maven { url 'https://oss.sonatype.org/content/groups/public' }
     maven { url 'https://repository.apache.org/snapshots' }
+    maven { url 'https://jitpack.io' }
 }
 
 configurations {
@@ -190,6 +191,14 @@ dependencies {
     implementation ('com.github.tomtung:latex2unicode_2.12:0.2.6') {
         exclude module: 'fastparse_2.12'
     }
+
+//    implementation('net.east301.java-keyring-parent:java-keyring-parent') {
+//        version {
+//            branch = 'master'
+//        }
+//    }
+    implementation 'com.github.javakeyring:java-keyring:master-SNAPSHOT'
+
 
     implementation group: 'com.microsoft.azure', name: 'applicationinsights-core', version: '2.4.1'
     implementation (group: 'com.microsoft.azure', name: 'applicationinsights-logging-log4j2', version: '2.4.1') {
