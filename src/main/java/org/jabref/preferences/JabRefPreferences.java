@@ -34,8 +34,6 @@ import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import com.github.javakeyring.BackendNotSupportedException;
-import com.github.javakeyring.PasswordAccessException;
 import javafx.beans.InvalidationListener;
 import javafx.collections.SetChangeListener;
 import javafx.scene.control.TableColumn.SortType;
@@ -117,8 +115,6 @@ import org.jabref.model.strings.StringUtil;
 import com.tobiasdiez.easybind.EasyBind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.github.javakeyring.Keyring;
 
 /**
  * The {@code JabRefPreferences} class provides the preferences and their defaults using the JDK {@code java.util.prefs}
@@ -1611,14 +1607,14 @@ public class JabRefPreferences implements PreferencesService {
                 get(PROXY_PORT),
                 getBoolean(PROXY_USE_AUTHENTICATION),
                 get(PROXY_USERNAME),
-                get(PROXY_PASSWORD));
+                getSecret(PROXY_PASSWORD));
 
         EasyBind.listen(proxyPreferences.useProxyProperty(), (obs, oldValue, newValue) -> putBoolean(PROXY_USE, newValue));
         EasyBind.listen(proxyPreferences.hostnameProperty(), (obs, oldValue, newValue) -> put(PROXY_HOSTNAME, newValue));
         EasyBind.listen(proxyPreferences.portProperty(), (obs, oldValue, newValue) -> put(PROXY_PORT, newValue));
         EasyBind.listen(proxyPreferences.useAuthenticationProperty(), (obs, oldValue, newValue) -> putBoolean(PROXY_USE_AUTHENTICATION, newValue));
         EasyBind.listen(proxyPreferences.usernameProperty(), (obs, oldValue, newValue) -> put(PROXY_USERNAME, newValue));
-        EasyBind.listen(proxyPreferences.passwordProperty(), (obs, oldValue, newValue) -> put(PROXY_PASSWORD, newValue));
+        EasyBind.listen(proxyPreferences.passwordProperty(), (obs, oldValue, newValue) -> putSecret(PROXY_PASSWORD, newValue));
 
         return proxyPreferences;
     }
