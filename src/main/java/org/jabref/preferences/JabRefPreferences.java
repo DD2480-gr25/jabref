@@ -34,6 +34,8 @@ import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.github.javakeyring.BackendNotSupportedException;
+import com.github.javakeyring.PasswordAccessException;
 import javafx.beans.InvalidationListener;
 import javafx.collections.SetChangeListener;
 import javafx.scene.control.TableColumn.SortType;
@@ -115,6 +117,8 @@ import org.jabref.model.strings.StringUtil;
 import com.tobiasdiez.easybind.EasyBind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.github.javakeyring.Keyring;
 
 /**
  * The {@code JabRefPreferences} class provides the preferences and their defaults using the JDK {@code java.util.prefs}
@@ -407,6 +411,7 @@ public class JabRefPreferences implements PreferencesService {
     // string to be formatted and possible formatter arguments.
     public List<Path> fileDirForDatabase;
     private final Preferences prefs;
+    private final SecretStore keyring;
 
     /**
      * Cache variables
@@ -462,6 +467,9 @@ public class JabRefPreferences implements PreferencesService {
 
         // load user preferences
         prefs = PREFS_NODE;
+
+        keyring = new SecretStore();
+
 
         // Since some of the preference settings themselves use localized strings, we cannot set the language after
         // the initialization of the preferences in main
@@ -851,6 +859,10 @@ public class JabRefPreferences implements PreferencesService {
         return prefs.get(key, def);
     }
 
+    public String getSecret(String service) {
+        return keyring.get(service);
+    }
+
     public boolean getBoolean(String key) {
         return prefs.getBoolean(key, getBooleanDefault(key));
     }
@@ -881,6 +893,10 @@ public class JabRefPreferences implements PreferencesService {
 
     public void put(String key, String value) {
         prefs.put(key, value);
+    }
+
+    public void putSecret(String service, String password) {
+        keyring.put(service, password);
     }
 
     public void putBoolean(String key, boolean value) {
