@@ -3,8 +3,15 @@ pluginManagement {
         maven {
             url 'https://oss.sonatype.org/content/repositories/snapshots'
         }
+
         gradlePluginPortal()
     }
 }
+//
+//sourceControl {
+//    gitRepository(new URI("https://github.com/xafero/java-keyring.git")) {
+//        producesModule("net.east301.java-keyring-parent:java-keyring-parent")
+//    }
+//}
 
 rootProject.name = "JabRef"
