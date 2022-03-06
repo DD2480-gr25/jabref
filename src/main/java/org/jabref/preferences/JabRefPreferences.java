@@ -1601,6 +1601,7 @@ public class JabRefPreferences implements PreferencesService {
             return proxyPreferences;
         }
 
+        // Get password as a secret from keyring
         proxyPreferences = new ProxyPreferences(
                 getBoolean(PROXY_USE),
                 get(PROXY_HOSTNAME),
@@ -1609,6 +1610,7 @@ public class JabRefPreferences implements PreferencesService {
                 get(PROXY_USERNAME),
                 getSecret(PROXY_PASSWORD));
 
+        // Put password as a secret into keyring
         EasyBind.listen(proxyPreferences.useProxyProperty(), (obs, oldValue, newValue) -> putBoolean(PROXY_USE, newValue));
         EasyBind.listen(proxyPreferences.hostnameProperty(), (obs, oldValue, newValue) -> put(PROXY_HOSTNAME, newValue));
         EasyBind.listen(proxyPreferences.portProperty(), (obs, oldValue, newValue) -> put(PROXY_PORT, newValue));
