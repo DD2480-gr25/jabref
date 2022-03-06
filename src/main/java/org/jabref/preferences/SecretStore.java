@@ -10,6 +10,7 @@ import java.util.Optional;
 import static org.jabref.gui.importer.actions.OpenDatabaseAction.LOGGER;
 
 public class SecretStore {
+    private static final String PREFIX = "org.jabref";
     private final Keyring keyring;
     private final HashMap<String, String> fallback;
 
@@ -28,26 +29,35 @@ public class SecretStore {
     }
 
     public String get(String service) {
+        return  get(service, "");
+    }
+
+    public String get(String service, String account) {
         if (keyring == null) {
             return fallback.getOrDefault(service, "");
         }
         try {
-            return keyring.getPassword(service, "");
+            return keyring.getPassword(PREFIX + ":" + service, account);
         } catch (PasswordAccessException e) {
             LOGGER.warn("Could not get secret from keychain: " + e.getMessage(), e);
-            return fallback.getOrDefault(service, "");
+            return fallback.getOrDefault(account + "@" + service, "");
         }
     }
 
+
     public void put(String service, String password) {
+        put(service, "", password);
+    }
+
+    public void put(String service, String account, String password) {
         if (keyring == null) {
              fallback.put(service, password);
         }
         try {
-             keyring.setPassword(service, "", password);
+             keyring.setPassword(PREFIX + ":" + service, account, password);
         } catch (PasswordAccessException e) {
             LOGGER.warn("Could not save secret to keychain: " + e.getMessage(), e);
-            fallback.put(service, password);
+            fallback.put(account + "@" + service, password);
         }
     }
 
