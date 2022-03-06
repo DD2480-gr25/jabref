@@ -66,6 +66,7 @@ public class SharedDatabasePreferences {
         return getOptionalValue(SHARED_DATABASE_USER);
     }
 
+    // This method reads password from the keyring by using the accordingly service and account
     public Optional<String> getPassword() {
         return Optional.of(keyring.get(SHARED_DATABASE_PASSWORD, sharedDatabaseID));
     }
@@ -106,6 +107,7 @@ public class SharedDatabasePreferences {
         internalPrefs.put(SHARED_DATABASE_USER, user);
     }
 
+    // This method saves password into the keyring by using the accordingly service and account
     public void setPassword(String password) {
         keyring.put(SHARED_DATABASE_PASSWORD, sharedDatabaseID, password);
     }
