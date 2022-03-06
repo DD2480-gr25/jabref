@@ -9,6 +9,7 @@ import java.util.prefs.Preferences;
 import org.jabref.logic.shared.DatabaseConnectionProperties;
 import org.jabref.logic.shared.security.Password;
 
+import org.jabref.preferences.SecretStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +33,8 @@ public class SharedDatabasePreferences {
 
     // This {@link Preferences} is used only for things which should not appear in real JabRefPreferences due to security reasons.
     private final Preferences internalPrefs;
+    private final SecretStore keyring;
+    private final String sharedDatabaseID;
 
     public SharedDatabasePreferences() {
         this(DEFAULT_NODE);
@@ -39,6 +42,8 @@ public class SharedDatabasePreferences {
 
     public SharedDatabasePreferences(String sharedDatabaseID) {
         internalPrefs = Preferences.userRoot().node(PREFERENCES_PATH_NAME).node(sharedDatabaseID);
+        keyring = new SecretStore();
+        this.sharedDatabaseID = sharedDatabaseID;
     }
 
     public Optional<String> getType() {
@@ -62,7 +67,7 @@ public class SharedDatabasePreferences {
     }
 
     public Optional<String> getPassword() {
-        return getOptionalValue(SHARED_DATABASE_PASSWORD);
+        return Optional.of(keyring.get(SHARED_DATABASE_PASSWORD, sharedDatabaseID));
     }
 
     public Optional<String> getKeyStoreFile() {
@@ -102,7 +107,7 @@ public class SharedDatabasePreferences {
     }
 
     public void setPassword(String password) {
-        internalPrefs.put(SHARED_DATABASE_PASSWORD, password);
+        keyring.put(SHARED_DATABASE_PASSWORD, sharedDatabaseID, password);
     }
 
     public void setRememberPassword(boolean rememberPassword) {
