@@ -197,7 +197,7 @@ dependencies {
 //            branch = 'master'
 //        }
 //    }
-    implementation 'com.github.javakeyring:java-keyring:master-SNAPSHOT'
+    implementation 'com.github.javakeyring.java-keyring:java-keyring:master-SNAPSHOT'
 
 
     implementation group: 'com.microsoft.azure', name: 'applicationinsights-core', version: '2.4.1'
