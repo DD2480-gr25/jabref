@@ -1,3 +1,8 @@
+/**
+ * @author  Group25
+ * @date    06/03/2022
+ */
+
 package org.jabref.preferences;
 
 import com.github.javakeyring.BackendNotSupportedException;
@@ -7,6 +12,9 @@ import com.github.javakeyring.PasswordAccessException;
 import java.util.HashMap;
 import java.util.Optional;
 
+/**
+ *  Save and read secret from system.
+ */
 import static org.jabref.gui.importer.actions.OpenDatabaseAction.LOGGER;
 
 public class SecretStore {
@@ -28,10 +36,23 @@ public class SecretStore {
         fallback = new HashMap<>();
     }
 
+    /**
+     * Read secrets from secret store with according service
+     *
+     * @param service used service
+     * @return secret according to service
+     */
     public String get(String service) {
         return  get(service, "");
     }
 
+    /**
+     * Read secrets from keychain by identifying service and account
+     *
+     * @param service used service
+     * @param account used account
+     * @return secret according to service and account
+     */
     public String get(String service, String account) {
         if (keyring == null) {
             return fallback.getOrDefault(service, "");
@@ -44,11 +65,20 @@ public class SecretStore {
         }
     }
 
-
+    /**
+     * Put secret into secret store with according service
+     */
     public void put(String service, String password) {
         put(service, "", password);
     }
 
+    /**
+     * Put secret into secret store with related service and account
+     *
+     * @param service used service
+     * @param account used account
+     * @param password secret to be saved in to secret store
+     */
     public void put(String service, String account, String password) {
         if (keyring == null) {
              fallback.put(service, password);
