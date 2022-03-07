@@ -10,6 +10,8 @@ import org.jabref.logic.shared.DatabaseConnectionProperties;
 import org.jabref.logic.shared.security.Password;
 
 import org.jabref.preferences.SecretStore;
+import org.jabref.preferences.provider.CredentialValueProvider;
+import org.mariadb.jdbc.credential.Credential;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +35,7 @@ public class SharedDatabasePreferences {
 
     // This {@link Preferences} is used only for things which should not appear in real JabRefPreferences due to security reasons.
     private final Preferences internalPrefs;
-    private final SecretStore keyring;
+    private final CredentialValueProvider credentialValueProvider;
     private final String sharedDatabaseID;
 
     public SharedDatabasePreferences() {
@@ -42,7 +44,7 @@ public class SharedDatabasePreferences {
 
     public SharedDatabasePreferences(String sharedDatabaseID) {
         internalPrefs = Preferences.userRoot().node(PREFERENCES_PATH_NAME).node(sharedDatabaseID);
-        keyring = new SecretStore();
+        credentialValueProvider = new CredentialValueProvider(SHARED_DATABASE_PASSWORD);
         this.sharedDatabaseID = sharedDatabaseID;
     }
 
@@ -67,7 +69,7 @@ public class SharedDatabasePreferences {
     }
 
     public Optional<String> getPassword() {
-        return Optional.of(keyring.get(SHARED_DATABASE_PASSWORD, sharedDatabaseID));
+        return Optional.of((String) credentialValueProvider.get());
     }
 
     public Optional<String> getKeyStoreFile() {
@@ -107,7 +109,7 @@ public class SharedDatabasePreferences {
     }
 
     public void setPassword(String password) {
-        keyring.put(SHARED_DATABASE_PASSWORD, sharedDatabaseID, password);
+        credentialValueProvider.set(password);
     }
 
     public void setRememberPassword(boolean rememberPassword) {
