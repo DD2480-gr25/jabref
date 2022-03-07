@@ -111,8 +111,7 @@ import org.jabref.model.metadata.SaveOrderConfig;
 import org.jabref.model.push.PushToApplicationConstants;
 import org.jabref.model.search.rules.SearchRules;
 import org.jabref.model.strings.StringUtil;
-import org.jabref.preferences.provider.SessionValueProvider;
-import org.jabref.preferences.provider.ValueProviderFactory;
+import org.jabref.preferences.provider.*;
 
 import com.tobiasdiez.easybind.EasyBind;
 import org.slf4j.Logger;
@@ -399,6 +398,7 @@ public class JabRefPreferences implements PreferencesService {
     public List<Path> fileDirForDatabase;
     private final Preferences prefs;
     private final ValueProviderFactory valueProviderFactory;
+    private SwitchableValueProvider passwordProvider;
 
     /**
      * Cache variables
@@ -1577,15 +1577,24 @@ public class JabRefPreferences implements PreferencesService {
 
     @Override
     public ProxyPreferences getProxyPreferences() {
+        LOGGER.info("Does it run?");
         if (Objects.nonNull(proxyPreferences)) {
             return proxyPreferences;
         }
 
         var storePasswordProvider = valueProviderFactory.getPrefsBooleanProvider(PROXY_STORE_PASSWORD);
 
-        var passwordPrefsProvider = valueProviderFactory.getPrefsStringProvider(PROXY_PASSWORD);
-        var passwordProvider = valueProviderFactory.getSwitchable(passwordPrefsProvider, new SessionValueProvider<>(), PROXY_PASSWORD);
+        CredentialValueProvider<String> credentialValueProvider = new CredentialValueProvider<>(PROXY_PASSWORD);
+        passwordProvider = valueProviderFactory.getSwitchable(credentialValueProvider, new SessionValueProvider<>(),
+                PROXY_PASSWORD);
+
+        String password = "";
+
         passwordProvider.setProvider(storePasswordProvider.get());
+        password = (String) passwordProvider.get();
+        if (password == null) {
+            LOGGER.info("password was null");
+        }
 
         proxyPreferences = new ProxyPreferences(
                 getBoolean(PROXY_USE),
@@ -1593,7 +1602,7 @@ public class JabRefPreferences implements PreferencesService {
                 get(PROXY_PORT),
                 getBoolean(PROXY_USE_AUTHENTICATION),
                 get(PROXY_USERNAME),
-                passwordProvider.get(),
+                password,
                 storePasswordProvider.get());
 
         EasyBind.listen(proxyPreferences.useProxyProperty(), (obs, oldValue, newValue) -> putBoolean(PROXY_USE, newValue));
