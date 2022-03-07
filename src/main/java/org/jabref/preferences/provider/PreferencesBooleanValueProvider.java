@@ -23,4 +23,9 @@ public class PreferencesBooleanValueProvider implements ValueProvider<Boolean> {
     public void set(Boolean newValue) {
         prefs.putBoolean(key, newValue);
     }
+
+    @Override
+    public void clear() {
+        prefs.remove(key);
+    }
 }

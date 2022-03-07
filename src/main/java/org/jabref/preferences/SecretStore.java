@@ -3,39 +3,59 @@ package org.jabref.preferences;
 import com.github.javakeyring.BackendNotSupportedException;
 import com.github.javakeyring.Keyring;
 import com.github.javakeyring.PasswordAccessException;
-
-import static org.jabref.gui.importer.actions.OpenDatabaseAction.LOGGER;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SecretStore {
+
+    private static final Logger logger = LoggerFactory.getLogger(SecretStore.class);
     private static final String PREFIX = "org.jabref";
-    private final Keyring keyring;
-
-    public SecretStore() {
-        Keyring kr = null;
-
-        // Initialize the keyring
-        try {
-            kr = Keyring.create();
-        } catch (BackendNotSupportedException e) {
-            throw new RuntimeException("Could not load native keyring: " + e.getMessage());
-        }
-        keyring = kr;
-    }
 
     public String get(String service) throws PasswordAccessException {
-        return get(service, "");
+        try (Keyring keyring = createKeyring()) {
+            return keyring.getPassword(getServiceName(service), "");
+        } catch (PasswordAccessException p) {
+            throw p;
+        } catch (Exception e) {
+            throw new RuntimeException("Encountered problem with keyring: " + e.getMessage(), e);
+        }
     }
 
-    public String get(String service, String account) throws PasswordAccessException {
-        return keyring.getPassword(PREFIX + ":" + service, account);
+    public void put(String key, String password) throws PasswordAccessException {
+        if (password.isEmpty()) {
+            throw new IllegalArgumentException("Password must not be empty");
+        }
+
+        try (Keyring keyring = createKeyring()) {
+            keyring.setPassword(getServiceName(key), "", password);
+            logger.info("Successfully set password");
+        } catch (PasswordAccessException p) {
+            throw p;
+        } catch (Exception e) {
+            throw new RuntimeException("Encountered problem with keyring: " + e.getMessage(), e);
+        }
     }
 
-    public void put(String service, String password) throws PasswordAccessException {
-        put(service, "", password);
+    public void delete(String key) throws PasswordAccessException {
+        try (Keyring keyring = createKeyring()) {
+            keyring.deletePassword(getServiceName(key), "");
+            logger.info("Successfully deleted password");
+        } catch (PasswordAccessException p) {
+            throw p;
+        } catch (Exception e) {
+            throw new RuntimeException("Encountered problem with keyring: " + e.getMessage(), e);
+        }
     }
 
-    public void put(String service, String account, String password) throws PasswordAccessException {
-         keyring.setPassword(PREFIX + ":" + service, account, password);
+    private Keyring createKeyring() {
+        try {
+            return Keyring.create();
+        } catch (BackendNotSupportedException e) {
+            throw new RuntimeException("Could not load native keyring: " + e.getMessage(), e);
+        }
     }
 
+    private String getServiceName(String key) {
+        return PREFIX + ":" + key;
+    }
 }

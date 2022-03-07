@@ -24,4 +24,8 @@ public class PreferencesStringValueProvider implements ValueProvider<String> {
         prefs.put(key, newValue);
     }
 
+    @Override
+    public void clear() {
+        prefs.remove(key);
+    }
 }

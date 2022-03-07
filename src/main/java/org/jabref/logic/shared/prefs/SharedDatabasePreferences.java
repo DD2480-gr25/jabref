@@ -1,26 +1,16 @@
 package org.jabref.logic.shared.prefs;
 
-import java.io.UnsupportedEncodingException;
-import java.security.GeneralSecurityException;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 
 import org.jabref.logic.shared.DatabaseConnectionProperties;
-import org.jabref.logic.shared.security.Password;
-
-import org.jabref.preferences.provider.CredentialValueProvider;
 import org.jabref.preferences.provider.SessionValueProvider;
 import org.jabref.preferences.provider.SwitchableValueProvider;
 import org.jabref.preferences.provider.ValueProviderFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class SharedDatabasePreferences {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(SharedDatabasePreferences.class);
 
     private static final String DEFAULT_NODE = "default";
     private static final String PREFERENCES_PATH_NAME = "/org/jabref-shared";
@@ -38,8 +28,7 @@ public class SharedDatabasePreferences {
 
     // This {@link Preferences} is used only for things which should not appear in real JabRefPreferences due to security reasons.
     private final Preferences internalPrefs;
-    private final SwitchableValueProvider passwordValueProvider;
-    private final String sharedDatabaseID;
+    private final SwitchableValueProvider<String> passwordValueProvider;
 
     public SharedDatabasePreferences() {
         this(DEFAULT_NODE);
@@ -47,10 +36,11 @@ public class SharedDatabasePreferences {
 
     public SharedDatabasePreferences(String sharedDatabaseID) {
         internalPrefs = Preferences.userRoot().node(PREFERENCES_PATH_NAME).node(sharedDatabaseID);
+
         ValueProviderFactory valueProviderFactory = new ValueProviderFactory(internalPrefs, new HashMap<>());
-        passwordValueProvider = valueProviderFactory.getSwitchable(new CredentialValueProvider<>(SHARED_DATABASE_PASSWORD),
+        passwordValueProvider = valueProviderFactory.getSwitchable(valueProviderFactory.getCredentialProvider(SHARED_DATABASE_PASSWORD),
                 new SessionValueProvider<>(), SHARED_DATABASE_PASSWORD);
-        this.sharedDatabaseID = sharedDatabaseID;
+        passwordValueProvider.setProvider(getRememberPassword());
     }
 
     public Optional<String> getType() {
@@ -74,7 +64,7 @@ public class SharedDatabasePreferences {
     }
 
     public Optional<String> getPassword() {
-        return Optional.of((String) passwordValueProvider.get());
+        return Optional.ofNullable(passwordValueProvider.get());
     }
 
     public Optional<String> getKeyStoreFile() {
@@ -119,6 +109,7 @@ public class SharedDatabasePreferences {
 
     public void setRememberPassword(boolean rememberPassword) {
         internalPrefs.putBoolean(SHARED_DATABASE_REMEMBER_PASSWORD, rememberPassword);
+        passwordValueProvider.setProvider(rememberPassword);
     }
 
     public void setUseSSL(boolean useSSL) {
@@ -134,10 +125,11 @@ public class SharedDatabasePreferences {
     }
 
     public void clearPassword() {
-        internalPrefs.remove(SHARED_DATABASE_PASSWORD);
+        passwordValueProvider.clear();
     }
 
     public void clear() throws BackingStoreException {
+        clearPassword();
         internalPrefs.clear();
     }
 
@@ -157,14 +149,9 @@ public class SharedDatabasePreferences {
         setPort(String.valueOf(properties.getPort()));
         setName(properties.getDatabase());
         setUser(properties.getUser());
+        setPassword(properties.getPassword());
         setUseSSL(properties.isUseSSL());
         setKeystoreFile(properties.getKeyStore());
         setServerTimezone(properties.getServerTimezone());
-
-        try {
-            setPassword(new Password(properties.getPassword().toCharArray(), properties.getUser()).encrypt());
-        } catch (GeneralSecurityException | UnsupportedEncodingException e) {
-            LOGGER.error("Could not store the password due to encryption problems.", e);
-        }
     }
 }

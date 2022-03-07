@@ -2,7 +2,8 @@ package org.jabref.preferences.provider;
 
 public class SwitchableValueProvider<T> implements ValueProvider<T> {
 
-    private final ValueProvider<T> first, second;
+    private final ValueProvider<T> first;
+    private final ValueProvider<T> second;
     private final T def;
 
     private boolean isFirst = true;
@@ -36,8 +37,13 @@ public class SwitchableValueProvider<T> implements ValueProvider<T> {
         current().set(newValue);
     }
 
+    @Override
+    public void clear() {
+        first.clear();
+        second.clear();
+    }
+
     private ValueProvider<T> current() {
         return isFirst ? first : second;
     }
-
 }

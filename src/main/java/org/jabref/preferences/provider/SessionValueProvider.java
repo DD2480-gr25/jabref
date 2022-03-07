@@ -14,4 +14,8 @@ public class SessionValueProvider<T> implements ValueProvider<T> {
         value = newValue;
     }
 
+    @Override
+    public void clear() {
+        value = null;
+    }
 }

@@ -6,4 +6,6 @@ public interface ValueProvider<T> {
 
     void set(T newValue);
 
+    void clear();
+
 }
