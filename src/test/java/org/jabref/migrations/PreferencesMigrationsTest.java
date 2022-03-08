@@ -288,4 +288,17 @@ class PreferencesMigrationsTest {
 
         verify(prefs).putInt(JabRefPreferences.MAIN_FONT_SIZE, 11);
     }
+
+    // Test that the network proxy password previously stored in plaintext is copied over to secure keystore and deleted from plaintext.
+    @Test
+    void mustClearPlaintextNetworkProxyPassword() {
+        //TODO: Write this test to satisfy requirement R7 (issue #54)
+    }
+
+    // Test that the shared database password previously stored in plaintext is copied over to secure keystore and deleted from plaintext.
+    @Test
+    void mustClearPlaintextSharedDatabasePassword() {
+        //TODO: Write this test to satisfy requirement R8 (issue #55)
+    }
+
 }

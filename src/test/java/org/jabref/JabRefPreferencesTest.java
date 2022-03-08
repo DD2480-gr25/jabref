@@ -31,4 +31,14 @@ class JabRefPreferencesTest {
         // prefs.setDefaultEncoding(StandardCharsets.UTF_8);
         // assertEquals(StandardCharsets.UTF_8, prefs.getDefaultEncoding());
     }
+
+    @Test
+    void mustNotStoreProxyPassword() {
+        //TODO: Implement to satisfy requirement R1 (issue #47)
+    }
+
+    @Test
+    void mustStoreProxyPasswordAsSecureCredential() {
+        //TODO: Implement to satisfy requirement R5 (issue #52)
+    }
 }
