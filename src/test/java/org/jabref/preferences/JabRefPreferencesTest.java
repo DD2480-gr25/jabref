@@ -22,7 +22,7 @@ import static org.mockito.Mockito.when;
 
 class JabRefPreferencesTest {
 
-    private static final String secret = "very-secret";
+    private static final String secret = "verysecret";
 
     private MockPreferences mockPreferences = new MockPreferences();
     private Preferences preferences = mockPreferences.createMock();
@@ -62,7 +62,7 @@ class JabRefPreferencesTest {
         verify(preferences, never()).put("proxyPassword", secret);
     }
 
-    //This test satisfies requirement R5 (issue #52). TODO: Remove this comment once documented in report
+    // This test satisfies requirement R5 (issue #52). TODO: Remove this comment once documented in report
     @Test
     void mustStoreProxyPasswordAsSecureCredential() {
         SessionValueProvider<String> fakeSecureProvider = new SessionValueProvider<>();
@@ -77,7 +77,7 @@ class JabRefPreferencesTest {
         assertEquals(secret, fakeSecureProvider.get());
     }
 
-    //This test satisfies requirement R5 (issue #52). TODO: Remove this comment once documented in report
+    // This test satisfies requirement R5 (issue #52). TODO: Remove this comment once documented in report
     @Test
     void mustRetrieveProxyPasswordAsSecureCredential() {
         String storedPassword = "another password";

@@ -1,9 +1,7 @@
-import groovy.json.JsonSlurper
 import org.gradle.internal.os.OperatingSystem
 import org.jabref.build.JournalAbbreviationConverter
 import org.jabref.build.xjc.XjcPlugin
 import org.jabref.build.xjc.XjcTask
-
 // to update the gradle wrapper, execute
 // ./gradlew wrapper --gradle-version=6.0 --distribution-type=bin
 
@@ -192,11 +190,6 @@ dependencies {
         exclude module: 'fastparse_2.12'
     }
 
-//    implementation('net.east301.java-keyring-parent:java-keyring-parent') {
-//        version {
-//            branch = 'master'
-//        }
-//    }
     implementation 'com.github.javakeyring.java-keyring:java-keyring:master-SNAPSHOT'
 
 
