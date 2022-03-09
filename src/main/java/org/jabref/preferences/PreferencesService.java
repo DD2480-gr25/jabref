@@ -1,12 +1,5 @@
 package org.jabref.preferences;
 
-import java.nio.file.Path;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.prefs.BackingStoreException;
-
 import org.jabref.gui.autocompleter.AutoCompletePreferences;
 import org.jabref.gui.entryeditor.EntryEditorPreferences;
 import org.jabref.gui.groups.GroupsPreferences;
@@ -47,8 +40,18 @@ import org.jabref.model.entry.BibEntryType;
 import org.jabref.model.entry.BibEntryTypesManager;
 import org.jabref.model.entry.field.Field;
 import org.jabref.model.metadata.SaveOrderConfig;
+import org.jabref.preferences.provider.SwitchableValueProvider;
+
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.prefs.BackingStoreException;
 
 public interface PreferencesService {
+
+    SwitchableValueProvider<String> getPasswordProvider();
 
     InternalPreferences getInternalPreferences();
 
