@@ -1,5 +1,7 @@
 package org.jabref.preferences.provider;
 
+import java.util.prefs.Preferences;
+
 import org.jabref.preferences.SecretStore;
 
 import com.github.javakeyring.PasswordAccessException;
@@ -50,6 +52,28 @@ public class CredentialValueProvider implements ValueProvider<String> {
             secretStore.delete(credentialKey);
         } catch (PasswordAccessException e) {
             LOGGER.warn("Could not delete secret from keychain: " + e.getMessage(), e);
+        }
+    }
+
+    public void migrateFromPref(Preferences prefs, String key) {
+        String preferencevalue = prefs.get(key, null);
+        if (preferencevalue == null) {
+            return; //  no stored preference
+        }
+
+        try {
+            secretStore.get(key); // throws exception if key not present
+            prefs.remove(key); // key exists, remove preference
+            return;
+        } catch (PasswordAccessException e) {
+            LOGGER.warn("Could not access to secret store: " + e.getMessage(), e);
+
+            try {
+                secretStore.put(key, preferencevalue);
+                prefs.remove(key); // key migrated, remove preference
+            } catch (PasswordAccessException ex) {
+                LOGGER.warn("Could not migrate to secret store: " + e.getMessage(), e);
+            }
         }
     }
 }
