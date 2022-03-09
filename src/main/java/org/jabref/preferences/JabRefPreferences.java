@@ -421,7 +421,6 @@ public class JabRefPreferences implements PreferencesService {
     private List<MainTableColumnModel> searchDialogTableColunns;
     private List<MainTableColumnModel> searchDialogColumnSortOrder;
 
-
     private Set<CustomImporter> customImporters;
     private String userName;
 
@@ -1198,9 +1197,9 @@ public class JabRefPreferences implements PreferencesService {
         Preferences prefsNode = getPrefsNodeForCustomizedEntryTypes(bibDatabaseMode);
         try {
             Arrays.stream(prefsNode.keys())
-                    .map(key -> prefsNode.get(key, null))
-                    .filter(Objects::nonNull)
-                    .forEach(typeString -> BibEntryTypesManager.parse(typeString).ifPresent(storedEntryTypes::add));
+                  .map(key -> prefsNode.get(key, null))
+                  .filter(Objects::nonNull)
+                  .forEach(typeString -> BibEntryTypesManager.parse(typeString).ifPresent(storedEntryTypes::add));
         } catch (BackingStoreException e) {
             LOGGER.info("Parsing customized entry types failed.", e);
         }
@@ -1267,9 +1266,9 @@ public class JabRefPreferences implements PreferencesService {
     private void updateLanguage() {
         String languageId = get(LANGUAGE);
         language = Stream.of(Language.values())
-                .filter(language -> language.getId().equalsIgnoreCase(languageId))
-                .findFirst()
-                .orElse(Language.ENGLISH);
+                         .filter(language -> language.getId().equalsIgnoreCase(languageId))
+                         .findFirst()
+                         .orElse(Language.ENGLISH);
     }
 
     @Override
@@ -1465,10 +1464,10 @@ public class JabRefPreferences implements PreferencesService {
     private void storeEntryEditorTabList(Map<String, Set<Field>> customTabs) {
         String[] names = customTabs.keySet().toArray(String[]::new);
         String[] fields = customTabs.values().stream()
-                .map(set -> set.stream()
-                        .map(Field::getName)
-                        .collect(Collectors.joining(STRINGLIST_DELIMITER.toString())))
-                .toArray(String[]::new);
+                                    .map(set -> set.stream()
+                                                   .map(Field::getName)
+                                                   .collect(Collectors.joining(STRINGLIST_DELIMITER.toString())))
+                                    .toArray(String[]::new);
 
         for (int i = 0; i < customTabs.size(); i++) {
             put(CUSTOM_TAB_NAME + i, names[i]);
@@ -1965,8 +1964,8 @@ public class JabRefPreferences implements PreferencesService {
     private List<MainTableColumnModel> updateColumnSortOrder(String sortOrderList, List<MainTableColumnModel> tableColumns) {
         List<MainTableColumnModel> columnsOrdered = new ArrayList<>();
         getStringList(sortOrderList).forEach(columnName -> tableColumns.stream().filter(column -> column.getName().equals(columnName))
-                .findFirst()
-                .ifPresent(columnsOrdered::add));
+                                                                       .findFirst()
+                                                                       .ifPresent(columnsOrdered::add));
 
         return columnsOrdered;
     }
@@ -1997,8 +1996,8 @@ public class JabRefPreferences implements PreferencesService {
                                                               String sortOrderList) {
 
         putStringList(columnNamesList, columnPreferences.getColumns().stream()
-                .map(MainTableColumnModel::getName)
-                .collect(Collectors.toList()));
+                                                        .map(MainTableColumnModel::getName)
+                                                        .collect(Collectors.toList()));
 
         List<String> columnWidthsInOrder = new ArrayList<>();
         columnPreferences.getColumns().forEach(column -> columnWidthsInOrder.add(column.widthProperty().getValue().toString()));
@@ -2412,13 +2411,13 @@ public class JabRefPreferences implements PreferencesService {
 
         previewPreferences.getLayoutCycle().addListener((InvalidationListener) c ->
                 putStringList(CYCLE_PREVIEW, previewPreferences.getLayoutCycle().stream()
-                        .map(layout -> {
-                            if (layout instanceof CitationStylePreviewLayout citationStyleLayout) {
-                                return citationStyleLayout.getFilePath();
-                            } else {
-                                return layout.getDisplayName();
-                            }
-                        }).collect(Collectors.toList())));
+                                                               .map(layout -> {
+                                                                   if (layout instanceof CitationStylePreviewLayout citationStyleLayout) {
+                                                                       return citationStyleLayout.getFilePath();
+                                                                   } else {
+                                                                       return layout.getDisplayName();
+                                                                   }
+                                                               }).collect(Collectors.toList())));
         EasyBind.listen(previewPreferences.layoutCyclePositionProperty(), (obs, oldValue, newValue) -> putInt(CYCLE_PREVIEW_POS, newValue));
         EasyBind.listen(previewPreferences.customPreviewLayoutProperty(), (obs, oldValue, newValue) -> put(PREVIEW_STYLE, newValue.getText()));
         EasyBind.listen(previewPreferences.showPreviewAsExtraTabProperty(), (obs, oldValue, newValue) -> putBoolean(PREVIEW_AS_TAB, newValue));
@@ -2435,17 +2434,17 @@ public class JabRefPreferences implements PreferencesService {
         }
 
         return cycle.stream()
-                .map(layout -> {
-                    if (CitationStyle.isCitationStyleFile(layout)) {
-                        return CitationStyle.createCitationStyleFromFile(layout)
-                                .map(file -> (PreviewLayout) new CitationStylePreviewLayout(file, Globals.entryTypesManager))
-                                .orElse(null);
-                    } else {
-                        return new TextBasedPreviewLayout(style, getLayoutFormatterPreferences(Globals.journalAbbreviationRepository));
-                    }
-                })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+                    .map(layout -> {
+                        if (CitationStyle.isCitationStyleFile(layout)) {
+                            return CitationStyle.createCitationStyleFromFile(layout)
+                                                .map(file -> (PreviewLayout) new CitationStylePreviewLayout(file, Globals.entryTypesManager))
+                                                .orElse(null);
+                        } else {
+                            return new TextBasedPreviewLayout(style, getLayoutFormatterPreferences(Globals.journalAbbreviationRepository));
+                        }
+                    })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
     }
 
     private int getPreviewCyclePosition(List<PreviewLayout> layouts) {
@@ -2525,12 +2524,12 @@ public class JabRefPreferences implements PreferencesService {
     private void storeSidePanePreferredPositions(Map<SidePaneType, Integer> preferredPositions) {
         // Split the map into a pair of parallel String lists suitable for storage
         List<String> names = preferredPositions.keySet().stream()
-                .map(Enum::toString)
-                .collect(Collectors.toList());
+                                               .map(Enum::toString)
+                                               .collect(Collectors.toList());
 
         List<String> positions = preferredPositions.values().stream()
-                .map(integer -> Integer.toString(integer))
-                .collect(Collectors.toList());
+                                                   .map(integer -> Integer.toString(integer))
+                                                   .collect(Collectors.toList());
 
         putStringList(SIDE_PANE_COMPONENT_NAMES, names);
         putStringList(SIDE_PANE_COMPONENT_PREFERRED_POSITIONS, positions);
@@ -2583,17 +2582,17 @@ public class JabRefPreferences implements PreferencesService {
 
     private FileHistory getFileHistory() {
         return new FileHistory(getStringList(RECENT_DATABASES).stream()
-                .map(Path::of)
-                .collect(Collectors.toList()));
+                                                              .map(Path::of)
+                                                              .collect(Collectors.toList()));
     }
 
     private void storeFileHistory(FileHistory history) {
         if (!history.isEmpty()) {
             putStringList(RECENT_DATABASES, history.getHistory()
-                    .stream()
-                    .map(Path::toAbsolutePath)
-                    .map(Path::toString)
-                    .collect(Collectors.toList()));
+                                                   .stream()
+                                                   .map(Path::toAbsolutePath)
+                                                   .map(Path::toString)
+                                                   .collect(Collectors.toList()));
         }
     }
 
@@ -2659,8 +2658,8 @@ public class JabRefPreferences implements PreferencesService {
                 (obs, oldValue, newValue) -> putBoolean(USE_XMP_PRIVACY_FILTER, newValue));
         xmpPreferences.getXmpPrivacyFilter().addListener((SetChangeListener<Field>) c ->
                 putStringList(XMP_PRIVACY_FILTERS, xmpPreferences.getXmpPrivacyFilter().stream()
-                        .map(Field::getName)
-                        .collect(Collectors.toList())));
+                                                                 .map(Field::getName)
+                                                                 .collect(Collectors.toList())));
 
         return xmpPreferences;
     }
@@ -2707,8 +2706,8 @@ public class JabRefPreferences implements PreferencesService {
         EasyBind.listen(autoCompletePreferences.firstNameModeProperty(), (obs, oldValue, newValue) -> put(AUTOCOMPLETER_FIRSTNAME_MODE, newValue.name()));
         autoCompletePreferences.getCompleteFields().addListener((SetChangeListener<Field>) c ->
                 putStringList(AUTOCOMPLETER_COMPLETE_FIELDS, autoCompletePreferences.getCompleteFields().stream()
-                        .map(Field::getName)
-                        .collect(Collectors.toList())));
+                                                                                    .map(Field::getName)
+                                                                                    .collect(Collectors.toList())));
         EasyBind.listen(autoCompletePreferences.nameFormatProperty(), (obs, oldValue, newValue) -> {
             if (autoCompletePreferences.getNameFormat() == AutoCompletePreferences.NameFormat.BOTH) {
                 putBoolean(AUTOCOMPLETER_LAST_FIRST, false);
