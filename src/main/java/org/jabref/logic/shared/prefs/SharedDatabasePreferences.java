@@ -35,7 +35,6 @@ public class SharedDatabasePreferences {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SharedDatabasePreferences.class);
 
-
     public SharedDatabasePreferences() {
         this(DEFAULT_NODE);
     }
@@ -44,14 +43,14 @@ public class SharedDatabasePreferences {
         internalPrefs = Preferences.userRoot().node(PREFERENCES_PATH_NAME).node(sharedDatabaseID);
 
         ValueProviderFactory valueProviderFactory = new ValueProviderFactory(internalPrefs, new HashMap<>());
-        CredentialValueProvider credentialValueProvider = valueProviderFactory.getCredentialProvider(SHARED_DATABASE_PASSWORD);
+        CredentialValueProvider credentialValueProvider = valueProviderFactory
+                .getCredentialProvider(SHARED_DATABASE_PASSWORD);
         if (getRememberPassword()) {
             credentialValueProvider.migrateFromPref(internalPrefs, SHARED_DATABASE_PASSWORD);
-            LOGGER.info("checking if shared database password is stored in plaintext, following line is from plaintext file");
-            LOGGER.info(internalPrefs.get(SHARED_DATABASE_PASSWORD, null));
         }
 
-        passwordValueProvider = valueProviderFactory.getSwitchable(credentialValueProvider, new SessionValueProvider<>(), SHARED_DATABASE_PASSWORD);
+        passwordValueProvider = valueProviderFactory.getSwitchable(credentialValueProvider,
+                new SessionValueProvider<>(), SHARED_DATABASE_PASSWORD);
         passwordValueProvider.setProvider(getRememberPassword());
     }
 
