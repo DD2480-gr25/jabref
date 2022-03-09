@@ -111,11 +111,12 @@ import org.jabref.model.metadata.SaveOrderConfig;
 import org.jabref.model.push.PushToApplicationConstants;
 import org.jabref.model.search.rules.SearchRules;
 import org.jabref.model.strings.StringUtil;
-import org.jabref.preferences.provider.CredentialValueProvider;
 import org.jabref.preferences.provider.SessionValueProvider;
 import org.jabref.preferences.provider.SwitchableValueProvider;
+import org.jabref.preferences.provider.ValueProvider;
 import org.jabref.preferences.provider.ValueProviderFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.tobiasdiez.easybind.EasyBind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -391,7 +392,7 @@ public class JabRefPreferences implements PreferencesService {
     /**
      * HashMap that contains all preferences which are set by default
      */
-    public final Map<String, Object> defaults = new HashMap<>();
+    public final Map<String, Object> defaults;
 
     // The following field is used as a global variable during the export of a database.
     // By setting this field to the path of the database's default file directory, formatters
@@ -446,8 +447,16 @@ public class JabRefPreferences implements PreferencesService {
     private XmpPreferences xmpPreferences;
     private AutoCompletePreferences autoCompletePreferences;
 
-    // The constructor is made private to enforce this as a singleton class:
     private JabRefPreferences() {
+        this(new HashMap<>());
+    }
+
+    private JabRefPreferences(HashMap<String, Object> defaults) {
+        this(PREFS_NODE, new ValueProviderFactory(PREFS_NODE, defaults), defaults);
+    }
+
+    // The constructor is made private to enforce this as a singleton class:
+    private JabRefPreferences(Preferences preferences, ValueProviderFactory valueProviderFactory, HashMap<String, Object> defs) {
         try {
             if (new File("jabref.xml").exists()) {
                 importPreferences(Path.of("jabref.xml"));
@@ -456,9 +465,10 @@ public class JabRefPreferences implements PreferencesService {
             LOGGER.warn("Could not import preferences from jabref.xml: " + e.getMessage(), e);
         }
 
+        this.defaults = defs;
         // load user preferences
-        prefs = PREFS_NODE;
-        valueProviderFactory = new ValueProviderFactory(prefs, defaults);
+        prefs = preferences;
+        this.valueProviderFactory = valueProviderFactory;
 
         // Since some of the preference settings themselves use localized strings, we cannot set the language after
         // the initialization of the preferences in main
@@ -739,6 +749,11 @@ public class JabRefPreferences implements PreferencesService {
             JabRefPreferences.singleton = new JabRefPreferences();
         }
         return JabRefPreferences.singleton;
+    }
+
+    @VisibleForTesting
+    protected static JabRefPreferences getInstance(Preferences prefs, ValueProviderFactory valueProviderFactory, HashMap<String, Object> defaults) {
+        return new JabRefPreferences(prefs, valueProviderFactory, defaults);
     }
 
     private static String convertListToString(List<String> value) {
