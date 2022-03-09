@@ -81,6 +81,22 @@ Optional (point 1): Architectural overview.
 
 Optional (point 2): relation to design pattern(s).
 
+## Further Improvements
+
+### Requirement R3 - Prompt user for network proxy password on startup
+
+Implementation of this was begun but never finished.
+
+There are a number of things that still need to be implemented. Currently, the buttons in the popup are not linked to actions correctly. The use of JavaFX's TextInputDialog would maybe need to be modified in order to allow the "Disable proxy" button to be linked to any action other than closing the popup. The entered password is also not being stored correctly, for unknown reasons. 
+
+The inputField is also not currently suited for a password. The input would need to be hidden, and potentially also checked for validity.
+
+Apart from this, unittests would also be need to be added. 
+
+### Requirement R4 - Prompt user for shared database password on startup
+
+Implementation of this was never started, but a lot of the functionality would be borrowed from the implementation of R3, above.
+
 ## Overall experience
 
 ### What are your main take-aways from this project? What did you learn? How did you grow as a team, using the Essence standard to evaluate yourself?
