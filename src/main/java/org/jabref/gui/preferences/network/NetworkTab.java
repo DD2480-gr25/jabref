@@ -41,7 +41,6 @@ public class NetworkTab extends AbstractPreferenceTabView<NetworkTabViewModel> i
     @FXML private Label proxyPasswordLabel;
     @FXML private CustomPasswordField proxyPassword;
     @FXML private CheckBox proxyStorePassword;
-    @FXML private Label proxyAttentionLabel;
     @FXML private Button checkConnectionButton;
 
     private String proxyPasswordText = "";
@@ -85,7 +84,6 @@ public class NetworkTab extends AbstractPreferenceTabView<NetworkTabViewModel> i
         proxyPasswordLabel.disableProperty().bind(proxyCustomAndAuthentication.not());
         proxyPassword.textProperty().bindBidirectional(viewModel.proxyPasswordProperty());
         proxyPassword.disableProperty().bind(proxyCustomAndAuthentication.not());
-        proxyAttentionLabel.disableProperty().bind(proxyCustomAndAuthentication.not());
         proxyStorePassword.selectedProperty().bindBidirectional(viewModel.proxyStorePasswordProperty());
         proxyStorePassword.disableProperty().bind(proxyCustomAndAuthentication.not());
 
