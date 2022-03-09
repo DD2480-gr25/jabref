@@ -6,12 +6,12 @@ public class SharedDatabasePreferencesTest {
 
     @Test
     void mustNotStoreDatabasePassword() {
-        //TODO: Implement to satisfy requirement R2 (issue #48)
+        // TODO: Implement to satisfy requirement R2 (issue #48)
     }
 
     @Test
     void mustStoreProxyPasswordAsSecureCredential() {
-        //TODO: Implement to satisfy requirement R6 (issue #53)
+        // TODO: Implement to satisfy requirement R6 (issue #53)
     }
 
 }
