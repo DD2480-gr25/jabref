@@ -1,5 +1,33 @@
 package org.jabref.gui;
 
+import com.jfoenix.controls.JFXSnackbar;
+import com.jfoenix.controls.JFXSnackbar.SnackbarEvent;
+import com.jfoenix.controls.JFXSnackbarLayout;
+import com.tobiasdiez.easybind.EasyBind;
+import javafx.concurrent.Task;
+import javafx.print.PrinterJob;
+import javafx.scene.Group;
+import javafx.scene.Node;
+import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.*;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
+import javafx.stage.DirectoryChooser;
+import javafx.stage.FileChooser;
+import javafx.stage.Stage;
+import javafx.stage.Window;
+import javafx.util.Duration;
+import org.controlsfx.control.TaskProgressView;
+import org.controlsfx.dialog.ExceptionDialog;
+import org.controlsfx.dialog.ProgressDialog;
+import org.jabref.gui.icon.IconTheme;
+import org.jabref.gui.theme.ThemeManager;
+import org.jabref.gui.util.*;
+import org.jabref.logic.l10n.Localization;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystem;
@@ -11,47 +39,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-
-import javafx.concurrent.Task;
-import javafx.print.PrinterJob;
-import javafx.scene.Group;
-import javafx.scene.Node;
-import javafx.scene.control.Alert.AlertType;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonBar;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.ChoiceDialog;
-import javafx.scene.control.DialogPane;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextInputDialog;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
-import javafx.stage.DirectoryChooser;
-import javafx.stage.FileChooser;
-import javafx.stage.Stage;
-import javafx.stage.Window;
-import javafx.util.Duration;
-
-import org.jabref.gui.icon.IconTheme;
-import org.jabref.gui.theme.ThemeManager;
-import org.jabref.gui.util.BackgroundTask;
-import org.jabref.gui.util.BaseDialog;
-import org.jabref.gui.util.DirectoryDialogConfiguration;
-import org.jabref.gui.util.FileDialogConfiguration;
-import org.jabref.gui.util.ZipFileChooser;
-import org.jabref.logic.l10n.Localization;
-
-import com.jfoenix.controls.JFXSnackbar;
-import com.jfoenix.controls.JFXSnackbar.SnackbarEvent;
-import com.jfoenix.controls.JFXSnackbarLayout;
-import com.tobiasdiez.easybind.EasyBind;
-import org.controlsfx.control.TaskProgressView;
-import org.controlsfx.dialog.ExceptionDialog;
-import org.controlsfx.dialog.ProgressDialog;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This class provides methods to create default
@@ -161,6 +148,26 @@ public class JabRefDialogService implements DialogService {
         inputDialog.setContentText(content);
         inputDialog.initOwner(mainWindow);
         themeManager.installCss(inputDialog.getDialogPane().getScene());
+        return inputDialog.showAndWait();
+    }
+
+    @Override
+    public Optional<String> showInputDialogWithDisableAndWait(String title, String content,
+                                                              String disableMessage, Consumer<Boolean> disableAction) {
+        TextInputDialog inputDialog = new TextInputDialog();
+        inputDialog.setHeaderText(title);
+        inputDialog.setContentText(content);
+        inputDialog.initOwner(mainWindow);
+        themeManager.installCss(inputDialog.getDialogPane().getScene());
+
+        ButtonType okButtonType = new ButtonType("Ok", ButtonBar.ButtonData.YES);
+        ButtonType disableButtonType = new ButtonType(disableMessage, ButtonBar.ButtonData.OTHER);
+
+        //inputDialog.getDialogPane().getButtonTypes().setAll(okButtonType, disableButtonType);
+
+        //Button disable = (Button) inputDialog.getDialogPane().lookupButton(disableButtonType);
+        //disable.setOnAction(e -> {disableAction.accept(true);});
+
         return inputDialog.showAndWait();
     }
 

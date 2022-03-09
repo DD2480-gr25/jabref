@@ -1,26 +1,20 @@
 package org.jabref.gui;
 
+import javafx.concurrent.Task;
+import javafx.print.PrinterJob;
+import javafx.scene.control.*;
+import org.controlsfx.dialog.ProgressDialog;
+import org.jabref.gui.util.BaseDialog;
+import org.jabref.gui.util.DirectoryDialogConfiguration;
+import org.jabref.gui.util.FileDialogConfiguration;
+import org.jabref.logic.l10n.Localization;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
-
-import javafx.concurrent.Task;
-import javafx.print.PrinterJob;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.ChoiceDialog;
-import javafx.scene.control.DialogPane;
-import javafx.scene.control.TextInputDialog;
-
-import org.jabref.gui.util.BaseDialog;
-import org.jabref.gui.util.DirectoryDialogConfiguration;
-import org.jabref.gui.util.FileDialogConfiguration;
-import org.jabref.logic.l10n.Localization;
-
-import org.controlsfx.dialog.ProgressDialog;
 
 /**
  * This interface provides methods to create dialogs and show them to the user.
@@ -50,6 +44,13 @@ public interface DialogService {
      * This will create and display new {@link TextInputDialog} with a text field with a default value to enter data
      */
     Optional<String> showInputDialogWithDefaultAndWait(String title, String content, String defaultValue);
+
+    /**
+     * This will create and display new {@link TextInputDialog} with a text fields to enter data.
+     * Moreover, the dialog contains a opt-out checkbox with the given text to support "Disable proxy"-behaviour.
+     */
+    Optional<String> showInputDialogWithDisableAndWait(String title, String content,
+                                                       String disableMessage, Consumer<Boolean> disableAction);
 
     /**
      * This will create and display a new information dialog.
