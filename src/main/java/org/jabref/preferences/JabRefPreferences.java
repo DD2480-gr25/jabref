@@ -1590,8 +1590,6 @@ public class JabRefPreferences implements PreferencesService {
         CredentialValueProvider credentialValueProvider = valueProviderFactory.getCredentialProvider(PROXY_PASSWORD);
         if (storePasswordProvider.get()) {
             credentialValueProvider.migrateFromPref(prefs, PROXY_PASSWORD);
-            LOGGER.info("checking if proxy password is stored in plaintext. following line is from plaintext file");
-            LOGGER.info(prefs.get(PROXY_PASSWORD, null));
         }
 
         passwordProvider = valueProviderFactory.getSwitchable(credentialValueProvider, new SessionValueProvider<>(), PROXY_PASSWORD);
