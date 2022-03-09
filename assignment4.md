@@ -14,29 +14,26 @@ We chose the same project as for assignment 3, so most of the onboarding for Gra
 
 ## Effort spent
 
-For each team member, how much time was spent in
+|Task                                                                                       |Emilia|Henrik|Patryk|Pontus|Xinyi|
+|-------------------------------------------------------------------------------------------|------|------|------|------|-----|
+|Preparation - Evaluating                                                                   |3     |3     |2.25  |      |     |
+|Planning and Project Management                                                            |      |1.5   |6     |      |     |
+|Evaluate a KEYRing as a credential manager                                                 |      |      |      |3     |3.5  |
+|Implementing java-keyring                                                                  |      |      |      |5.5   |5.5  |
+|Dealing with dependencies                                                                  |      |      |      |      |1    |
+|In-memory handling of credentials (issue #42)                                              |      |6     |7.25  |      |     |
+|Applying abstracted ValueProvider model & In-memory handling to java-keyring implementation|      |6     |3     |      |     |
+|Meetings                                                                                   |2     |2     |2     |2     |2    |
+|Documentation                                                                              |      |      |      |1     |1.5  |
+|UML                                                                                        |      |      |      |5     |     |
+|Report/checking requirements                                                               |2     |      |      |0.5   |1    |
+|Configuration and setup                                                                    |3     |      |      |1.5   |     |
+|Reading documentation                                                                      |3     |      |      |      |     |
+|Making tests                                                                               |      |3     |4     |      |2    |
+|Implementing popup password prompt                                                         |8     |      |      |      |     |
+|Implementing Migrate from plaintext to credential manager                                  |      |      |      |4.5   |3    |
+|**Sum**                                                                                    |**21**|**21.5**|**24.5**|**23**|**19.5**|
 
-TODO
-
-1. plenary discussions/meetings;
-
-2. discussions within parts of the group;
-
-3. reading documentation;
-
-4. configuration and setup;
-
-5. analyzing code/output;
-
-6. writing documentation;
-
-7. writing code;
-
-8. running code?
-
-For setting up tools and libraries (step 4), enumerate all dependencies
-you took care of and where you spent your time, if that time exceeds
-30 minutes.
 
 ## Overview of issue(s) and work done.
 
@@ -80,6 +77,22 @@ Aside from some of the deployment jobs (where some require OS-specific secret va
 Optional (point 1): Architectural overview.
 
 Optional (point 2): relation to design pattern(s).
+
+## Further Improvements
+
+### Requirement R3 - Prompt user for network proxy password on startup
+
+Implementation of this was begun but never finished.
+
+There are a number of things that still need to be implemented. Currently, the buttons in the popup are not linked to actions correctly. The use of JavaFX's TextInputDialog would maybe need to be modified in order to allow the "Disable proxy" button to be linked to any action other than closing the popup. The entered password is also not being stored correctly, for unknown reasons. 
+
+The inputField is also not currently suited for a password. The input would need to be hidden, and potentially also checked for validity.
+
+Apart from this, unittests would also be need to be added. 
+
+### Requirement R4 - Prompt user for shared database password on startup
+
+Implementation of this was never started, but a lot of the functionality would be borrowed from the implementation of R3, above.
 
 ## Overall experience
 
