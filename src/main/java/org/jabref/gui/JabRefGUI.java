@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import javafx.application.Platform;
@@ -123,6 +124,12 @@ public class JabRefGUI {
                           .showErrorDialogAndWait(Localization.lang("Unable to monitor file changes. Please close files " +
                                   "and processes and restart. You may encounter errors if you continue " +
                                   "with this session."));
+        }
+
+        if (preferencesService.getProxyPreferences().shouldUseProxy() &&
+                preferencesService.getProxyPreferences().shouldUseAuthentication() &&
+                preferencesService.getPasswordProvider().get().isEmpty()) {
+            ProxyPreferencePopup.askForPasswordAndWait(mainFrame.getDialogService(), preferencesService);
         }
     }
 
