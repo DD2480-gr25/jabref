@@ -29,12 +29,10 @@ public class SharedDatabasePreferences {
     private static final String SHARED_DATABASE_USE_SSL = "sharedDatabaseUseSSL";
     private static final String SHARED_DATABASE_KEYSTORE_FILE = "sharedDatabaseKeyStoreFile";
     private static final String SHARED_DATABASE_SERVER_TIMEZONE = "sharedDatabaseServerTimezone";
-
+    private static final Logger LOGGER = LoggerFactory.getLogger(SharedDatabasePreferences.class);
     // This {@link Preferences} is used only for things which should not appear in real JabRefPreferences due to security reasons.
     private final Preferences internalPrefs;
     private final SwitchableValueProvider<String> passwordValueProvider;
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(SharedDatabasePreferences.class);
 
     public SharedDatabasePreferences() {
         this(DEFAULT_NODE);
@@ -44,39 +42,65 @@ public class SharedDatabasePreferences {
         internalPrefs = Preferences.userRoot().node(PREFERENCES_PATH_NAME).node(sharedDatabaseID);
 
         ValueProviderFactory valueProviderFactory = new ValueProviderFactory(internalPrefs, new HashMap<>());
-        CredentialValueProvider credentialValueProvider = (CredentialValueProvider) valueProviderFactory
-                .getCredentialProvider(SHARED_DATABASE_PASSWORD);
+        CredentialValueProvider credentialValueProvider = (CredentialValueProvider) valueProviderFactory.getCredentialProvider(SHARED_DATABASE_PASSWORD);
         if (getRememberPassword()) {
             credentialValueProvider.migrateFromPref(internalPrefs, SHARED_DATABASE_PASSWORD);
         }
 
-        passwordValueProvider = valueProviderFactory.getSwitchable(credentialValueProvider,
-                new SessionValueProvider<>(), SHARED_DATABASE_PASSWORD);
+        passwordValueProvider = valueProviderFactory.getSwitchable(credentialValueProvider, new SessionValueProvider<>(), SHARED_DATABASE_PASSWORD);
         passwordValueProvider.setProvider(getRememberPassword());
+    }
+
+    public static void clearAll() throws BackingStoreException {
+        Preferences.userRoot().node(PREFERENCES_PATH_NAME).clear();
     }
 
     public Optional<String> getType() {
         return getOptionalValue(SHARED_DATABASE_TYPE);
     }
 
+    public void setType(String type) {
+        internalPrefs.put(SHARED_DATABASE_TYPE, type);
+    }
+
     public Optional<String> getHost() {
         return getOptionalValue(SHARED_DATABASE_HOST);
+    }
+
+    public void setHost(String host) {
+        internalPrefs.put(SHARED_DATABASE_HOST, host);
     }
 
     public Optional<String> getPort() {
         return getOptionalValue(SHARED_DATABASE_PORT);
     }
 
+    public void setPort(String port) {
+        internalPrefs.put(SHARED_DATABASE_PORT, port);
+    }
+
     public Optional<String> getName() {
         return getOptionalValue(SHARED_DATABASE_NAME);
+    }
+
+    public void setName(String name) {
+        internalPrefs.put(SHARED_DATABASE_NAME, name);
     }
 
     public Optional<String> getUser() {
         return getOptionalValue(SHARED_DATABASE_USER);
     }
 
+    public void setUser(String user) {
+        internalPrefs.put(SHARED_DATABASE_USER, user);
+    }
+
     public Optional<String> getPassword() {
         return Optional.ofNullable(passwordValueProvider.get());
+    }
+
+    public void setPassword(String password) {
+        passwordValueProvider.set(password);
     }
 
     public Optional<String> getKeyStoreFile() {
@@ -87,41 +111,21 @@ public class SharedDatabasePreferences {
         return getOptionalValue(SHARED_DATABASE_SERVER_TIMEZONE);
     }
 
+    public void setServerTimezone(String serverTimezone) {
+        internalPrefs.put(SHARED_DATABASE_SERVER_TIMEZONE, serverTimezone);
+    }
+
     public boolean getRememberPassword() {
         return internalPrefs.getBoolean(SHARED_DATABASE_REMEMBER_PASSWORD, false);
-    }
-
-    public boolean isUseSSL() {
-        return internalPrefs.getBoolean(SHARED_DATABASE_USE_SSL, false);
-    }
-
-    public void setType(String type) {
-        internalPrefs.put(SHARED_DATABASE_TYPE, type);
-    }
-
-    public void setHost(String host) {
-        internalPrefs.put(SHARED_DATABASE_HOST, host);
-    }
-
-    public void setPort(String port) {
-        internalPrefs.put(SHARED_DATABASE_PORT, port);
-    }
-
-    public void setName(String name) {
-        internalPrefs.put(SHARED_DATABASE_NAME, name);
-    }
-
-    public void setUser(String user) {
-        internalPrefs.put(SHARED_DATABASE_USER, user);
-    }
-
-    public void setPassword(String password) {
-        passwordValueProvider.set(password);
     }
 
     public void setRememberPassword(boolean rememberPassword) {
         internalPrefs.putBoolean(SHARED_DATABASE_REMEMBER_PASSWORD, rememberPassword);
         passwordValueProvider.setProvider(rememberPassword);
+    }
+
+    public boolean isUseSSL() {
+        return internalPrefs.getBoolean(SHARED_DATABASE_USE_SSL, false);
     }
 
     public void setUseSSL(boolean useSSL) {
@@ -130,10 +134,6 @@ public class SharedDatabasePreferences {
 
     public void setKeystoreFile(String keystoreFile) {
         internalPrefs.put(SHARED_DATABASE_KEYSTORE_FILE, keystoreFile);
-    }
-
-    public void setServerTimezone(String serverTimezone) {
-        internalPrefs.put(SHARED_DATABASE_SERVER_TIMEZONE, serverTimezone);
     }
 
     public void clearPassword() {
@@ -147,10 +147,6 @@ public class SharedDatabasePreferences {
 
     private Optional<String> getOptionalValue(String key) {
         return Optional.ofNullable(internalPrefs.get(key, null));
-    }
-
-    public static void clearAll() throws BackingStoreException {
-        Preferences.userRoot().node(PREFERENCES_PATH_NAME).clear();
     }
 
     public void putAllDBMSConnectionProperties(DatabaseConnectionProperties properties) {
