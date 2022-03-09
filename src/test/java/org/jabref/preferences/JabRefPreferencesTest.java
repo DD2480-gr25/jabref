@@ -10,9 +10,11 @@ import org.jabref.testutils.MockPreferences;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -60,8 +62,34 @@ class JabRefPreferencesTest {
         verify(preferences, never()).put("proxyPassword", secret);
     }
 
+    //This test satisfies requirement R5 (issue #52). TODO: Remove this comment once documented in report
     @Test
     void mustStoreProxyPasswordAsSecureCredential() {
-        //TODO: Implement to satisfy requirement R5 (issue #52)
+        SessionValueProvider<String> fakeSecureProvider = new SessionValueProvider<>();
+        when(providerFactory.getCredentialProvider("proxyPassword")).thenReturn(fakeSecureProvider);
+        when(providerFactory.getCredentialProvider(argThat(key -> !key.equals("proxyPassword")))).thenReturn(new SessionValueProvider<>());
+
+        var proxyPreferences = jabPrefs.getProxyPreferences();
+
+        proxyPreferences.setStorePassword(true);
+        proxyPreferences.setPassword(secret);
+
+        assertEquals(secret, fakeSecureProvider.get());
+    }
+
+    //This test satisfies requirement R5 (issue #52). TODO: Remove this comment once documented in report
+    @Test
+    void mustRetrieveProxyPasswordAsSecureCredential() {
+        String storedPassword = "another password";
+        SessionValueProvider<String> fakeSecureProvider = new SessionValueProvider<>();
+        fakeSecureProvider.set(storedPassword);
+
+        when(providerFactory.getCredentialProvider("proxyPassword")).thenReturn(fakeSecureProvider);
+        when(providerFactory.getCredentialProvider(argThat(key -> !key.equals("proxyPassword")))).thenReturn(new SessionValueProvider<>());
+
+        var proxyPreferences = jabPrefs.getProxyPreferences();
+        proxyPreferences.setStorePassword(true);
+
+        assertEquals(storedPassword, proxyPreferences.getPassword());
     }
 }
