@@ -12,11 +12,11 @@ import com.github.javakeyring.PasswordAccessException;
 import java.util.HashMap;
 import java.util.Optional;
 
+import static org.jabref.gui.importer.actions.OpenDatabaseAction.LOGGER;
+
 /**
  *  Save and read secret from system.
  */
-import static org.jabref.gui.importer.actions.OpenDatabaseAction.LOGGER;
-
 public class SecretStore {
     private static final String PREFIX = "org.jabref";
     private final Keyring keyring;
