@@ -111,9 +111,9 @@ import org.jabref.model.metadata.SaveOrderConfig;
 import org.jabref.model.push.PushToApplicationConstants;
 import org.jabref.model.search.rules.SearchRules;
 import org.jabref.model.strings.StringUtil;
+import org.jabref.preferences.provider.CredentialValueProvider;
 import org.jabref.preferences.provider.SessionValueProvider;
 import org.jabref.preferences.provider.SwitchableValueProvider;
-import org.jabref.preferences.provider.ValueProvider;
 import org.jabref.preferences.provider.ValueProviderFactory;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -1184,12 +1184,12 @@ public class JabRefPreferences implements PreferencesService {
         putStringList(EXTERNAL_JOURNAL_LISTS, abbreviationsPreferences.getExternalJournalLists());
     }
 
-    public void setPreviewStyle(String previewStyle) {
-        put(PREVIEW_STYLE, previewStyle);
-    }
-
     public String getPreviewStyle() {
         return get(PREVIEW_STYLE);
+    }
+
+    public void setPreviewStyle(String previewStyle) {
+        put(PREVIEW_STYLE, previewStyle);
     }
 
     @Override
@@ -1278,14 +1278,6 @@ public class JabRefPreferences implements PreferencesService {
         return language;
     }
 
-    private void updateLanguage() {
-        String languageId = get(LANGUAGE);
-        language = Stream.of(Language.values())
-                         .filter(language -> language.getId().equalsIgnoreCase(languageId))
-                         .findFirst()
-                         .orElse(Language.ENGLISH);
-    }
-
     @Override
     public void setLanguage(Language language) {
         Language oldLanguage = getLanguage();
@@ -1295,6 +1287,14 @@ public class JabRefPreferences implements PreferencesService {
             setLanguageDependentDefaultValues();
         }
         updateLanguage();
+    }
+
+    private void updateLanguage() {
+        String languageId = get(LANGUAGE);
+        language = Stream.of(Language.values())
+                         .filter(language -> language.getId().equalsIgnoreCase(languageId))
+                         .findFirst()
+                         .orElse(Language.ENGLISH);
     }
 
     @Override
@@ -1601,7 +1601,7 @@ public class JabRefPreferences implements PreferencesService {
 
         var storePasswordProvider = valueProviderFactory.getPrefsBooleanProvider(PROXY_STORE_PASSWORD);
 
-        CredentialValueProvider credentialValueProvider = valueProviderFactory.getCredentialProvider(PROXY_PASSWORD);
+        CredentialValueProvider credentialValueProvider = (CredentialValueProvider) valueProviderFactory.getCredentialProvider(PROXY_PASSWORD);
         if (storePasswordProvider.get()) {
 
             credentialValueProvider.migrateFromPref(prefs, PROXY_PASSWORD);

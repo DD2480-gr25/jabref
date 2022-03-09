@@ -1,12 +1,12 @@
 package org.jabref.preferences.provider;
 
+import java.util.prefs.Preferences;
+
 import org.jabref.preferences.SecretStore;
 
 import com.github.javakeyring.PasswordAccessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.prefs.Preferences;
 
 public class CredentialValueProvider implements ValueProvider<String> {
 
@@ -55,9 +55,9 @@ public class CredentialValueProvider implements ValueProvider<String> {
         }
     }
 
-    public void migrateFromPref(Preferences prefs, String key ){
-        String preferencevalue = prefs.get(key,null);
-        if (preferencevalue == null){
+    public void migrateFromPref(Preferences prefs, String key) {
+        String preferencevalue = prefs.get(key, null);
+        if (preferencevalue == null) {
             return; //  no stored preference
         }
 
@@ -69,13 +69,11 @@ public class CredentialValueProvider implements ValueProvider<String> {
             LOGGER.warn("Could not access to secret store: " + e.getMessage(), e);
 
             try {
-                secretStore.put(key,preferencevalue);
+                secretStore.put(key, preferencevalue);
                 prefs.remove(key); // key migrated, remove preference
             } catch (PasswordAccessException ex) {
                 LOGGER.warn("Could not migrate to secret store: " + e.getMessage(), e);
             }
         }
-
-
     }
 }

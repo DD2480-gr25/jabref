@@ -1,17 +1,11 @@
 package org.jabref.manual;
 
-import com.github.javakeyring.PasswordAccessException;
-import org.jabref.logic.JabRefException;
-import org.jabref.logic.l10n.Localization;
+import java.util.prefs.Preferences;
+
 import org.jabref.preferences.JabRefPreferences;
 import org.jabref.preferences.SecretStore;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.prefs.InvalidPreferencesFormatException;
-import java.util.prefs.Preferences;
+import com.github.javakeyring.PasswordAccessException;
 
 import static org.jabref.gui.importer.actions.OpenDatabaseAction.LOGGER;
 
@@ -30,12 +24,8 @@ public class WritePasswordPref {
         try {
             LOGGER.info("checking if proxy password was migrated into keychain (expect \"test-password\")");
             LOGGER.info(new SecretStore().get("proxyPassword"));
-
         } catch (PasswordAccessException e) {
             e.printStackTrace();
         }
-
-
     }
-
 }

@@ -1,17 +1,18 @@
 package org.jabref.logic.shared.prefs;
 
+import java.util.HashMap;
+import java.util.Optional;
+import java.util.prefs.BackingStoreException;
+import java.util.prefs.Preferences;
+
 import org.jabref.logic.shared.DatabaseConnectionProperties;
 import org.jabref.preferences.provider.CredentialValueProvider;
 import org.jabref.preferences.provider.SessionValueProvider;
 import org.jabref.preferences.provider.SwitchableValueProvider;
 import org.jabref.preferences.provider.ValueProviderFactory;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.HashMap;
-import java.util.Optional;
-import java.util.prefs.BackingStoreException;
-import java.util.prefs.Preferences;
 
 public class SharedDatabasePreferences {
 
@@ -43,7 +44,7 @@ public class SharedDatabasePreferences {
         internalPrefs = Preferences.userRoot().node(PREFERENCES_PATH_NAME).node(sharedDatabaseID);
 
         ValueProviderFactory valueProviderFactory = new ValueProviderFactory(internalPrefs, new HashMap<>());
-        CredentialValueProvider credentialValueProvider = valueProviderFactory
+        CredentialValueProvider credentialValueProvider = (CredentialValueProvider) valueProviderFactory
                 .getCredentialProvider(SHARED_DATABASE_PASSWORD);
         if (getRememberPassword()) {
             credentialValueProvider.migrateFromPref(internalPrefs, SHARED_DATABASE_PASSWORD);
