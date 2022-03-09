@@ -71,7 +71,9 @@ Aside from some of the deployment jobs (where some require OS-specific secret va
 
 ## UML class diagram and its description
 
-TODO: add the diagrams
+![Before](DD2480_lab4-Before.svg)
+
+![After](DD2480_lab4-After.svg)
 
 ### Key changes/classes affected
 
