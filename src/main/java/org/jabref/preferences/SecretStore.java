@@ -10,7 +10,6 @@ import com.github.javakeyring.Keyring;
 import com.github.javakeyring.PasswordAccessException;
 
 import java.util.HashMap;
-import java.util.Optional;
 
 import static org.jabref.gui.importer.actions.OpenDatabaseAction.LOGGER;
 
