@@ -292,13 +292,15 @@ class PreferencesMigrationsTest {
     // Test that the network proxy password previously stored in plaintext is copied over to secure keystore and deleted from plaintext.
     @Test
     void mustClearPlaintextNetworkProxyPassword() {
-        //TODO: Write this test to satisfy requirement R7 (issue #54)
+        // TODO: Write this test to satisfy requirement R7 (issue #54)
+        assert false;
     }
 
     // Test that the shared database password previously stored in plaintext is copied over to secure keystore and deleted from plaintext.
     @Test
     void mustClearPlaintextSharedDatabasePassword() {
-        //TODO: Write this test to satisfy requirement R8 (issue #55)
+        // TODO: Write this test to satisfy requirement R8 (issue #55)
+        assert false;
     }
 
 }
