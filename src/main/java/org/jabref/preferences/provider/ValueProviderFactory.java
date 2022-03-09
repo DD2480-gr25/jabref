@@ -29,7 +29,7 @@ public class ValueProviderFactory {
         return new SwitchableValueProvider<>(first, second, (T) defaults.get(key));
     }
 
-    public CredentialValueProvider getCredentialProvider(String key) {
+    public ValueProvider<String> getCredentialProvider(String key) {
         return new CredentialValueProvider(key, secretStore, (String) defaults.get(key));
     }
 }
