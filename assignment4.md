@@ -14,29 +14,26 @@ We chose the same project as for assignment 3, so most of the onboarding for Gra
 
 ## Effort spent
 
-For each team member, how much time was spent in
+|Task                                                                                       |Emilia|Henrik|Patryk|Pontus|Xinyi|
+|-------------------------------------------------------------------------------------------|------|------|------|------|-----|
+|Preparation - Evaluating                                                                   |3     |3     |2.25  |      |     |
+|Planning and Project Management                                                            |      |1.5   |6     |      |     |
+|Evaluate a KEYRing as a credential manager                                                 |      |      |      |3     |3.5  |
+|Implementing java-keyring                                                                  |      |      |      |5.5   |5.5  |
+|Dealing with dependencies                                                                  |      |      |      |      |1    |
+|In-memory handling of credentials (issue #42)                                              |      |6     |7.25  |      |     |
+|Applying abstracted ValueProvider model & In-memory handling to java-keyring implementation|      |6     |3     |      |     |
+|Meetings                                                                                   |2     |2     |2     |2     |2    |
+|Documentation                                                                              |      |      |      |1     |1.5  |
+|UML                                                                                        |      |      |      |5     |     |
+|Report/checking requirements                                                               |2     |      |      |0.5   |1    |
+|Configuration and setup                                                                    |3     |      |      |1.5   |     |
+|Reading documentation                                                                      |3     |      |      |      |     |
+|Making tests                                                                               |      |3     |4     |      |2    |
+|Implementing popup password prompt                                                         |8     |      |      |      |     |
+|Implementing Migrate from plaintext to credential manager                                  |      |      |      |4.5   |3    |
+|**Sum**                                                                                    |**21**|**21.5**|**24.5**|**23**|**19.5**|
 
-TODO
-
-1. plenary discussions/meetings;
-
-2. discussions within parts of the group;
-
-3. reading documentation;
-
-4. configuration and setup;
-
-5. analyzing code/output;
-
-6. writing documentation;
-
-7. writing code;
-
-8. running code?
-
-For setting up tools and libraries (step 4), enumerate all dependencies
-you took care of and where you spent your time, if that time exceeds
-30 minutes.
 
 ## Overview of issue(s) and work done.
 
