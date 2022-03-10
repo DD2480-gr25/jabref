@@ -15,19 +15,22 @@ public class ProxyPreferences {
     private final BooleanProperty useAuthentication;
     private final StringProperty username;
     private final StringProperty password;
+    private final BooleanProperty storePassword;
 
     public ProxyPreferences(Boolean useProxy,
                             String hostname,
                             String port,
                             Boolean useAuthentication,
                             String username,
-                            String password) {
+                            String password,
+                            Boolean storePassword) {
         this.useProxy = new SimpleBooleanProperty(useProxy);
         this.hostname = new SimpleStringProperty(hostname);
         this.port = new SimpleStringProperty(port);
         this.useAuthentication = new SimpleBooleanProperty(useAuthentication);
         this.username = new SimpleStringProperty(username);
         this.password = new SimpleStringProperty(password);
+        this.storePassword = new SimpleBooleanProperty(storePassword);
     }
 
     public final Boolean shouldUseProxy() {
@@ -102,6 +105,18 @@ public class ProxyPreferences {
         this.password.set(password);
     }
 
+    public boolean shouldStorePassword() {
+        return this.storePassword.getValue();
+    }
+
+    public BooleanProperty storePasswordProperty() {
+        return this.storePassword;
+    }
+
+    public void setStorePassword(boolean storePassword) {
+        this.storePassword.set(storePassword);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -118,7 +133,8 @@ public class ProxyPreferences {
                 && Objects.equals(port.getValue(), other.port.getValue())
                 && Objects.equals(useAuthentication.getValue(), other.useAuthentication.getValue())
                 && Objects.equals(username.getValue(), other.username.getValue())
-                && Objects.equals(password.getValue(), other.password.getValue());
+                && Objects.equals(password.getValue(), other.password.getValue())
+                && Objects.equals(storePassword.getValue(), other.storePassword.getValue());
     }
 
     @Override
@@ -129,6 +145,7 @@ public class ProxyPreferences {
                 port.getValue(),
                 useAuthentication.getValue(),
                 username.getValue(),
-                password.getValue());
+                password.getValue(),
+                storePassword.getValue());
     }
 }

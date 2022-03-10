@@ -1,23 +1,15 @@
 package org.jabref.logic.shared;
 
-import java.io.UnsupportedEncodingException;
-import java.security.GeneralSecurityException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 
 import org.jabref.logic.shared.prefs.SharedDatabasePreferences;
-import org.jabref.logic.shared.security.Password;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Keeps all essential data for establishing a new connection to a DBMS using {@link DBMSConnection}.
  */
 public class DBMSConnectionProperties implements DatabaseConnectionProperties {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(DBMSConnectionProperties.class);
 
     private DBMSType type;
     private String host;
@@ -53,11 +45,7 @@ public class DBMSConnectionProperties implements DatabaseConnectionProperties {
         if (prefs.getUser().isPresent()) {
             this.user = prefs.getUser().get();
             if (prefs.getPassword().isPresent()) {
-                try {
-                    this.password = new Password(prefs.getPassword().get().toCharArray(), prefs.getUser().get()).decrypt();
-                } catch (UnsupportedEncodingException | GeneralSecurityException e) {
-                    LOGGER.error("Could not decrypt password", e);
-                }
+                this.password = prefs.getPassword().get();
             }
         }
 

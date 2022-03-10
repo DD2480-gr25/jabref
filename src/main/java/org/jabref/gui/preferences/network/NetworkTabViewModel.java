@@ -39,6 +39,7 @@ public class NetworkTabViewModel implements PreferenceTabViewModel {
     private final BooleanProperty proxyUseAuthenticationProperty = new SimpleBooleanProperty();
     private final StringProperty proxyUsernameProperty = new SimpleStringProperty("");
     private final StringProperty proxyPasswordProperty = new SimpleStringProperty("");
+    private final BooleanProperty proxyStorePasswordProperty = new SimpleBooleanProperty();
 
     private final Validator remotePortValidator;
     private final Validator proxyHostnameValidator;
@@ -66,7 +67,8 @@ public class NetworkTabViewModel implements PreferenceTabViewModel {
                 proxyPreferences.getPort(),
                 proxyPreferences.shouldUseAuthentication(),
                 proxyPreferences.getUsername(),
-                proxyPreferences.getPassword());
+                proxyPreferences.getPassword(),
+                proxyPreferences.shouldStorePassword());
 
         remotePortValidator = new FunctionBasedValidator<>(
                 remotePortProperty,
@@ -130,6 +132,7 @@ public class NetworkTabViewModel implements PreferenceTabViewModel {
         proxyUseAuthenticationProperty.setValue(proxyPreferences.shouldUseAuthentication());
         proxyUsernameProperty.setValue(proxyPreferences.getUsername());
         proxyPasswordProperty.setValue(proxyPreferences.getPassword());
+        proxyStorePasswordProperty.setValue(proxyPreferences.shouldStorePassword());
     }
 
     public void storeSettings() {
@@ -141,7 +144,8 @@ public class NetworkTabViewModel implements PreferenceTabViewModel {
                 proxyPortProperty.getValue().trim(),
                 proxyUseAuthenticationProperty.getValue(),
                 proxyUsernameProperty.getValue().trim(),
-                proxyPasswordProperty.getValue()
+                proxyPasswordProperty.getValue(),
+                proxyStorePasswordProperty.getValue()
         ));
     }
 
@@ -177,6 +181,7 @@ public class NetworkTabViewModel implements PreferenceTabViewModel {
         proxyPreferences.setUseAuthentication(newProxyPreferences.shouldUseAuthentication());
         proxyPreferences.setUsername(newProxyPreferences.getUsername());
         proxyPreferences.setPassword(newProxyPreferences.getPassword());
+        proxyPreferences.setStorePassword(newProxyPreferences.shouldStorePassword());
     }
 
     private Optional<Integer> getPortAsInt(String value) {
@@ -253,7 +258,8 @@ public class NetworkTabViewModel implements PreferenceTabViewModel {
                 proxyPortProperty.getValue().trim(),
                 proxyUseAuthenticationProperty.getValue(),
                 proxyUsernameProperty.getValue().trim(),
-                proxyPasswordProperty.getValue()
+                proxyPasswordProperty.getValue(),
+                proxyStorePasswordProperty.getValue()
         ));
 
         URLDownload urlDownload;
@@ -308,5 +314,9 @@ public class NetworkTabViewModel implements PreferenceTabViewModel {
 
     public StringProperty proxyPasswordProperty() {
         return proxyPasswordProperty;
+    }
+
+    public BooleanProperty proxyStorePasswordProperty() {
+        return proxyStorePasswordProperty;
     }
 }

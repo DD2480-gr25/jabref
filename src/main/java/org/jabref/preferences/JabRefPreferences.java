@@ -111,20 +111,22 @@ import org.jabref.model.metadata.SaveOrderConfig;
 import org.jabref.model.push.PushToApplicationConstants;
 import org.jabref.model.search.rules.SearchRules;
 import org.jabref.model.strings.StringUtil;
+import org.jabref.preferences.provider.SessionValueProvider;
+import org.jabref.preferences.provider.SwitchableValueProvider;
+import org.jabref.preferences.provider.ValueProvider;
+import org.jabref.preferences.provider.ValueProviderFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.tobiasdiez.easybind.EasyBind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The {@code JabRefPreferences} class provides the preferences and their defaults using the JDK {@code java.util.prefs}
- * class.
+ * The {@code JabRefPreferences} class provides the preferences and their defaults using the JDK {@code java.util.prefs} class.
  * <p>
- * Internally it defines symbols used to pick a value from the {@code java.util.prefs} interface and keeps a hashmap
- * with all the default values.
+ * Internally it defines symbols used to pick a value from the {@code java.util.prefs} interface and keeps a hashmap with all the default values.
  * <p>
- * There are still some similar preferences classes (OpenOfficePreferences and SharedDatabasePreferences) which also use
- * the {@code java.util.prefs} API.
+ * There are still some similar preferences classes (OpenOfficePreferences and SharedDatabasePreferences) which also use the {@code java.util.prefs} API.
  */
 public class JabRefPreferences implements PreferencesService {
 
@@ -293,16 +295,7 @@ public class JabRefPreferences implements PreferencesService {
     public static final String VALIDATE_IN_ENTRY_EDITOR = "validateInEntryEditor";
 
     /**
-     * The OpenOffice/LibreOffice connection preferences are:
-     * OO_PATH main directory for OO/LO installation, used to detect location on Win/macOS when using manual connect
-     * OO_EXECUTABLE_PATH path to soffice-file
-     * OO_JARS_PATH directory that contains juh.jar, jurt.jar, ridl.jar, unoil.jar
-     * OO_SYNC_WHEN_CITING true if the reference list is updated when adding a new citation
-     * OO_SHOW_PANEL true if the OO panel is shown on startup
-     * OO_USE_ALL_OPEN_DATABASES true if all databases should be used when citing
-     * OO_BIBLIOGRAPHY_STYLE_FILE path to the used style file
-     * OO_EXTERNAL_STYLE_FILES list with paths to external style files
-     * STYLES_*_* size and position of "Select style" dialog
+     * The OpenOffice/LibreOffice connection preferences are: OO_PATH main directory for OO/LO installation, used to detect location on Win/macOS when using manual connect OO_EXECUTABLE_PATH path to soffice-file OO_JARS_PATH directory that contains juh.jar, jurt.jar, ridl.jar, unoil.jar OO_SYNC_WHEN_CITING true if the reference list is updated when adding a new citation OO_SHOW_PANEL true if the OO panel is shown on startup OO_USE_ALL_OPEN_DATABASES true if all databases should be used when citing OO_BIBLIOGRAPHY_STYLE_FILE path to the used style file OO_EXTERNAL_STYLE_FILES list with paths to external style files STYLES_*_* size and position of "Select style" dialog
      */
     public static final String OO_EXECUTABLE_PATH = "ooExecutablePath";
     public static final String OO_PATH = "ooPath";
@@ -350,6 +343,7 @@ public class JabRefPreferences implements PreferencesService {
     private static final String PROXY_USERNAME = "proxyUsername";
     private static final String PROXY_PASSWORD = "proxyPassword";
     private static final String PROXY_USE_AUTHENTICATION = "useProxyAuthentication";
+    private static final String PROXY_STORE_PASSWORD = "storeProxyPassword";
 
     // Auto completion
     private static final String AUTO_COMPLETE = "autoComplete";
@@ -398,7 +392,7 @@ public class JabRefPreferences implements PreferencesService {
     /**
      * HashMap that contains all preferences which are set by default
      */
-    public final Map<String, Object> defaults = new HashMap<>();
+    public final Map<String, Object> defaults;
 
     // The following field is used as a global variable during the export of a database.
     // By setting this field to the path of the database's default file directory, formatters
@@ -407,6 +401,8 @@ public class JabRefPreferences implements PreferencesService {
     // string to be formatted and possible formatter arguments.
     public List<Path> fileDirForDatabase;
     private final Preferences prefs;
+    private final ValueProviderFactory valueProviderFactory;
+    private SwitchableValueProvider<String> passwordProvider;
 
     /**
      * Cache variables
@@ -450,8 +446,16 @@ public class JabRefPreferences implements PreferencesService {
     private XmpPreferences xmpPreferences;
     private AutoCompletePreferences autoCompletePreferences;
 
-    // The constructor is made private to enforce this as a singleton class:
     private JabRefPreferences() {
+        this(new HashMap<>());
+    }
+
+    private JabRefPreferences(HashMap<String, Object> defaults) {
+        this(PREFS_NODE, new ValueProviderFactory(PREFS_NODE, defaults), defaults);
+    }
+
+    // The constructor is made private to enforce this as a singleton class:
+    private JabRefPreferences(Preferences preferences, ValueProviderFactory valueProviderFactory, HashMap<String, Object> defs) {
         try {
             if (new File("jabref.xml").exists()) {
                 importPreferences(Path.of("jabref.xml"));
@@ -460,8 +464,10 @@ public class JabRefPreferences implements PreferencesService {
             LOGGER.warn("Could not import preferences from jabref.xml: " + e.getMessage(), e);
         }
 
+        this.defaults = defs;
         // load user preferences
-        prefs = PREFS_NODE;
+        prefs = preferences;
+        this.valueProviderFactory = valueProviderFactory;
 
         // Since some of the preference settings themselves use localized strings, we cannot set the language after
         // the initialization of the preferences in main
@@ -522,6 +528,7 @@ public class JabRefPreferences implements PreferencesService {
         defaults.put(PROXY_USE_AUTHENTICATION, Boolean.FALSE);
         defaults.put(PROXY_USERNAME, "");
         defaults.put(PROXY_PASSWORD, "");
+        defaults.put(PROXY_STORE_PASSWORD, Boolean.TRUE);
 
         defaults.put(POS_X, 0);
         defaults.put(POS_Y, 0);
@@ -743,6 +750,11 @@ public class JabRefPreferences implements PreferencesService {
         return JabRefPreferences.singleton;
     }
 
+    @VisibleForTesting
+    protected static JabRefPreferences getInstance(Preferences prefs, ValueProviderFactory valueProviderFactory, HashMap<String, Object> defaults) {
+        return new JabRefPreferences(prefs, valueProviderFactory, defaults);
+    }
+
     private static String convertListToString(List<String> value) {
         return value.stream().map(val -> StringUtil.quote(val, STRINGLIST_DELIMITER.toString(), '\\')).collect(Collectors.joining(STRINGLIST_DELIMITER.toString()));
     }
@@ -904,8 +916,7 @@ public class JabRefPreferences implements PreferencesService {
     }
 
     /**
-     * Puts a list of strings into the Preferences, by linking its elements with a STRINGLIST_DELIMITER into a single
-     * string. Escape characters make the process transparent even if strings contains a STRINGLIST_DELIMITER.
+     * Puts a list of strings into the Preferences, by linking its elements with a STRINGLIST_DELIMITER into a single string. Escape characters make the process transparent even if strings contains a STRINGLIST_DELIMITER.
      */
     public void putStringList(String key, List<String> value) {
         if (value == null) {
@@ -1066,8 +1077,7 @@ public class JabRefPreferences implements PreferencesService {
      * Imports Preferences from an XML file.
      *
      * @param file Path of file to import from
-     * @throws JabRefException thrown if importing the preferences failed due to an InvalidPreferencesFormatException or
-     *                         an IOException
+     * @throws JabRefException thrown if importing the preferences failed due to an InvalidPreferencesFormatException or an IOException
      */
     @Override
     public void importPreferences(Path file) throws JabRefException {
@@ -1589,20 +1599,31 @@ public class JabRefPreferences implements PreferencesService {
             return proxyPreferences;
         }
 
+        var storePasswordProvider = valueProviderFactory.getPrefsBooleanProvider(PROXY_STORE_PASSWORD);
+
+        ValueProvider credentialValueProvider = valueProviderFactory.getCredentialProvider(PROXY_PASSWORD);
+        passwordProvider = valueProviderFactory.getSwitchable(credentialValueProvider, new SessionValueProvider<>(), PROXY_PASSWORD);
+        passwordProvider.setProvider(storePasswordProvider.get());
+
         proxyPreferences = new ProxyPreferences(
                 getBoolean(PROXY_USE),
                 get(PROXY_HOSTNAME),
                 get(PROXY_PORT),
                 getBoolean(PROXY_USE_AUTHENTICATION),
                 get(PROXY_USERNAME),
-                get(PROXY_PASSWORD));
+                passwordProvider.get(),
+                storePasswordProvider.get());
 
         EasyBind.listen(proxyPreferences.useProxyProperty(), (obs, oldValue, newValue) -> putBoolean(PROXY_USE, newValue));
         EasyBind.listen(proxyPreferences.hostnameProperty(), (obs, oldValue, newValue) -> put(PROXY_HOSTNAME, newValue));
         EasyBind.listen(proxyPreferences.portProperty(), (obs, oldValue, newValue) -> put(PROXY_PORT, newValue));
         EasyBind.listen(proxyPreferences.useAuthenticationProperty(), (obs, oldValue, newValue) -> putBoolean(PROXY_USE_AUTHENTICATION, newValue));
         EasyBind.listen(proxyPreferences.usernameProperty(), (obs, oldValue, newValue) -> put(PROXY_USERNAME, newValue));
-        EasyBind.listen(proxyPreferences.passwordProperty(), (obs, oldValue, newValue) -> put(PROXY_PASSWORD, newValue));
+        EasyBind.listen(proxyPreferences.passwordProperty(), (obs, oldValue, newValue) -> passwordProvider.set(newValue));
+        EasyBind.listen(proxyPreferences.storePasswordProperty(), (obs, oldValue, newValue) -> {
+            storePasswordProvider.set(newValue);
+            passwordProvider.setProvider(newValue);
+        });
 
         return proxyPreferences;
     }
@@ -1894,21 +1915,21 @@ public class JabRefPreferences implements PreferencesService {
     public List<MainTableColumnModel> updateColumns(String columnNamesList, String columnWidthList, String sortTypeList, double defaultWidth) {
         List<String> columnNames = getStringList(columnNamesList);
         List<Double> columnWidths = getStringList(columnWidthList)
-                                                                  .stream()
-                                                                  .map(string -> {
-                                                                      try {
-                                                                          return Double.parseDouble(string);
-                                                                      } catch (NumberFormatException e) {
-                                                                          LOGGER.error("Exception while parsing column widths. Choosing default.", e);
-                                                                          return defaultWidth;
-                                                                      }
-                                                                  })
-                                                                  .collect(Collectors.toList());
+                .stream()
+                .map(string -> {
+                    try {
+                        return Double.parseDouble(string);
+                    } catch (NumberFormatException e) {
+                        LOGGER.error("Exception while parsing column widths. Choosing default.", e);
+                        return defaultWidth;
+                    }
+                })
+                .collect(Collectors.toList());
 
         List<SortType> columnSortTypes = getStringList(sortTypeList)
-                                                                    .stream()
-                                                                    .map(SortType::valueOf)
-                                                                    .collect(Collectors.toList());
+                .stream()
+                .map(SortType::valueOf)
+                .collect(Collectors.toList());
 
         List<MainTableColumnModel> columns = new ArrayList<>();
         for (int i = 0; i < columnNames.size(); i++) {
@@ -1961,8 +1982,8 @@ public class JabRefPreferences implements PreferencesService {
     @Override
     public ColumnPreferences getSearchDialogColumnPreferences() {
         return new ColumnPreferences(
-                                     createSearchDialogColumns(),
-                                     createSearchDialogColumnSortOrder());
+                createSearchDialogColumns(),
+                createSearchDialogColumnSortOrder());
     }
 
     /**

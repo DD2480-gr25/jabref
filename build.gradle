@@ -1,9 +1,7 @@
-import groovy.json.JsonSlurper
 import org.gradle.internal.os.OperatingSystem
 import org.jabref.build.JournalAbbreviationConverter
 import org.jabref.build.xjc.XjcPlugin
 import org.jabref.build.xjc.XjcTask
-
 // to update the gradle wrapper, execute
 // ./gradlew wrapper --gradle-version=6.0 --distribution-type=bin
 
@@ -92,6 +90,7 @@ repositories {
     mavenCentral()
     maven { url 'https://oss.sonatype.org/content/groups/public' }
     maven { url 'https://repository.apache.org/snapshots' }
+    maven { url 'https://jitpack.io' }
 }
 
 configurations {
@@ -190,6 +189,9 @@ dependencies {
     implementation ('com.github.tomtung:latex2unicode_2.12:0.2.6') {
         exclude module: 'fastparse_2.12'
     }
+
+    implementation 'com.github.javakeyring.java-keyring:java-keyring:master-SNAPSHOT'
+
 
     implementation group: 'com.microsoft.azure', name: 'applicationinsights-core', version: '2.4.1'
     implementation (group: 'com.microsoft.azure', name: 'applicationinsights-logging-log4j2', version: '2.4.1') {
