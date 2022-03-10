@@ -32,7 +32,8 @@ We chose the same project as for assignment 3, so most of the onboarding for Gra
 |Making tests                                                                               |      |3     |4     |      |2    |
 |Implementing popup password prompt                                                         |8     |      |      |      |     |
 |Implementing Migrate from plaintext to credential manager                                  |      |      |      |4.5   |3    |
-|**Sum**                                                                                    |**21**|**21.5**|**24.5**|**23**|**19.5**|
+|Adding test to Migrate method and fix CI checks                                            |      |      |      |      |3    |
+|**Sum**                                                                                    |**21**|**21.5**|**24.5**|**23**|**22.5**|
 
 
 ## Overview of issue(s) and work done.
